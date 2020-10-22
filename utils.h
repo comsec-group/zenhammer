@@ -1,4 +1,5 @@
-#pragma once
+#ifndef UTILS
+#define UTILS
 
 #include <stdint.h>
 #include <stdio.h>
@@ -107,3 +108,5 @@ char *int_2_bin(uint64_t val);
 char *get_rnd_addr(char *base, size_t m_size, size_t align);
 
 int get_rnd_int(int min, int max);
+
+#endif /* UTILS */
