@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "utils.h"
+#include "patternBuilder.h"
 
 #define ADDR 0x2000000000
 #define DRAMA_ROUNDS 1000
@@ -151,7 +152,8 @@ void mem_values(volatile char* target, bool init, volatile char* start,
         if (*((int*)(target + offset)) != rand_val) {
           for (int c = 0; c < sizeof(int); c++) {
             if (*((char*)(target + offset + c)) != ((char*)&rand_val)[c]) {
-              printf("Flip %p, row %lld, from %x to %x\n", target + offset + c,
+              printf("\033[0;31mFlip %p, row %lld, from %x to %x\033[0m\n",
+                     target + offset + c,
                      get_row_index(target + offset + c, row_function),
                      ((unsigned char*)&rand_val)[c],
                      *(unsigned char*)(target + offset + c));
@@ -557,6 +559,10 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
 }
 
 int main(int argc, char** argv) {
+  PatternBuilder pb;
+  pb
+
+
   volatile char* target;
   std::vector<volatile char*> banks[NUM_BANKS];
   std::vector<uint64_t> bank_rank_functions;
