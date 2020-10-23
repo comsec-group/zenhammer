@@ -1,7 +1,17 @@
-all: build run
+CXX = g++
+CXXFLAGS = -Wall -std=c++11 -g
+DEPS = utils.h
+OBJ = blacksmith.o PatternBuilder.o
 
-build:
-	g++ -o blacksmith blacksmith.cpp patternBuilder.h patternBuilder.cpp utils.h
+%.o: %.c $(DEPS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-run: build
+blacksmith: $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+run: blacksmith
 	sudo ./blacksmith
+
+clean:
+	rm -f *.o blacksmith
+	rm -f *.h.gch
