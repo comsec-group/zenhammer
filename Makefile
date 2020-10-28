@@ -13,10 +13,10 @@ blacksmith: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 run: blacksmith
-	sudo ./blacksmith 1000
+	sudo ./blacksmith
 
 run_eval: blacksmith
-	sudo ./blacksmith 1000000
+	sudo ./blacksmith 10
 
 clean:
 	rm -f *.o blacksmith

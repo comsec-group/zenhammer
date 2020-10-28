@@ -79,7 +79,7 @@ class PatternBuilder {
   //    pi = num_refresh_intervals * duration_full_refresh;
   int get_total_duration_pi(int num_ref_intervals);
 
-  void write_patterns(std::string filename);
+  // void write_patterns(std::string filename);
 };
 
 #endif /* PATTERNBUILDER */

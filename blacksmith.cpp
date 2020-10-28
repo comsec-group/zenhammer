@@ -11,6 +11,7 @@
 #include <cstring>
 #include <vector>
 #include <inttypes.h>
+#include <stdlib.h>
 
 #include "utils.h"
 #include "PatternBuilder.h"
@@ -21,6 +22,8 @@
 #define DRAMA_ROUNDS 1000
 /// size in bytes of a cacheline
 #define CACHELINE_SIZE 64
+/// the number of rounds to hammer
+#define HAMMER_ROUNDS 1000000
 /// threshold to distinguish between cache miss (t > THRESH) 
 /// and cache hit (t < THRESH)
 #define THRESH 430
@@ -38,7 +41,8 @@
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
-static int HAMMER_ROUNDS = 1000000;
+static unsigned long long EXECUTION_ROUNDS = 0;
+static bool EXECUTION_ROUNDS_INFINITE = true;
 
 /// Measures the time between accessing two addresses.
 int measure_time(volatile char *a1, volatile char *a2) {
@@ -442,7 +446,7 @@ void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks,
     bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
   }
 
-  while (true) {
+  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     srand(time(NULL));
 
     // skip the first and last 100MB (just for convenience to avoid hammering 
@@ -568,17 +572,36 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
   return (count / (acts.size() - 10));
 }
 
-int main(int argc, char** argv) {
-  PatternBuilder pb;
-  pb.print_patterns(100, 12);
+void print_metadata() {
+  printf("=== Evaluation Run Metadata ==========\n");
+  fflush(stdout);
+  system("echo \"Git SHA: `git rev-parse --short HEAD`\"\n");
+  printf("ADDR: 0x%lx\n", ADDR);
+  printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
+  printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
+  printf("HAMMER_ROUNDS: %d\n", HAMMER_ROUNDS);
+  printf("NUM_TARGETS: %d\n", NUM_TARGETS);
+  printf("MAX_ROWS: %d\n", MAX_ROWS);
+  printf("NUM_BANKS: %d\n", NUM_BANKS);
+  printf("MEM_SIZE: %d\n", MEM_SIZE);
+  printf("SUPERPAGE: %s\n", SUPERPAGE ? "true" : "false");
+  printf("NOSYNC: %s\n", NOSYNC ? "true" : "false");
+  printf("======================================\n");
+  fflush(stdout);
+}
 
-  // paramter 1 is the number of hammer rounds
+int main(int argc, char** argv) {
+  print_metadata();
+
+  // PatternBuilder pb;
+  // pb.print_patterns(100, 12);
+
+  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison
   if (argc == 2) {
-    HAMMER_ROUNDS=(*argv[1] - '0');
+    EXECUTION_ROUNDS=(*argv[1] - '0');
+    EXECUTION_ROUNDS_INFINITE = false;
   }
 
-
-  // TODO: Makefile target to run evaluation, print on screen and write into file
 
   // TODO: Add metadata file with git commit, current DIMM etc.
 

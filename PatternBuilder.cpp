@@ -125,3 +125,4 @@ void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) 
     //  by printing stats from n_sided_hammer
   }
 }
+
