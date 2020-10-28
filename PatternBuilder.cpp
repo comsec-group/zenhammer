@@ -18,15 +18,13 @@ PatternBuilder::PatternBuilder()
       multiplicator_hammering_pairs(Range(2, 12)),
       multiplicator_nops(Range(1, 22)) {}
 
-int PatternBuilder::getTotalDurationPi(int num_ref_intervals) {
+int PatternBuilder::get_total_duration_pi(int num_ref_intervals) {
   return num_ref_intervals * duration_full_refresh;
 }
 
-// TODO: Fix compile errors
-
 // TODO: Measure how many accesses are possible in a given interval
 
-std::vector<std::string> genRandomPairs(size_t N) {
+std::vector<std::string> gen_random_pairs(size_t N) {
   std::vector<std::string> all_pairs;
   while (all_pairs.size() < N) {
     int i = rand() % 98;
@@ -37,7 +35,7 @@ std::vector<std::string> genRandomPairs(size_t N) {
   return all_pairs;
 }
 
-std::vector<std::string> genRandomAccesses(size_t N) {
+std::vector<std::string> gen_random_accesses(size_t N) {
   std::vector<std::string> all_accesses;
   while (all_accesses.size() < N) {
     int i = rand() % 98;
@@ -49,19 +47,19 @@ std::vector<std::string> genRandomAccesses(size_t N) {
   return all_accesses;
 }
 
-void PatternBuilder::printPatterns(int num_patterns, int accesses_per_pattern) {
+void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) {
   std::cout << "Printing generated patterns..." << std::endl;
 
   std::vector<std::vector<std::string>> patterns(num_patterns,
                                                  std::vector<std::string>());
   for (int i = 0; i < num_patterns; i++) {
-    int H = num_hammering_pairs.getRandomNumber();
+    int H = num_hammering_pairs.get_random_number();
     std::cout << "[+] Selected random params: H = " << H << ", ";
-    int N = num_nops.getRandomNumber();
+    int N = num_nops.get_random_number();
     std::cout << "N = " << N << std::endl;
 
-    std::vector<std::string> Hs = genRandomPairs(H);
-    std::vector<std::string> Ns = genRandomAccesses(N);
+    std::vector<std::string> Hs = gen_random_pairs(H);
+    std::vector<std::string> Ns = gen_random_accesses(N);
     std::cout << "[+] Generated random pairs (#Hs: " << Hs.size()
               << ", #Ns: " << Ns.size() << ")" << std::endl;
 
@@ -76,7 +74,7 @@ void PatternBuilder::printPatterns(int num_patterns, int accesses_per_pattern) {
         std::string pair = *select_randomly(Hs.begin(), Hs.end());
 
         std::stringstream result;
-        int multiplicator = multiplicator_hammering_pairs.getRandomNumber(
+        int multiplicator = multiplicator_hammering_pairs.get_random_number(
             get_remaining_accesses() / 2);
         if (multiplicator == -1) {
           std::cout << "[-] Skipping choice and rolling the dice again."
@@ -97,7 +95,7 @@ void PatternBuilder::printPatterns(int num_patterns, int accesses_per_pattern) {
 
         std::stringstream result;
         int multiplicator =
-            multiplicator_nops.getRandomNumber(get_remaining_accesses());
+            multiplicator_nops.get_random_number(get_remaining_accesses());
         if (multiplicator == -1) {
           std::cout << "[-] Skipping choice and rolling the dice again."
                     << std::endl;
@@ -122,17 +120,6 @@ void PatternBuilder::printPatterns(int num_patterns, int accesses_per_pattern) {
     vts << patterns[i].back();
     std::cout << "[+] Generated pattern (" << accesses_counter << "):\t\t\t\t"
               << vts.str() << std::endl;
-
-    // iterate over all slots in pattern by keeping track of number of
-    // unspecified slots
-    // goal: fill each slot in pattern
-
-    // roll dice and set current slot value based on dice's value:
-    // - a randomly picked nop
-    // - a randomly picked hammering pair
-    //   -> choose multiplier by taking remaining slots into account
-    //      for example, 8 slots remaining => 8/2 = 4 => choose N in range [1,4]
-    //
 
     // TODO: determine how long the pattern should be, i.e., how many accesses
     //  by printing stats from n_sided_hammer

@@ -19,14 +19,11 @@
 #define ADDR 0x2000000000
 /// the number of rounds to be used to measure cache hit/miss latency
 #define DRAMA_ROUNDS 1000
-/// the number of rounds to hammer
-#define HAMMER_ROUNDS 1000000
 /// size in bytes of a cacheline
 #define CACHELINE_SIZE 64
 /// threshold to distinguish between cache miss (t > THRESH) 
 /// and cache hit (t < THRESH)
 #define THRESH 430
-///
 #define NUM_TARGETS 10
 /// the maximum number of aggressor rows
 #define MAX_ROWS 30
@@ -38,6 +35,10 @@
 #define SUPERPAGE 1
 /// do synchronized hammering
 #define NOSYNC 0
+
+/// the number of rounds to hammer
+/// this is controllable via the first (unnamed) program parameter
+static int HAMMER_ROUNDS = 1000000;
 
 /// Measures the time between accessing two addresses.
 int measure_time(volatile char *a1, volatile char *a2) {
@@ -313,7 +314,6 @@ uint64_t test_addr_against_bank(volatile char* addr,
  *  2) single DIMM system (only bank/rank bits)
  *  3) Bank/Rank functions use at most 2 bits
  */
-
 void find_functions(volatile char* target, std::vector<volatile char*>* banks,
                     uint64_t& row_function,
                     std::vector<uint64_t>& bank_rank_functions) {
@@ -569,10 +569,22 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
 }
 
 int main(int argc, char** argv) {
-  // PatternBuilder pb;
-  // pb.printPatterns(100, 12);
+  PatternBuilder pb;
+  pb.print_patterns(100, 12);
 
-  // return 0;
+  // paramter 1 is the number of hammer rounds
+  if (argc == 2) {
+    HAMMER_ROUNDS=(*argv[1] - '0');
+  }
+
+
+  // TODO: Makefile target to run evaluation, print on screen and write into file
+
+  // TODO: Add metadata file with git commit, current DIMM etc.
+
+  // TODO: Add help info
+
+
 
   volatile char* target;
   // create an array of size NUM_BANKS in which each element is a 

@@ -33,11 +33,11 @@ struct Range {
   
   Range(int min, int max) : min(min), max(max) {}
 
-  int getRandomNumber() {
+  int get_random_number() {
     return rand() % (max + 1 - min) + min;
   }
 
-  int getRandomNumber(int max_limit) {
+  int get_random_number(int max_limit) {
     int new_max = (max > max_limit) ? max_limit : max;
     // Check if the resulting range is valid, i.e., min <= max.
     if (new_max < min) {
@@ -73,11 +73,13 @@ class PatternBuilder {
   // default constructor that initializes params with default values
   PatternBuilder();
 
-  void printPatterns(int num_patterns, int accesses_per_pattern);
+  void print_patterns(int num_patterns, int accesses_per_pattern);
 
   // Total duration of hammering period in us, i.e., 
   //    pi = num_refresh_intervals * duration_full_refresh;
-  int getTotalDurationPi(int num_ref_intervals);
+  int get_total_duration_pi(int num_ref_intervals);
+
+  void write_patterns(std::string filename);
 };
 
 #endif /* PATTERNBUILDER */
