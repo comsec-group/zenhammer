@@ -1,23 +1,26 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++11 -g
-DEPS = utils.h
-OBJ = blacksmith.o PatternBuilder.o
+OBJ = blacksmith.o PatternBuilder.o DramAnalyzer.o
+INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
 
 # force that calling 'make' always rebuilds things
 .PHONY: blacksmith
 
-%.o: %.c $(DEPS)
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o: %.c
+	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -c -o $@ $<
 
 blacksmith: $(OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -o $@ $^
 
 run: blacksmith
-	sudo ./blacksmith
+	sudo ./blacksmith 100
 
-run_eval: blacksmith
-	sudo ./blacksmith 10
+benchmark: blacksmith
+	sudo ./blacksmith 100000
 
 clean:
 	rm -f *.o blacksmith
 	rm -f *.h.gch
+
+debug: blacksmith
+	sudo gdb blacksmith
