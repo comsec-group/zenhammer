@@ -61,10 +61,8 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     *d1;
     *d2;
     after = rdtscp();
-    // check if an ACTIVATE was issued
-    if ((after - before) > 1000) {
-      break;
-    }
+    // stop if an ACTIVATE was issued
+    if ((after - before) > 1000) break;
   }
 
   // perform hammering for HAMMER_ROUNDS/ref_rounds times
@@ -244,12 +242,12 @@ void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks, u
     while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
       for (int ba = 0; ba < 4; ba++) {
         pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
+        pb.print_pattern();
+        pb.access_pattern();
+        mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
+                   pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
+        pb.cleanup_pattern();
       }
-      pb.print_pattern();
-      pb.access_pattern();
-      mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
-                 pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
-      pb.cleanup_pattern();
     }
     return;
   }
@@ -454,10 +452,10 @@ int main(int argc, char** argv) {
   find_functions(target, banks, row_function, bank_rank_functions);
 
   // print functions
-  printf("[+] Row function %" PRIu64 ", row increment %" PRIu64 ", and %lu bank/rank functions: ", row_function,
+  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ", row_function,
          get_row_increment(row_function), bank_rank_functions.size());
   for (size_t i = 0; i < bank_rank_functions.size(); i++) {
-    printf("%" PRIu64 " ", bank_rank_functions[i]);
+    printf("0x%" PRIx64 " ", bank_rank_functions[i]);
     if (i == (bank_rank_functions.size() - 1)) printf("\n");
   }
 

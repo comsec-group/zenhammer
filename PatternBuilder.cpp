@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <set>
 
 #include "DramAnalyzer.h"
 #include "GlobalDefines.h"
@@ -121,24 +122,24 @@ void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) 
   }
 }
 
-void PatternBuilder::get_access_pattern() {
-  asmjit::CodeHolder code;      // Holds code and relocation information.
-  code.init(rt.environment());  // Initialize CodeHolder to match JIT environment.
+// void PatternBuilder::get_access_pattern() {
+//   asmjit::CodeHolder code;      // Holds code and relocation information.
+//   code.init(rt.environment());  // Initialize CodeHolder to match JIT environment.
 
-  asmjit::x86::Assembler a(&code);  // Create and attach x86::Assembler to `code`.
-  a.mov(asmjit::x86::eax, 1);       // Move one to 'eax' register.
-  a.ret();                          // Return from function.
-  // ----> x86::Assembler is no longer needed from here and can be destroyed <----
+//   asmjit::x86::Assembler a(&code);  // Create and attach x86::Assembler to `code`.
+//   a.mov(asmjit::x86::eax, 1);       // Move one to 'eax' register.
+//   a.ret();                          // Return from function.
+//   // ----> x86::Assembler is no longer needed from here and can be destroyed <----
 
-  asmjit::Error err = rt.add(&fn, &code);  // Add the generated code to the runtime.
-  if (err) {
-    throw std::runtime_error("[-] Error occurred when trying to jit code. Aborting execution!");
-  }
-  // ----> CodeHolder is no longer needed from here and can be destroyed <----
+//   asmjit::Error err = rt.add(&fn, &code);  // Add the generated code to the runtime.
+//   if (err) {
+//     throw std::runtime_error("[-] Error occurred when trying to jit code. Aborting execution!");
+//   }
+//   // ----> CodeHolder is no longer needed from here and can be destroyed <----
 
-  int result = fn();       // Execute the generated code.
-  printf("%d\n", result);  // Print the resulting "1".
-}
+//   int result = fn();       // Execute the generated code.
+//   printf("%d\n", result);  // Print the resulting "1".
+// }
 
 void PatternBuilder::access_pattern() {
   std::cout << "[+] Hammering... " << std::endl;
@@ -153,63 +154,81 @@ void PatternBuilder::access_pattern() {
   } else {
     printf("[+] Running with activations: %d, #aggressor_pairs: %zu.\n", activations, aggressor_pairs.size());
   }
-  int agg_rounds = ref_rounds;
-  uint64_t before = 0;
-  uint64_t after = 0;
 
-  *d1;
-  *d2;
 
-  // synchronize with the beginning of an interval
-  while (true) {
-    clflushopt(d1);
-    clflushopt(d2);
-    mfence();
-    before = rdtscp();
-    lfence();
-    *d1;
-    *d2;
-    after = rdtscp();
-    // check if an ACTIVATE was issued
-    if ((after - before) > 1000) {
-      break;
-    }
-  }
+  printf("Running jitted code...");
+  fflush(stdout);
+  fn(HAMMER_ROUNDS / ref_rounds);
+  printf(" done!\n");
+  return;
 
-  // perform hammering for HAMMER_ROUNDS/ref_rounds times
-  for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
-    for (int j = 0; j < agg_rounds; j++) {
-      fn();
-      // for (auto& a : aggressor_pairs) {
-      //   *a;
-      // }
-      // for (auto& a : aggressor_pairs) {
-      //   clflushopt(a);
-      // }
-      mfence();
-    }
+  // int agg_rounds = ref_rounds;
+  // uint64_t before = 0;
+  // uint64_t after = 0;
 
-    // after HAMMER_ROUNDS/ref_rounds times hammering, check for next ACTIVATE
-    while (true) {
-      clflushopt(d1);
-      clflushopt(d2);
-      mfence();
-      lfence();
-      before = rdtscp();
-      lfence();
-      *d1;
-      *d2;
-      after = rdtscp();
-      lfence();
-      // stop if an ACTIVATE was issued
-      if ((after - before) > 1000) break;
-    }
-  }
+  // *d1;
+  // *d2;
+
+  // // synchronize with the beginning of an interval
+  // while (true) {
+  //   clflushopt(d1);
+  //   clflushopt(d2);
+  //   mfence();
+  //   before = rdtscp();
+  //   lfence();
+  //   *d1;
+  //   *d2;
+  //   after = rdtscp();
+  //   // check if an ACTIVATE was issued
+  //   if ((after - before) > 1000) {
+  //     break;
+  //   }
+  // }
+
+  // // perform hammering for HAMMER_ROUNDS/ref_rounds times
+  // for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
+  //   for (int j = 0; j < agg_rounds; j++) {
+  //     // fn();
+  //     for (auto& a : aggressor_pairs) {
+  //       *a;
+  //     }
+  //     for (auto& a : aggressor_pairs) {
+  //       clflushopt(a);
+  //     }
+  //     mfence();
+  //   }
+
+  //   // after HAMMER_ROUNDS/ref_rounds times hammering, check for next ACTIVATE
+  //   while (true) {
+  //     clflushopt(d1);
+  //     clflushopt(d2);
+  //     mfence();
+  //     lfence();
+  //     before = rdtscp();
+  //     lfence();
+  //     *d1;
+  //     *d2;
+  //     after = rdtscp();
+  //     lfence();
+  //     // stop if an ACTIVATE was issued
+  //     if ((after - before) > 1000) break;
+  //   }
+  // }
 }
 
 void PatternBuilder::cleanup_pattern() {
   std::cout << "[+] Cleaning up jitted function." << std::endl;
   rt.release(fn);
+}
+
+void PatternBuilder::get_random_indices(int max, size_t num_indices, std::vector<size_t> &indices) {
+  std::set<size_t> nums;
+  while (nums.size() < num_indices) {
+    int candidate = rand() % max;
+    if (nums.count(candidate) > 0) continue;
+    nums.insert(candidate);
+  }
+  indices.insert(indices.end(), nums.begin(), nums.end());
 }
 
 void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
@@ -221,9 +240,9 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
 
   // determine fuzzy parameters randomly
   int N_aggressor_pairs = num_hammering_pairs.get_random_number();  // TODO: Make this random again
-  // N_aggressor_pairs = 13;
+  N_aggressor_pairs = 13;
   int N_nop_addresses = num_nops.get_random_number();  // TODO: Make this random again
-  // N_nop_addresses = 2;
+  N_nop_addresses = 2;
   printf("[+] Selected fuzzing params: #aggressor_pairs = %d, #nop_addrs = %d\n", N_aggressor_pairs, N_nop_addresses);
 
   // const int accesses_per_pattern = 100;  // TODO: make this a parameter
@@ -239,6 +258,7 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
   printf("[+] Using start address: %p\n", cur_start_addr);
   aggressor_pairs.clear();
+  nops.clear();
   int aggressor_rows_size = (rand() % (MAX_ROWS - 3)) + 3;
 
   cur_start_addr = normalize_addr_to_bank(cur_start_addr, bank_rank_masks[ba], bank_rank_functions);
@@ -297,6 +317,8 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   nops.push_back(d2);
   printf("[+] Generated %zu random NOPs accesses.\n", nops.size());
 
+  size_t agg_rounds = activations / aggressor_pairs.size();
+
   // TODO: Generate a known (fix) pattern that is known to be working
   logger = new asmjit::StringLogger;  // Logger should always survive CodeHolder.
   asmjit::CodeHolder code;            // Holds code and relocation information.
@@ -304,19 +326,137 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   code.setLogger(logger);             // Attach the `logger` to `code` holder.
   asmjit::x86::Assembler a(&code);    // Create and attach x86::Assembler to `code`.
 
-  for (size_t i = 0; i < aggressor_pairs.size(); i++) {
-    a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
+  asmjit::Label while1_begin = a.newLabel();
+  asmjit::Label while1_end = a.newLabel();
+  asmjit::Label for1_begin = a.newLabel();
+  asmjit::Label for1_end = a.newLabel();
+  asmjit::Label while2_begin = a.newLabel();
+  asmjit::Label while2_end = a.newLabel();
+
+  // TODO: pass HAMMER_ROUNDS / (acts / aggressors.size()) as first parameter
+  asmjit::x86::Gp intervals;
+  if (ASMJIT_ARCH_BITS == 64) {
+#if defined(_WIN32)
+    fprintf(stderr, "Code jitting not implemented for Windows on x64. Aborting.");
+#else
+    intervals = asmjit::x86::rdi;  // 1st argument: the number of intervals
+#endif
+  } else {
+    fprintf(stderr, "Code jitting not implemented for x86. Aborting.");
+  }
+
+  // here start's the actual program (see hammer_sync for the plaintext version) ------------------------------------
+
+  // Synchronize with the beginning of an interval. The following asmjit code performs exactly the following:
+  //    while (true) {
+  //      clflushopt(d1);
+  //      clflushopt(d2);
+  //      mfence();
+  //      before = rdtscp();
+  //      lfence();
+  //      *d1;
+  //      *d2;
+  //      after = rdtscp();
+  //      if ((after - before) > 1000) break;
+  //    }
+
+  // access two (random) NOPs as part of synchronization  
+  std::vector<size_t> random_indices = {0, 1};
+  for (const auto& idx : random_indices) {
+    a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
     asmjit::x86::Mem m = asmjit::x86::ptr(asmjit::x86::rax);
     a.mov(asmjit::x86::rbx, m);
   }
-  for (size_t i = 0; i < aggressor_pairs.size(); i++) {
-    a.mov(asmjit::x86::rax, aggressor_pairs[i]);
-    asmjit::x86::Gp src = asmjit::x86::rax;
-    asmjit::x86::Mem m = asmjit::x86::ptr(src);
-    a.clflushopt(m);
+
+  // while (true) { ...
+  a.bind(while1_begin);
+  // clflushopt both NOPs
+  for (const auto& idx : random_indices) {
+    a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
+    a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
   }
   a.mfence();
-  a.ret();
+
+  a.rdtscp();  // result of rdtscp is in [edx:eax]
+  // discard upper 32 bits and store lower 32 bits in ebx to compare later
+  a.mov(asmjit::x86::ebx, asmjit::x86::eax);
+
+  a.lfence();
+
+  // access both NOPs once
+  for (const auto& idx : random_indices) {
+    a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
+    a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+  }
+
+  a.rdtscp();  // result: edx:eax
+  // if ((after - before) > 1000) break;
+  a.sub(asmjit::x86::eax, asmjit::x86::ebx);
+  a.cmp(asmjit::x86::eax, (uint64_t)1000);
+  // depending on the cmp's outcome, jump out of loop or to the loop's beginning
+  a.jg(while1_end);
+  a.jmp(while1_begin);
+
+  a.bind(while1_end);
+
+  // ----------
+
+  a.bind(for1_begin);
+
+  // while (intervals) { ... }
+  a.cmp(intervals, 0);
+  a.jz(for1_end);
+  a.dec(intervals);
+
+  for (size_t i = 0; i < agg_rounds; i++) {
+    for (size_t i = 0; i < aggressor_pairs.size(); i++) {
+      a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
+      a.mov(asmjit::x86::rbx, asmjit::x86::ptr(asmjit::x86::rax));
+    }
+    for (size_t i = 0; i < aggressor_pairs.size(); i++) {
+      a.mov(asmjit::x86::rax, aggressor_pairs[i]);
+      a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+    }
+    a.mfence();
+  }
+
+  // while (true) { ...
+  a.bind(while2_begin);
+  // clflushopt both NOPs
+  for (const auto& idx : random_indices) {
+    a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
+    a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+  }
+  a.mfence();
+  a.lfence();
+
+  a.rdtscp();  // result of rdtscp is in [edx:eax]
+  // discard upper 32 bits and store lower 32 bits in ebx to compare later
+  a.mov(asmjit::x86::ebx, asmjit::x86::eax);
+
+  a.lfence();
+
+  // access both NOPs once
+  for (const auto& idx : random_indices) {
+    a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
+    a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+  }
+
+  a.rdtscp();  // result: edx:eax
+  a.lfence();
+  // if ((after - before) > 1000) break;
+  a.sub(asmjit::x86::eax, asmjit::x86::ebx);
+  a.cmp(asmjit::x86::eax, (uint64_t)1000);
+
+  // depending on the cmp's outcome, jump out of loop or to the loop's beginning
+  a.jg(while2_end);
+  a.jmp(while2_begin);
+
+  a.bind(while2_end);
+  a.jmp(for1_begin);
+  
+  a.bind(for1_end);
+  a.ret();  // ! The return statement at the end of the jitted code is ESSENTIAL!
 
   asmjit::Error err = rt.add(&fn, &code);  // Add the generated code to the runtime.
   if (err) {
@@ -324,6 +464,8 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   }
 
   // printf("[D] asmjit logger content:\n%s\n", logger->data());
+  // fflush(stdout);
+  // exit(0);
 
   // // generate pattern and generate jitted code
   // // consider that we need to insert clflush before accessing an address again

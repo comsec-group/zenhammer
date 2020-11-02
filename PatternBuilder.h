@@ -8,7 +8,7 @@
 #include <random>
 
 // Signature of the generated function.
-typedef int (*Func)(void);
+typedef int (*Func)(int);
 
 /// Takes iterators (start, end) and returns a random element.
 /// Taken from https://stackoverflow.com/a/16421677/3017719.
@@ -62,7 +62,9 @@ class PatternBuilder {
  private:
   // runtime designed for JIT code execution
   asmjit::JitRuntime rt;
+  
   Func fn;
+  
 
   // Memory controller issues a REFRESH every 7.8us to ensure that all cells are
   // refreshed within a 64ms interval (= duration_full_refresh).
@@ -103,7 +105,7 @@ class PatternBuilder {
 
   // void write_patterns(std::string filename);
 
-  void get_access_pattern();
+  // void get_access_pattern();
 
   void access_pattern();
 
@@ -114,6 +116,8 @@ class PatternBuilder {
                                u_int64_t row_increment, int num_activations, int ba);
 
   void print_pattern();
+
+  void get_random_indices(int max, size_t num_indices, std::vector<size_t> &indices);
 };
 
 #endif /* PATTERNBUILDER */
