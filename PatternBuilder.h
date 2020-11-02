@@ -42,6 +42,14 @@ struct Range {
     return (min == max) ? min : rand() % (max + 1 - min) + min;
   }
 
+  int get_random_even_number() {
+    int new_max = ((max % 2) == 0) ? max : (max-1);
+    printf("[DEBUG] new_max: %d\n", new_max);
+    int n2 = Range(min, new_max/2).get_random_number()*2;
+    printf("[DEBUG] n2: %d\n", n2);
+    return n2;
+  }
+
   int get_random_number(int max_limit) {
     int new_max = (max > max_limit) ? max_limit : max;
     if (min == new_max) {
