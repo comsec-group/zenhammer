@@ -8,7 +8,7 @@
 #include <random>
 
 // Signature of the generated function.
-typedef int (*Func)(int);
+typedef int (*JittedFunction)(int);
 
 /// Takes iterators (start, end) and returns a random element.
 /// Taken from https://stackoverflow.com/a/16421677/3017719.
@@ -39,13 +39,14 @@ struct Range {
   Range(int min, int max) : min(min), max(max) {}
 
   int get_random_number() {
-    return rand() % (max + 1 - min) + min;
+    return (min == max) ? min : rand() % (max + 1 - min) + min;
   }
 
   int get_random_number(int max_limit) {
     int new_max = (max > max_limit) ? max_limit : max;
-    // Check if the resulting range is valid, i.e., min <= max.
-    if (new_max < min) {
+    if (min == new_max) {
+      return min;
+    } else if (new_max < min) {
       printf("[-] Could not determine random number in malformed range (%d,%d). Skipping choice.\n", min, new_max);
       return -1;
     }
@@ -60,15 +61,14 @@ struct Range {
  */
 class PatternBuilder {
  private:
-  // runtime designed for JIT code execution
+  // runtime for JIT code execution
   asmjit::JitRuntime rt;
-  
-  Func fn;
-  
 
-  // Memory controller issues a REFRESH every 7.8us to ensure that all cells are
-  // refreshed within a 64ms interval (= duration_full_refresh).
-  const int duration_full_refresh = 50;
+  // hammering function that was generated at runtime
+  JittedFunction fn;
+
+  // MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
+  const int duration_full_refresh = 64;
 
   Range num_refresh_intervals;
 
@@ -80,44 +80,30 @@ class PatternBuilder {
 
   Range multiplicator_nops;
 
-  int* alphabeticus;
+  asmjit::StringLogger* logger;
+
+  void get_random_indices(int max, size_t num_indices, std::vector<size_t>& indices);
 
  public:
   std::vector<volatile char*> aggressor_pairs;
 
   std::vector<volatile char*> nops;
 
-  volatile char *d1 = nullptr;
-  volatile char *d2 = nullptr;
-
-  asmjit::StringLogger *logger;
-
-  int activations;
-
   // default constructor that initializes params with default values
   PatternBuilder();
 
   void print_patterns(int num_patterns, int accesses_per_pattern);
 
-  // Total duration of hammering period in us, i.e.,
-  //    pi = num_refresh_intervals * duration_full_refresh;
+  // Total duration of hammering period in us: pi = num_refresh_intervals * duration_full_refresh;
   int get_total_duration_pi(int num_ref_intervals);
 
-  // void write_patterns(std::string filename);
-
-  // void get_access_pattern();
-
-  void access_pattern();
+  void access_pattern(int acts);
 
   void cleanup_pattern();
 
   void generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
                                std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
                                u_int64_t row_increment, int num_activations, int ba);
-
-  void print_pattern();
-
-  void get_random_indices(int max, size_t num_indices, std::vector<size_t> &indices);
 };
 
 #endif /* PATTERNBUILDER */

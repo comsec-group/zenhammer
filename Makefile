@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -std=c++11 -g -rdynamic
+CXXFLAGS = -Wall -std=c++11 -g
 OBJ = blacksmith.o PatternBuilder.o DramAnalyzer.o
 INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
 

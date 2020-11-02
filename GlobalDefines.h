@@ -1,6 +1,16 @@
 #ifndef GLOBAL_DEFINES
 #define GLOBAL_DEFINES
 
+//fonts color
+#define FRED        "\e[0;31m"
+#define FGREEN      "\e[0;32m"
+#define FYELLOW     "\e[0;33m"
+#define FBLUE       "\e[0;34m"
+#define FCYAN       "\e[0;36m"
+
+//end color
+#define NONE        "\e[0m"
+
 /// the starting address of the allocated memory area
 #define ADDR 0x2000000000
 

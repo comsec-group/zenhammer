@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <numeric>
 #include <vector>
 
 #include "DramAnalyzer.h"
@@ -112,9 +113,9 @@ void mem_values(volatile char* target, bool init, volatile char* start, volatile
   }
 
   if (init)
-    printf("[+] Initializing memory with fixed random sequence.\n");
+    printf("[+] Initializing memory with pseudorandom sequence.\n");
   else
-    printf("[+] Checking if any bit flips occurred...\n");
+    printf("[+] Checking if any bit flips occurred.\n");
 
   // for each page in the address space [start, end]
   for (uint64_t i = start_o; i < end_o; i += PAGE_SIZE) {
@@ -223,34 +224,39 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
   return addr;
 }
 
-// Performs n-sided hammering.
-void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks, uint64_t row_function,
-                    std::vector<uint64_t>& bank_rank_functions, int acts) {
+void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
+                             std::vector<uint64_t>& bank_rank_functions, std::vector<uint64_t>* bank_rank_masks, int acts) {
   auto row_increment = get_row_increment(row_function);
 
-  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-  for (size_t i = 0; i < NUM_BANKS; i++) {
-    bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
+  if (!USE_SYNC) {
+    fprintf(stderr, "Fuzzing only supported with synchronized hammering. Aborting.");
+    exit(0);
   }
 
-  if (USE_FUZZING) {
-    if (!USE_SYNC) {
-      fprintf(stderr, "Fuzzing only supported with synchronized hammering. Aborting.");
-      return;
+  PatternBuilder pb;
+  int cur_round = 0;
+  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+    cur_round++;
+    // hammer the first four banks
+    for (int ba = 0; ba < 4; ba++) {
+      // generate a random pattern using fuzzing
+      printf(FGREEN "[+] Running round %d, bank %d" NONE "\n", cur_round, ba);
+      pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
+      // access this pattern synchroniously with the REFRESH command
+      pb.access_pattern(acts);
+      // check if pattern caused any bit flips
+      mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
+                 pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
+      // clean up the code jitting runtime for reuse with the next pattern
+      pb.cleanup_pattern();
     }
-    PatternBuilder pb;
-    while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-      for (int ba = 0; ba < 4; ba++) {
-        pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
-        pb.print_pattern();
-        pb.access_pattern();
-        mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
-                   pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
-        pb.cleanup_pattern();
-      }
-    }
-    return;
   }
+}
+
+// Performs n-sided hammering.
+void n_sided_hammer(volatile char* target, uint64_t row_function,
+                    std::vector<uint64_t>& bank_rank_functions, std::vector<uint64_t>* bank_rank_masks, int acts) {
+  auto row_increment = get_row_increment(row_function);
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     srand(time(NULL));
@@ -265,20 +271,17 @@ void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks, u
 
     // distance of each double-sided aggressor pair
     int d = (rand() % 16);
-    // d = 10;
 
     // hammering first four banks
     for (int ba = 0; ba < 4; ba++) {
       cur_start_addr = normalize_addr_to_bank(cur_start_addr, bank_rank_masks[ba], bank_rank_functions);
       std::vector<volatile char*> aggressors;
       volatile char* cur_next_addr = cur_start_addr;
-
       printf("[+] agg row ");
       for (int i = 1; i < aggressor_rows_size; i += 2) {
         cur_next_addr = normalize_addr_to_bank(cur_next_addr + (d * row_increment),
                                                bank_rank_masks[ba],
                                                bank_rank_functions);
-        // if(i == 1) printf("first %llx\n", cur_next_addr);
         printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
         aggressors.push_back(cur_next_addr);
 
@@ -289,8 +292,7 @@ void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks, u
         aggressors.push_back(cur_next_addr);
       }
 
-      if ((aggressor_rows_size % 2)) {
-        // ? Is this correct: Why don't we use the return value?
+      if ((aggressor_rows_size % 2) != 0) {
         normalize_addr_to_bank(cur_next_addr + (d * row_increment), bank_rank_masks[ba], bank_rank_functions);
         printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
         aggressors.push_back(cur_next_addr);
@@ -333,13 +335,10 @@ void n_sided_hammer(volatile char* target, std::vector<volatile char*>* banks, u
 
 /// Determine the number of activations per refresh interval.
 int count_acts_per_ref(std::vector<volatile char*>* banks) {
-  volatile char* a;
-  volatile char* b;
+  volatile char* a = banks[0].at(0);
+  volatile char* b = banks[0].at(1);
   std::vector<uint64_t> acts;
   uint64_t before, after, count = 0, count_old = 0;
-  a = (banks[0]).at(0);
-  b = (banks[0]).at(1);
-
   *a;
   *b;
 
@@ -400,13 +399,7 @@ int main(int argc, char** argv) {
   // prints the current git commit and the metadata
   print_metadata();
 
-  // PatternBuilder pb;
-  // pb.print_patterns(1000, 32);
-
-  // exit(0);
-
-  // paramter 1 is the number of execution rounds: this is important as we need
-  // a fair comparison
+  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison
   if (argc == 2) {
     char* p;
     errno = 0;
@@ -428,17 +421,16 @@ int main(int argc, char** argv) {
   std::vector<volatile char*> banks[NUM_BANKS];
   std::vector<uint64_t> bank_rank_functions;
   uint64_t row_function;
-  int act;
-  int ret;
+  int act, ret;
 
   // give this process the highest CPU priority
   ret = setpriority(PRIO_PROCESS, 0, -20);
-  if (ret != 0) printf("[-] setpriority failed\n");
+  if (ret != 0) printf("[-] Instruction setpriority failed\n");
 
   // allocate a bulk of memory
   target = allocate_memory();
 
-  // generate address sets that map to the same bank
+  // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
   printf("[+] Found bank conflicts\n");
 
@@ -451,20 +443,32 @@ int main(int argc, char** argv) {
   // determine the row and bank/rank functions
   find_functions(target, banks, row_function, bank_rank_functions);
 
-  // print functions
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ", row_function,
-         get_row_increment(row_function), bank_rank_functions.size());
+  // print row and bank/rank functions
+  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
+         row_function,
+         get_row_increment(row_function),
+         bank_rank_functions.size());
   for (size_t i = 0; i < bank_rank_functions.size(); i++) {
     printf("0x%" PRIx64 " ", bank_rank_functions[i]);
     if (i == (bank_rank_functions.size() - 1)) printf("\n");
   }
 
-  // count the number of activations per refresh interval
+  // count the number of possible activations per refresh interval
   act = count_acts_per_ref(banks);
   printf("[+] %d activations for each refresh interval\n", act);
 
+  // determine bank/rank masks
+  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
+  for (size_t i = 0; i < NUM_BANKS; i++) {
+    bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
+  }
+
   // perform the hammering and check the flipped bits after each round
-  n_sided_hammer(target, banks, row_function, bank_rank_functions, act);
+  if (USE_FUZZING) {
+    n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
+  } else {
+    n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
+  }
 
   return 0;
 }
