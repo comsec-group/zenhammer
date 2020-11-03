@@ -21,15 +21,6 @@ Iter select_randomly(Iter start, Iter end) {
   return start;
 }
 
-/// A wrapper for achieving the same as %02d in printf would do.
-/// Taken from https://stackoverflow.com/a/2839616/3017719.
-struct FormattedNumber {
-  FormattedNumber() {}
-  FormattedNumber(char f, int w) : fill(f), width(w) {}
-  char fill = '0';
-  int width = 2;
-};
-
 struct Range {
   int min;
   int max;

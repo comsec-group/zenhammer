@@ -11,12 +11,6 @@
 #include "GlobalDefines.h"
 #include "utils.h"
 
-std::ostream& operator<<(std::ostream& o, const FormattedNumber& a) {
-  o.fill(a.fill);
-  o.width(a.width);
-  return o;
-}
-
 PatternBuilder::PatternBuilder()
     : num_refresh_intervals(Range(1, 8)),
       num_hammering_pairs(Range(5, 10)),
@@ -50,52 +44,6 @@ std::vector<std::string> gen_random_accesses(size_t N) {
     all_accesses.push_back(ss.str());
   }
   return all_accesses;
-}
-
-void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) {
-  std::cout << "Printing generated patterns..." << std::endl;
-  std::vector<std::vector<std::string>> patterns(num_patterns, std::vector<std::string>());
-  for (int i = 0; i < num_patterns; i++) {
-    int H = num_hammering_pairs.get_random_number();
-    int N = num_nops.get_random_number();
-    printf("[+] Selected random params: H = %d, N = %d\n", H, N);
-    std::vector<std::string> Hs = gen_random_pairs(H);
-    std::vector<std::string> Ns = gen_random_accesses(N);
-    printf("[+] Generated random pairs (#Hs: %zu, #Ns: %zu)", Hs.size(), Ns.size());
-    int accesses_counter = 0;
-    auto get_remaining_accesses = [&]() -> int { return accesses_per_pattern - accesses_counter; };
-    while (accesses_counter < accesses_per_pattern) {
-      auto selection = rand() % 2;
-      if (selection % 2 == 0) {  // use a randomly picked hammering pair
-        std::string pair = *select_randomly(Hs.begin(), Hs.end());
-        std::stringstream result;
-        int multiplicator = multiplicator_hammering_pairs.get_random_number(get_remaining_accesses() / 2);
-        if (multiplicator == -1) {
-          std::cout << "[-] Skipping choice and rolling the dice again." << std::endl;
-          continue;
-        }
-        accesses_counter += 2 * multiplicator;
-        while (multiplicator--) result << pair << " ";
-        patterns[i].push_back(result.str());
-      } else if (selection % 2 == 1) {  // use a randomly picked nop
-        std::string pair = *select_randomly(Ns.begin(), Ns.end());
-        std::stringstream result;
-        int multiplicator = multiplicator_nops.get_random_number(get_remaining_accesses());
-        if (multiplicator == -1) {
-          std::cout << "[-] Skipping choice and rolling the dice again." << std::endl;
-          continue;
-        }
-        accesses_counter += multiplicator;
-        while (multiplicator--) result << pair << " ";
-        patterns[i].push_back(result.str());
-      }
-    }
-    // print the recently generated pattern
-    std::ostringstream vts;
-    std::copy(patterns[i].begin(), patterns[i].end() - 1, std::ostream_iterator<std::string>(vts, ""));
-    vts << patterns[i].back();
-    std::cout << "[+] Generated pattern (" << accesses_counter << "):\t\t\t\t" << vts.str() << std::endl;
-  }
 }
 
 void PatternBuilder::access_pattern(int acts) {
