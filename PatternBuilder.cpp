@@ -12,7 +12,8 @@
 #include "GlobalDefines.h"
 #include "utils.h"
 
-PatternBuilder::PatternBuilder(int num_activations) : num_activations(num_activations) {
+PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
+    : num_activations(num_activations), target_addr(target_address) {
   randomize_parameters();
 }
 
@@ -31,6 +32,8 @@ void PatternBuilder::randomize_parameters() {
   auto hammer_rounds = Range(850000, 1150000).get_random_number();
   num_refresh_intervals = hammer_rounds / agg_rounds;
 
+  random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
+
   printf("num_hammering_pairs: %d, ", num_hammering_pairs);
   printf("multiplicator_hammering_pairs: %d, ", multiplicator_hammering_pairs);
   printf("agg_inter_distance: %d, ", agg_inter_distance);
@@ -41,9 +44,9 @@ void PatternBuilder::randomize_parameters() {
   printf(NONE "\n");
 }
 
-int PatternBuilder::get_total_duration_pi(int num_ref_intervals) { return num_ref_intervals * duration_full_refresh; }
-
-// TODO: Measure how many accesses are possible in a given interval
+int PatternBuilder::get_total_duration_pi(int num_ref_intervals) {
+  return num_ref_intervals * duration_full_refresh;
+}
 
 void PatternBuilder::access_pattern() {
   printf("[+] Hammering using jitted code...\n");
@@ -88,18 +91,6 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
   asmjit::Label for1_end = a.newLabel();
   asmjit::Label while2_begin = a.newLabel();
   asmjit::Label while2_end = a.newLabel();
-
-  asmjit::x86::Gp dur;
-  asmjit::x86::Gp intervals;
-  if (ASMJIT_ARCH_BITS == 64) {
-#if defined(_WIN32)
-    intervals = x86::rcx;
-#else
-    intervals = asmjit::x86::rdi;  // 1st argument: the number of intervals
-#endif
-  } else {
-    fprintf(stderr, "Code jitting not implemented for x86. Aborting.");
-  }
 
   // ==== here start's the actual program ====================================================
   // The following JIT instructions are based on hammer_sync in blacksmith.cpp, git commit 624a6492.
@@ -148,14 +139,13 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
 
   // ------- part 2: perform hammering and then check for next ACTIVATE ---------------------------
 
-  a.mov(asmjit::x86::rsi, hammering_intervals);
+  a.mov(asmjit::x86::rsi, hammering_intervals);  // loop counter
 
-  // instead of "HAMMER_ROUNDS / ref_rounds" we use "intervals" which is an input parameter to this jitted function
+  // instead of "HAMMER_ROUNDS / ref_rounds" we use "hammering_intervals" which does the same but randomizes the
+  // HAMMER_ROUNDS parameter
   a.bind(for1_begin);
-  // a.cmp(intervals, 0);
   a.cmp(asmjit::x86::rsi, 0);
   a.jz(for1_end);
-  // a.dec(intervals);
   a.dec(asmjit::x86::rsi);
 
   // as agg_rounds is typically a relatively low number, we do not encode the loop in ASM but instead
@@ -209,8 +199,7 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
   a.jmp(for1_begin);
 
   a.bind(for1_end);
-  // ! This RET statement at the end is ESSENTIAL otherwise execution of jitted code creates segfault
-  a.ret();
+  a.ret();  // this is ESSENTIAL otherwise execution of jitted code creates segfault
 
   // add the generated code to the runtime.
   asmjit::Error err = rt.add(&fn, &code);
@@ -221,9 +210,8 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
 }
 
 std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_pattern(
-    volatile char* target, std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
+    std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
     u_int64_t row_function, u_int64_t row_increment, int num_activations, int bank_no) {
-  
   // === utility functions ===========
   // a wrapper around normalize_addr_to_bank that eliminates the need to pass the two last parameters
   auto normalize_address = [&](volatile char* address) {
@@ -239,6 +227,9 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
     }
     return cur_next_addr;
   };
+  // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int {
+  //    return accesses_per_pattern - num_cur_accesses;
+  // };
   // ==================================
 
   // sanity check
@@ -246,21 +237,10 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
     fprintf(stderr, "[-] Cannot generate new pattern without prior cleanup. Call cleanup_and_rerandomize before.\n");
     exit(1);
   }
-
   printf("[+] Generating a random hammering pattern.\n");
 
-  // const int accesses_per_pattern = 100;  // TODO: make this a parameter
-  // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int { return accesses_per_pattern - num_cur_accesses; };
-  auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
-
   // TODO: build sets of aggressors
-  std::unordered_set<volatile char*> aggressors;
-  printf("[+] Start address: %p\n", cur_start_addr);
-  aggressor_pairs.clear();
-  nops.clear();
-
-  cur_start_addr = normalize_address(cur_start_addr);
-  volatile char* cur_next_addr = cur_start_addr;
+  volatile char* cur_next_addr = normalize_address(random_start_address);
   printf("[+] Agg rows: ");
   for (int i = 0; i < num_hammering_pairs; i++) {
     cur_next_addr = get_address(cur_next_addr, {agg_inter_distance, agg_intra_distance}, aggressor_pairs);

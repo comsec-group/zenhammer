@@ -233,7 +233,7 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
     exit(0);
   }
 
-  PatternBuilder pb(acts);
+  PatternBuilder pb(acts, target);
   int cur_round = 0;
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
@@ -242,7 +242,7 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
     for (int bank_no = 0; bank_no < 4; bank_no++) {
       // generate a random pattern using fuzzing
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, bank_no);
-      auto agg_addresses = pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function,
+      auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
                                                       row_increment, acts, bank_no);
       // access this pattern synchroniously with the REFRESH command
       // TODO: Remove this parameter "acts" from acccess patterns and instead integrate into fuzzer
@@ -411,7 +411,7 @@ int main(int argc, char** argv) {
     unsigned long long conv = strtoull(argv[1], &p, 10);
     // check for errors
     if (errno != 0 || *p != '\0' || conv > ULONG_LONG_MAX) {
-      printf("[-] Given program parameter (EXECUTION_ROUNDS) is invalid! Aborting.\n");
+      printf(FRED "[-] Given program parameter (EXECUTION_ROUNDS) is invalid! Aborting." NONE "\n");
       return -1;
     }
     EXECUTION_ROUNDS = conv;
@@ -430,7 +430,7 @@ int main(int argc, char** argv) {
 
   // give this process the highest CPU priority
   ret = setpriority(PRIO_PROCESS, 0, -20);
-  if (ret != 0) printf("[-] Instruction setpriority failed\n");
+  if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
   // allocate a bulk of memory
   target = allocate_memory();
@@ -453,7 +453,7 @@ int main(int argc, char** argv) {
          get_row_increment(row_function),
          bank_rank_functions.size());
   if (bank_rank_functions.size() > 10) {
-    fprintf(stderr, "More than 10 bank/rank functions detected – that looks wrong. Please restart program.");
+    fprintf(stderr, FRED "[-] More than 10 bank/rank functions detected – that looks wrong. Please restart program." NONE "\n");
     exit(1);
   }
 

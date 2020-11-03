@@ -11,17 +11,6 @@
 // Signature of the generated function.
 typedef int (*JittedFunction)(void);
 
-/// Takes iterators (start, end) and returns a random element.
-/// Taken from https://stackoverflow.com/a/16421677/3017719.
-template <typename Iter>
-Iter select_randomly(Iter start, Iter end) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  std::uniform_int_distribution<> dis(0, std::distance(start, end) - 1);
-  std::advance(start, dis(gen));
-  return start;
-}
-
 struct Range {
   int min;
   int max;
@@ -82,7 +71,15 @@ class PatternBuilder {
 
   int agg_rounds;
 
+  volatile char* target_addr;
+
+  volatile char* random_start_address;
+
   asmjit::StringLogger* logger;
+
+  std::vector<volatile char*> aggressor_pairs;
+
+  std::vector<volatile char*> nops;
 
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
@@ -91,22 +88,19 @@ class PatternBuilder {
   void randomize_parameters();
 
  public:
-  std::vector<volatile char*> aggressor_pairs;
-
-  std::vector<volatile char*> nops;
-
-  /// default constructor that initializes ranges with default values
-  PatternBuilder(int num_activations);
+  /// default constructor that randomizes fuzzing parameters
+  PatternBuilder(int num_activations, volatile char* target_address);
 
   // Total duration of hammering period in us: pi = num_refresh_intervals * duration_full_refresh;
   int get_total_duration_pi(int num_ref_intervals);
 
+  // access the pattern that was previously created by calling generate_random_pattern
   void access_pattern();
 
   void cleanup_and_rerandomize();
 
   std::pair<volatile char*, volatile char*>
-  generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
+  generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
                           std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
                           u_int64_t row_increment, int num_activations, int ba);
 };
