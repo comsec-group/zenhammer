@@ -137,7 +137,7 @@ void mem_values(volatile char* target, bool init, volatile char* start, volatile
         if (*((int*)(target + offset)) != rand_val) {
           for (unsigned long c = 0; c < sizeof(int); c++) {
             if (*((char*)(target + offset + c)) != ((char*)&rand_val)[c]) {
-              printf("\033[0;31m[!] Flip %p, row %lu, from %x to %x\033[0m\n", target + offset + c,
+              printf(FRED "[!] Flip %p, row %lu, from %x to %x" NONE "\n", target + offset + c,
                      get_row_index(target + offset + c, row_function), ((unsigned char*)&rand_val)[c],
                      *(unsigned char*)(target + offset + c));
             }
@@ -238,15 +238,19 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     cur_round++;
     // hammer the first four banks
-    for (int ba = 0; ba < 4; ba++) {
+    for (int bank_no = 0; bank_no < 4; bank_no++) {
       // generate a random pattern using fuzzing
-      printf(FGREEN "[+] Running round %d, bank %d" NONE "\n", cur_round, ba);
-      pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
+      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, bank_no);
+      auto agg_addresses = pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function,
+                                                      row_increment, acts, bank_no);
       // access this pattern synchroniously with the REFRESH command
+      // TODO: Remove this parameter "acts" from acccess patterns and instead integrate into fuzzer
       pb.access_pattern(acts);
-      // check if pattern caused any bit flips
-      mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
-                 pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
+      // check if any bit flips occurred while hammering
+      mem_values(target, false,
+                 agg_addresses.first - (row_increment * 100),
+                 agg_addresses.second + (row_increment * 120),
+                 row_function);
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup_pattern();
     }
@@ -434,7 +438,6 @@ int main(int argc, char** argv) {
   find_bank_conflicts(target, banks);
   printf("[+] Found bank conflicts\n");
 
-  //
   for (size_t i = 0; i < NUM_BANKS; i++) {
     find_targets(target, banks[i], NUM_TARGETS);
   }
@@ -448,6 +451,11 @@ int main(int argc, char** argv) {
          row_function,
          get_row_increment(row_function),
          bank_rank_functions.size());
+  if (bank_rank_functions.size() > 10) {
+    fprintf(stderr, "More than 10 bank/rank functions detected – that looks wrong. Please restart program.");
+    exit(1);
+  }
+
   for (size_t i = 0; i < bank_rank_functions.size(); i++) {
     printf("0x%" PRIx64 " ", bank_rank_functions[i]);
     if (i == (bank_rank_functions.size() - 1)) printf("\n");

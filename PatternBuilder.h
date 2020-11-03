@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iterator>
 #include <random>
+#include <utility>
 
 // Signature of the generated function.
 typedef int (*JittedFunction)(int);
@@ -35,9 +36,7 @@ struct Range {
 
   int get_random_even_number() {
     int new_max = ((max % 2) == 0) ? max : (max - 1);
-    printf("[DEBUG] new_max: %d\n", new_max);
     int n2 = Range(min, new_max / 2).get_random_number() * 2;
-    printf("[DEBUG] n2: %d\n", n2);
     return n2;
   }
 
@@ -46,27 +45,23 @@ struct Range {
     if (min == new_max) {
       return min;
     } else if (new_max < min) {
-      printf("[-] Could not determine random number in malformed range (%d,%d). Skipping choice.\n", min, new_max);
-      return -1;
+      printf("[-] Could not determine random number in malformed range (%d,%d). Exiting.\n", min, new_max);
+      exit(1);
+    } else {
+      return rand() % (new_max + 1 - min) + min;
     }
-    return rand() % (new_max + 1 - min) + min;
   }
 };
 
-/**
- * @brief
- * Generates hammering patterns by taking the following parameters into account
- *
- */
 class PatternBuilder {
  private:
-  // runtime for JIT code execution
+  /// runtime for JIT code execution
   asmjit::JitRuntime rt;
 
-  // hammering function that was generated at runtime
+  /// hammering function that was generated at runtime
   JittedFunction fn;
 
-  // MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
+  /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
   const int duration_full_refresh = 64;
 
   Range num_refresh_intervals;
@@ -79,19 +74,23 @@ class PatternBuilder {
 
   Range multiplicator_nops;
 
+  Range agg_inter_distance;
+
+  Range agg_intra_distance;
+
   asmjit::StringLogger* logger;
 
-  void get_random_indices(int max, size_t num_indices, std::vector<size_t>& indices);
+  void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
+
+  void jit_hammering_code(size_t agg_rounds);
 
  public:
   std::vector<volatile char*> aggressor_pairs;
 
   std::vector<volatile char*> nops;
 
-  // default constructor that initializes params with default values
+  /// default constructor that initializes ranges with default values
   PatternBuilder();
-
-  void print_patterns(int num_patterns, int accesses_per_pattern);
 
   // Total duration of hammering period in us: pi = num_refresh_intervals * duration_full_refresh;
   int get_total_duration_pi(int num_ref_intervals);
@@ -100,11 +99,10 @@ class PatternBuilder {
 
   void cleanup_pattern();
 
-  void generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
-                               std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
-                               u_int64_t row_increment, int num_activations, int ba);
-
-  void jit_hammering_code(size_t agg_rounds);
+  std::pair<volatile char*, volatile char*>
+  generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
+                          std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
+                          u_int64_t row_increment, int num_activations, int ba);
 };
 
 #endif /* PATTERNBUILDER */
