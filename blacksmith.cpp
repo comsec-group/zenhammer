@@ -137,7 +137,7 @@ void mem_values(volatile char* target, bool init, volatile char* start, volatile
         if (*((int*)(target + offset)) != rand_val) {
           for (unsigned long c = 0; c < sizeof(int); c++) {
             if (*((char*)(target + offset + c)) != ((char*)&rand_val)[c]) {
-              printf(FRED "[!] Flip %p, row %lu, from %x to %x" NONE "\n", target + offset + c,
+              printf("\033[0;31m[!] Flip %p, row %lu, from %x to %x\033[0m\n", target + offset + c,
                      get_row_index(target + offset + c, row_function), ((unsigned char*)&rand_val)[c],
                      *(unsigned char*)(target + offset + c));
             }
@@ -237,17 +237,16 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
   int cur_round = 0;
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     cur_round++;
-    // TODO: Move this bank no. (ba) parameter into the PatternBuilder
     // hammer the first four banks
     for (int ba = 0; ba < 4; ba++) {
       // generate a random pattern using fuzzing
-      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, ba);
-      auto agg_addresses = pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
+      printf(FGREEN "[+] Running round %d, bank %d" NONE "\n", cur_round, ba);
+      pb.generate_random_pattern(target, bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, ba);
       // access this pattern synchroniously with the REFRESH command
       pb.access_pattern(acts);
       // check if pattern caused any bit flips
-      mem_values(target, false, agg_addresses.first - (row_increment * 100),
-                 agg_addresses.second + (row_increment * 120), row_function);
+      mem_values(target, false, pb.aggressor_pairs[0] - (row_increment * 100),
+                 pb.aggressor_pairs[pb.aggressor_pairs.size() - 1] + (row_increment * 120), row_function);
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup_pattern();
     }
