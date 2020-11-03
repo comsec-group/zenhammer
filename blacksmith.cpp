@@ -62,7 +62,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     *d1;
     *d2;
     after = rdtscp();
-    // stop if an ACTIVATE was issued
+    // stop if an REFRESH was issued
     if ((after - before) > 1000) break;
   }
 
@@ -78,7 +78,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
       mfence();
     }
 
-    // after HAMMER_ROUNDS/ref_rounds times hammering, check for next ACTIVATE
+    // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
     while (true) {
       clflushopt(d1);
       clflushopt(d2);
@@ -90,7 +90,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
       *d2;
       after = rdtscp();
       lfence();
-      // stop if an ACTIVATE was issued
+      // stop if an REFRESH was issued
       if ((after - before) > 1000) break;
     }
   }
@@ -244,8 +244,7 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, bank_no);
       auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
                                                       row_increment, acts, bank_no);
-      // access this pattern synchroniously with the REFRESH command
-      // TODO: Remove this parameter "acts" from acccess patterns and instead integrate into fuzzer
+      // access this pattern synchronously with the REFRESH command
       pb.access_pattern();
       // check if any bit flips occurred while hammering
       mem_values(target, false,
