@@ -9,7 +9,7 @@
 #include <utility>
 
 // Signature of the generated function.
-typedef int (*JittedFunction)(int);
+typedef int (*JittedFunction)(void);
 
 /// Takes iterators (start, end) and returns a random element.
 /// Taken from https://stackoverflow.com/a/16421677/3017719.
@@ -64,25 +64,31 @@ class PatternBuilder {
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
   const int duration_full_refresh = 64;
 
-  Range num_refresh_intervals;
+  int num_refresh_intervals;
 
-  Range num_hammering_pairs;
+  int num_hammering_pairs;
 
-  Range num_nops;
+  int num_nops;
 
-  Range multiplicator_hammering_pairs;
+  int multiplicator_hammering_pairs;
 
-  Range multiplicator_nops;
+  int multiplicator_nops;
 
-  Range agg_inter_distance;
+  int agg_inter_distance;
 
-  Range agg_intra_distance;
+  int agg_intra_distance;
+
+  int num_activations;
+
+  int agg_rounds;
 
   asmjit::StringLogger* logger;
 
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
-  void jit_hammering_code(size_t agg_rounds);
+  void jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals);
+
+  void randomize_parameters();
 
  public:
   std::vector<volatile char*> aggressor_pairs;
@@ -90,14 +96,14 @@ class PatternBuilder {
   std::vector<volatile char*> nops;
 
   /// default constructor that initializes ranges with default values
-  PatternBuilder();
+  PatternBuilder(int num_activations);
 
   // Total duration of hammering period in us: pi = num_refresh_intervals * duration_full_refresh;
   int get_total_duration_pi(int num_ref_intervals);
 
-  void access_pattern(int acts);
+  void access_pattern();
 
-  void cleanup_pattern();
+  void cleanup_and_rerandomize();
 
   std::pair<volatile char*, volatile char*>
   generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],

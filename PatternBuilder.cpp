@@ -1,6 +1,7 @@
 #include "PatternBuilder.h"
 
 #include <iomanip>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -11,39 +12,53 @@
 #include "GlobalDefines.h"
 #include "utils.h"
 
-PatternBuilder::PatternBuilder()
-    : num_refresh_intervals(Range(1, 8)),
-      num_hammering_pairs(Range(5, 10)),
-      // must always be >=2 because we use two NOPs for hammering synchronization
-      num_nops(Range(2, 2)),
-      multiplicator_hammering_pairs(Range(2, 12)),
-      multiplicator_nops(Range(1, 22)),
-      agg_inter_distance(Range(1, 16)),
-      agg_intra_distance(Range(2, 2)) {
+PatternBuilder::PatternBuilder(int num_activations) : num_activations(num_activations) {
+  randomize_parameters();
+}
+
+void PatternBuilder::randomize_parameters() {
+  printf(FCYAN "[+] Generating new set of random parameters: ");
+  num_hammering_pairs = Range(5, 10).get_random_even_number();
+  multiplicator_hammering_pairs = Range(2, 12).get_random_number();
+  agg_inter_distance = Range(1, 16).get_random_number();
+  agg_intra_distance = Range(2, 2).get_random_number();
+
+  // must always be >=2 because we use two NOPs for hammering synchronization
+  num_nops = Range(2, 2).get_random_number();
+  multiplicator_nops = Range(1, 22).get_random_number();
+
+  agg_rounds = num_activations / (num_hammering_pairs * 2);
+  auto hammer_rounds = Range(850000, 1150000).get_random_number();
+  num_refresh_intervals = hammer_rounds / agg_rounds;
+
+  printf("num_hammering_pairs: %d, ", num_hammering_pairs);
+  printf("multiplicator_hammering_pairs: %d, ", multiplicator_hammering_pairs);
+  printf("agg_inter_distance: %d, ", agg_inter_distance);
+  printf("agg_intra_distance: %d, ", agg_intra_distance);
+  printf("num_nops: %d, ", num_nops);
+  printf("multiplicator_nops: %d, ", multiplicator_nops);
+  printf("num_refresh_intervals: %d", num_refresh_intervals);
+  printf(NONE "\n");
 }
 
 int PatternBuilder::get_total_duration_pi(int num_ref_intervals) { return num_ref_intervals * duration_full_refresh; }
 
 // TODO: Measure how many accesses are possible in a given interval
 
-void PatternBuilder::access_pattern(int acts) {
-  int ref_rounds = acts / aggressor_pairs.size();
-  if (ref_rounds == 0) {
-    printf("[-] Aborting because computed ref_rounds = 0 (activations per interval: %d, #aggressors: %zu).\n", acts, aggressor_pairs.size());
-    exit(1);
-  }
-  printf("[+] Hammering using jitted code (activations per interval: %d, #aggressors: %zu)\n", acts, aggressor_pairs.size());
-  fn(HAMMER_ROUNDS / ref_rounds);
+void PatternBuilder::access_pattern() {
+  printf("[+] Hammering using jitted code...\n");
+  fn();
 }
 
-void PatternBuilder::cleanup_pattern() {
+void PatternBuilder::cleanup_and_rerandomize() {
   rt.release(fn);
+  randomize_parameters();
 }
 
 void PatternBuilder::get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices) {
   // use all numbers in range (0, ..., num_indices-1 = max) if there is only this one possibility
   indices.resize(num_indices);
-  if (max == (num_indices-1)) {
+  if (max == (num_indices - 1)) {
     std::iota(indices.begin(), indices.end(), 0);
     return;
   }
@@ -58,7 +73,7 @@ void PatternBuilder::get_random_indices(size_t max, size_t num_indices, std::vec
   indices.insert(indices.end(), nums.begin(), nums.end());
 }
 
-void PatternBuilder::jit_hammering_code(size_t agg_rounds) {
+void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals) {
   logger = new asmjit::StringLogger;
   asmjit::CodeHolder code;
   code.init(rt.environment());
@@ -72,6 +87,7 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds) {
   asmjit::Label while2_begin = a.newLabel();
   asmjit::Label while2_end = a.newLabel();
 
+  asmjit::x86::Gp dur;
   asmjit::x86::Gp intervals;
   if (ASMJIT_ARCH_BITS == 64) {
 #if defined(_WIN32)
@@ -130,11 +146,15 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds) {
 
   // ------- part 2: perform hammering and then check for next ACTIVATE ---------------------------
 
+  a.mov(asmjit::x86::rsi, hammering_intervals);
+
   // instead of "HAMMER_ROUNDS / ref_rounds" we use "intervals" which is an input parameter to this jitted function
   a.bind(for1_begin);
-  a.cmp(intervals, 0);
+  // a.cmp(intervals, 0);
+  a.cmp(asmjit::x86::rsi, 0);
   a.jz(for1_end);
-  a.dec(intervals);
+  // a.dec(intervals);
+  a.dec(asmjit::x86::rsi);
 
   // as agg_rounds is typically a relatively low number, we do not encode the loop in ASM but instead
   // unroll the instructions to avoid the additional jump the loop would cause
@@ -201,11 +221,13 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds) {
 std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_pattern(
     volatile char* target, std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
     u_int64_t row_function, u_int64_t row_increment, int num_activations, int bank_no) {
+  
   // === utility functions ===========
   // a wrapper around normalize_addr_to_bank that eliminates the need to pass the two last parameters
   auto normalize_address = [&](volatile char* address) {
     return normalize_addr_to_bank(address, bank_rank_masks[bank_no], bank_rank_functions);
   };
+  // a wrapper for the logic required to get an address to hammer (or dummy)
   auto get_address = [&](volatile char* cur_next_addr, std::vector<int> offsets,
                          std::vector<volatile char*>& addresses) -> volatile char* {
     for (const auto& val : offsets) {
@@ -217,21 +239,14 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
   };
   // ==================================
 
-  std::cout << "[+] Generating a random hammering pattern." << std::endl;
+  printf("[+] Generating a random hammering pattern.\n");
 
+  // TODO: move agg_rounds and start_addr into fuzzing params
   // determine parameters
-  // –- fuzzing parameters
-  int N_aggressor_pairs = num_hammering_pairs.get_random_even_number();
-  int N_nop_addresses = num_nops.get_random_number();
-  int d = agg_inter_distance.get_random_number();  // inter-distance between aggressor pairs
-  int v = agg_intra_distance.get_random_number();  // intra-distance between aggressors
-  printf("[+] Selected fuzzing params: #aggressor_pairs = %d, #nop_addrs = %d\n", N_aggressor_pairs, N_nop_addresses);
-  size_t agg_rounds = num_activations / N_aggressor_pairs;
-  // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
-  auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
-
+  
   // const int accesses_per_pattern = 100;  // TODO: make this a parameter
   // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int { return accesses_per_pattern - num_cur_accesses; };
+  auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
 
   // TODO: build sets of aggressors
   std::unordered_set<volatile char*> aggressors;
@@ -242,22 +257,22 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
   cur_start_addr = normalize_address(cur_start_addr);
   volatile char* cur_next_addr = cur_start_addr;
   printf("[+] Agg rows: ");
-  for (int i = 0; i < N_aggressor_pairs; i++) {
-    cur_next_addr = get_address(cur_next_addr, {d, v}, aggressor_pairs);
+  for (int i = 0; i < num_hammering_pairs; i++) {
+    cur_next_addr = get_address(cur_next_addr, {agg_inter_distance, agg_intra_distance}, aggressor_pairs);
   }
   printf("\n");
 
   // TODO: build sets of NOPs
-  std::vector<int> nop_offsets = {100, v};
+  std::vector<int> nop_offsets = {100, agg_intra_distance};
   printf("[+] NOP rows: ");
-  for (int i = 0; i < N_nop_addresses; i++) {
+  for (int i = 0; i < num_nops; i++) {
     cur_next_addr = get_address(cur_next_addr, {nop_offsets.at(i % nop_offsets.size())}, nops);
   }
   printf("\n");
 
   // TODO: Add fuzzing logic (from bottom) that determines which of the addresses in aggressors and NOPs are accessed
 
-  jit_hammering_code(agg_rounds);
+  jit_hammering_code(agg_rounds, num_refresh_intervals);
 
   return std::make_pair(aggressor_pairs.front(), aggressor_pairs.back());
 

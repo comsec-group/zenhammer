@@ -66,7 +66,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     if ((after - before) > 1000) break;
   }
 
-  // perform hammering for HAMMER_ROUNDS/ref_rounds times
+  // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
     for (int j = 0; j < agg_rounds; j++) {
       for (auto& a : aggressors) {
@@ -233,8 +233,9 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
     exit(0);
   }
 
-  PatternBuilder pb;
+  PatternBuilder pb(acts);
   int cur_round = 0;
+
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     cur_round++;
     // hammer the first four banks
@@ -245,14 +246,14 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
                                                       row_increment, acts, bank_no);
       // access this pattern synchroniously with the REFRESH command
       // TODO: Remove this parameter "acts" from acccess patterns and instead integrate into fuzzer
-      pb.access_pattern(acts);
+      pb.access_pattern();
       // check if any bit flips occurred while hammering
       mem_values(target, false,
                  agg_addresses.first - (row_increment * 100),
                  agg_addresses.second + (row_increment * 120),
                  row_function);
       // clean up the code jitting runtime for reuse with the next pattern
-      pb.cleanup_pattern();
+      pb.cleanup_and_rerandomize();
     }
   }
 }
