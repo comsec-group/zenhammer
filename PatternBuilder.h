@@ -43,9 +43,9 @@ struct Range {
   }
 
   int get_random_even_number() {
-    int new_max = ((max % 2) == 0) ? max : (max-1);
+    int new_max = ((max % 2) == 0) ? max : (max - 1);
     printf("[DEBUG] new_max: %d\n", new_max);
-    int n2 = Range(min, new_max/2).get_random_number()*2;
+    int n2 = Range(min, new_max / 2).get_random_number() * 2;
     printf("[DEBUG] n2: %d\n", n2);
     return n2;
   }
@@ -112,6 +112,8 @@ class PatternBuilder {
   void generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
                                std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
                                u_int64_t row_increment, int num_activations, int ba);
+
+  void jit_hammering_code(size_t agg_rounds);
 };
 
 #endif /* PATTERNBUILDER */

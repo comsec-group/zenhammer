@@ -54,26 +54,20 @@ std::vector<std::string> gen_random_accesses(size_t N) {
 
 void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) {
   std::cout << "Printing generated patterns..." << std::endl;
-
   std::vector<std::vector<std::string>> patterns(num_patterns, std::vector<std::string>());
   for (int i = 0; i < num_patterns; i++) {
     int H = num_hammering_pairs.get_random_number();
-    std::cout << "[+] Selected random params: H = " << H << ", ";
     int N = num_nops.get_random_number();
-    std::cout << "N = " << N << std::endl;
-
+    printf("[+] Selected random params: H = %d, N = %d\n", H, N);
     std::vector<std::string> Hs = gen_random_pairs(H);
     std::vector<std::string> Ns = gen_random_accesses(N);
-    std::cout << "[+] Generated random pairs (#Hs: " << Hs.size() << ", #Ns: " << Ns.size() << ")" << std::endl;
-
+    printf("[+] Generated random pairs (#Hs: %zu, #Ns: %zu)", Hs.size(), Ns.size());
     int accesses_counter = 0;
     auto get_remaining_accesses = [&]() -> int { return accesses_per_pattern - accesses_counter; };
     while (accesses_counter < accesses_per_pattern) {
       auto selection = rand() % 2;
-      if (selection % 2 == 0) {
-        // use a randomly picked hammering pair
+      if (selection % 2 == 0) {  // use a randomly picked hammering pair
         std::string pair = *select_randomly(Hs.begin(), Hs.end());
-
         std::stringstream result;
         int multiplicator = multiplicator_hammering_pairs.get_random_number(get_remaining_accesses() / 2);
         if (multiplicator == -1) {
@@ -81,17 +75,10 @@ void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) 
           continue;
         }
         accesses_counter += 2 * multiplicator;
-        while (multiplicator--) {
-          result << pair;
-          result << " ";
-        }
-        // result.seekp(-1, std::ios_base::end);
-        // result << "|";
+        while (multiplicator--) result << pair << " ";
         patterns[i].push_back(result.str());
-      } else if (selection % 2 == 1) {
-        // use a randomly picked nop
+      } else if (selection % 2 == 1) {  // use a randomly picked nop
         std::string pair = *select_randomly(Ns.begin(), Ns.end());
-
         std::stringstream result;
         int multiplicator = multiplicator_nops.get_random_number(get_remaining_accesses());
         if (multiplicator == -1) {
@@ -99,24 +86,15 @@ void PatternBuilder::print_patterns(int num_patterns, int accesses_per_pattern) 
           continue;
         }
         accesses_counter += multiplicator;
-        while (multiplicator--) {
-          result << pair;
-          result << " ";
-        }
-        // result << "|";
-        // result.seekp(-1, std::ios_base::end);
+        while (multiplicator--) result << pair << " ";
         patterns[i].push_back(result.str());
       }
     }
-
     // print the recently generated pattern
     std::ostringstream vts;
-    // Convert all but the last element to avoid a trailing ","
     std::copy(patterns[i].begin(), patterns[i].end() - 1, std::ostream_iterator<std::string>(vts, ""));
     vts << patterns[i].back();
     std::cout << "[+] Generated pattern (" << accesses_counter << "):\t\t\t\t" << vts.str() << std::endl;
-
-    // TODO: determine how long the pattern should be, i.e., how many accesses
   }
 }
 
@@ -144,89 +122,12 @@ void PatternBuilder::get_random_indices(int max, size_t num_indices, std::vector
   indices.insert(indices.end(), nums.begin(), nums.end());
 }
 
-void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
-                                             std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
-                                             u_int64_t row_increment, int num_activations, int ba) {
-  // === utility functions ===========
-  // a wrapper around normalize_addr_to_bank that eliminates the need to pass the two last parameters
-  auto normalize_address = [&](volatile char* address) {
-    return normalize_addr_to_bank(address, bank_rank_masks[ba], bank_rank_functions);
-  };
-  auto get_aggressor_pair = [&](volatile char* cur_next_addr, std::vector<int> offsets) -> volatile char* {
-    for (const auto& val : offsets) {
-      cur_next_addr = normalize_address(cur_next_addr + (val * row_increment));
-      printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
-      aggressor_pairs.push_back(cur_next_addr);
-    }
-    return cur_next_addr;
-  };
-  // ==================================
-  
-  std::cout << "[+] Generating a random hammering pattern." << std::endl;
-
-  // determine parameters
-  // –- fuzzing parameters
-  int N_aggressor_pairs = num_hammering_pairs.get_random_even_number();
-  int N_nop_addresses = num_nops.get_random_number();
-  printf("[+] Selected fuzzing params: #aggressor_pairs = %d, #nop_addrs = %d\n", N_aggressor_pairs, N_nop_addresses);
-  // –- other parameters
-  int d = (rand() % 16);  // inter-distance between aggressor pairs
-  int v = 2;              // intra-distance between aggressors
-
-  // const int accesses_per_pattern = 100;  // TODO: make this a parameter
-  // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int { return accesses_per_pattern - num_cur_accesses; };
-
-  // build sets of aggressors
-  std::unordered_set<volatile char*> aggressors;
-  // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
-  auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
-  printf("[+] Start address: %p\n", cur_start_addr);
-  aggressor_pairs.clear();
-  nops.clear();
-
-  cur_start_addr = normalize_address(cur_start_addr);
-  volatile char* cur_next_addr = cur_start_addr;
-  printf("[+] Agg rows: ");
-  for (int i = 0; i < N_aggressor_pairs; i++) {
-    cur_next_addr = get_aggressor_pair(cur_next_addr, {d, v});
-  }
-  printf("\n");
-
-  // build sets of NOPs
-  printf("[+] NOP rows: ");
-  // for (int i = 0; nops.size() < (unsigned long)N_nop_addresses; i++) {
-  //   cur_next_addr = normalize_addr_to_bank(cur_next_addr + (100 * row_increment),
-  //                                          bank_rank_masks[ba],
-  //                                          bank_rank_functions);
-  //   printf("    %" PRIu64 " (%p)\n", get_row_index(cur_next_addr, row_function), cur_next_addr);
-  //   // make sure that NOP access is not an aggressor
-  //   if (aggressors.count(cur_next_addr) == 0) {
-  //     printf("[+] d row %" PRIu64 "\n", get_row_index(d1, row_function));
-  //     nops.push_back(cur_next_addr);
-  //     if (d1 == nullptr)
-  //       d1 = cur_next_addr;
-  //     else if (d2 == nullptr)
-  //       d2 = cur_next_addr;
-  //     printf("d1: %p, d2: %p\n", d1, d2);
-  //   }
-  // }
-  cur_next_addr = normalize_address(cur_next_addr + (100 * row_increment));
-  nops.push_back(cur_next_addr);
-  printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
-  cur_next_addr = normalize_address(cur_next_addr + (v * row_increment));
-  nops.push_back(cur_next_addr);
-  printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
-  printf("\n");
-
-  size_t agg_rounds = num_activations / aggressor_pairs.size();
-
-  // TODO: Move this jitting into a separate function
-
-  logger = new asmjit::StringLogger;  // Logger should always survive CodeHolder.
-  asmjit::CodeHolder code;            // Holds code and relocation information.
-  code.init(rt.environment());        // Initialize CodeHolder to match JIT environment.
-  code.setLogger(logger);             // Attach the `logger` to `code` holder.
-  asmjit::x86::Assembler a(&code);    // Create and attach x86::Assembler to `code`.
+void PatternBuilder::jit_hammering_code(size_t agg_rounds) {
+  logger = new asmjit::StringLogger;
+  asmjit::CodeHolder code;
+  code.init(rt.environment());
+  code.setLogger(logger);
+  asmjit::x86::Assembler a(&code);
 
   asmjit::Label while1_begin = a.newLabel();
   asmjit::Label while1_end = a.newLabel();
@@ -246,20 +147,10 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
     fprintf(stderr, "Code jitting not implemented for x86. Aborting.");
   }
 
-  // here start's the actual program (see hammer_sync for the plaintext version) ------------------------------------
+  // ==== here start's the actual program ====================================================
+  // The following JIT instructions are based on hammer_sync in blacksmith.cpp, git commit 624a6492.
 
-  // Synchronize with the beginning of an interval. The following asmjit code performs exactly the following:
-  //    while (true) {
-  //      clflushopt(d1);
-  //      clflushopt(d2);
-  //      mfence();
-  //      before = rdtscp();
-  //      lfence();
-  //      *d1;
-  //      *d2;
-  //      after = rdtscp();
-  //      if ((after - before) > 1000) break;
-  //    }
+  // ------- part 1: synchronize with the beginning of an interval ---------------------------
 
   // access two (random) NOPs as part of synchronization
   std::vector<size_t> random_indices = {0, 1};
@@ -279,10 +170,9 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   a.mfence();
 
   a.rdtscp();  // result of rdtscp is in [edx:eax]
+  a.lfence();
   // discard upper 32 bits and store lower 32 bits in ebx to compare later
   a.mov(asmjit::x86::ebx, asmjit::x86::eax);
-
-  a.lfence();
 
   // access both NOPs once
   for (const auto& idx : random_indices) {
@@ -300,15 +190,18 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
 
   a.bind(while1_end);
 
-  // ----------
+  // ------- part 2: perform hammering and then check for next ACTIVATE ---------------------------
 
+  // instead of "HAMMER_ROUNDS / ref_rounds" we use "intervals" which is an input parameter to this jitted function
   a.bind(for1_begin);
-
-  // while (intervals) { ... }
   a.cmp(intervals, 0);
   a.jz(for1_end);
   a.dec(intervals);
 
+  // as agg_rounds is typically a relatively low number, we do not encode the loop in ASM but instead
+  // unroll the instructions to avoid the additional jump the loop would cause
+
+  // hammering loop: for (int j = 0; j < agg_rounds; j++) { ... }
   for (size_t i = 0; i < agg_rounds; i++) {
     for (size_t i = 0; i < aggressor_pairs.size(); i++) {
       a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
@@ -321,7 +214,7 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
     a.mfence();
   }
 
-  // while (true) { ...
+  // loop for synchronization after hammering: while (true) { ... }
   a.bind(while2_begin);
   // clflushopt both NOPs
   for (const auto& idx : random_indices) {
@@ -334,7 +227,6 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   a.rdtscp();  // result of rdtscp is in [edx:eax]
   // discard upper 32 bits and store lower 32 bits in ebx to compare later
   a.mov(asmjit::x86::ebx, asmjit::x86::eax);
-
   a.lfence();
 
   // access both NOPs once
@@ -357,13 +249,78 @@ void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<
   a.jmp(for1_begin);
 
   a.bind(for1_end);
-  a.ret();  // ! This return statement at the end of the jitted code is ESSENTIAL!
+  // ! This RET statement at the end is ESSENTIAL otherwise execution of jitted code creates segfault
+  a.ret();
 
-  asmjit::Error err = rt.add(&fn, &code);  // Add the generated code to the runtime.
+  // add the generated code to the runtime.
+  asmjit::Error err = rt.add(&fn, &code);
   if (err) throw std::runtime_error("[-] Error occurred when trying to jit code. Aborting execution!");
 
   // uncomment the following line to see the jitted ASM code
-  // printf("[D] asmjit logger content:\n%s\n", logger->data());
+  // printf("[DEBUG] asmjit logger content:\n%s\n", logger->data());
+}
+
+void PatternBuilder::generate_random_pattern(volatile char* target, std::vector<uint64_t> bank_rank_masks[],
+                                             std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
+                                             u_int64_t row_increment, int num_activations, int ba) {
+  // === utility functions ===========
+  // a wrapper around normalize_addr_to_bank that eliminates the need to pass the two last parameters
+  auto normalize_address = [&](volatile char* address) {
+    return normalize_addr_to_bank(address, bank_rank_masks[ba], bank_rank_functions);
+  };
+  auto get_address = [&](volatile char* cur_next_addr, std::vector<int> offsets,
+                         std::vector<volatile char*>& addresses) -> volatile char* {
+    for (const auto& val : offsets) {
+      cur_next_addr = normalize_address(cur_next_addr + (val * row_increment));
+      printf("%" PRIu64 " ", get_row_index(cur_next_addr, row_function));
+      addresses.push_back(cur_next_addr);
+    }
+    return cur_next_addr;
+  };
+  // ==================================
+
+  std::cout << "[+] Generating a random hammering pattern." << std::endl;
+
+  // determine parameters
+  // –- fuzzing parameters
+  int N_aggressor_pairs = num_hammering_pairs.get_random_even_number();
+  int N_nop_addresses = num_nops.get_random_number();
+  printf("[+] Selected fuzzing params: #aggressor_pairs = %d, #nop_addrs = %d\n", N_aggressor_pairs, N_nop_addresses);
+  // –- other parameters
+  int d = (rand() % 16);  // inter-distance between aggressor pairs
+  int v = 2;              // intra-distance between aggressors
+  size_t agg_rounds = num_activations / N_aggressor_pairs;
+  // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
+  auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
+
+  // const int accesses_per_pattern = 100;  // TODO: make this a parameter
+  // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int { return accesses_per_pattern - num_cur_accesses; };
+
+  // TODO: build sets of aggressors
+  std::unordered_set<volatile char*> aggressors;
+  printf("[+] Start address: %p\n", cur_start_addr);
+  aggressor_pairs.clear();
+  nops.clear();
+
+  cur_start_addr = normalize_address(cur_start_addr);
+  volatile char* cur_next_addr = cur_start_addr;
+  printf("[+] Agg rows: ");
+  for (int i = 0; i < N_aggressor_pairs; i++) {
+    cur_next_addr = get_address(cur_next_addr, {d, v}, aggressor_pairs);
+  }
+  printf("\n");
+
+  // TODO: build sets of NOPs
+  std::vector<int> nop_offsets = {100, v};
+  printf("[+] NOP rows: ");
+  for (int i = 0; i < N_nop_addresses; i++) {
+    cur_next_addr = get_address(cur_next_addr, {nop_offsets.at(i%nop_offsets.size())}, nops);
+  }
+  printf("\n");
+
+  // TODO: Add fuzzing logic (from bottom) that determines which of the addresses in aggressors and NOPs are accessed
+
+  jit_hammering_code(agg_rounds);
 
   // // generate pattern and generate jitted code
   // // consider that we need to insert clflush before accessing an address again
