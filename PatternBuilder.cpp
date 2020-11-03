@@ -52,6 +52,8 @@ void PatternBuilder::access_pattern() {
 
 void PatternBuilder::cleanup_and_rerandomize() {
   rt.release(fn);
+  aggressor_pairs.clear();
+  nops.clear();
   randomize_parameters();
 }
 
@@ -239,11 +241,14 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
   };
   // ==================================
 
+  // sanity check
+  if (aggressor_pairs.size() > 0 || nops.size() > 0) {
+    fprintf(stderr, "[-] Cannot generate new pattern without prior cleanup. Call cleanup_and_rerandomize before.\n");
+    exit(1);
+  }
+
   printf("[+] Generating a random hammering pattern.\n");
 
-  // TODO: move agg_rounds and start_addr into fuzzing params
-  // determine parameters
-  
   // const int accesses_per_pattern = 100;  // TODO: make this a parameter
   // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int { return accesses_per_pattern - num_cur_accesses; };
   auto cur_start_addr = target + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
