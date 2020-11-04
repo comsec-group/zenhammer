@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "GlobalDefines.h"
@@ -76,41 +77,52 @@ uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
  */
 void find_functions(volatile char* target, std::vector<volatile char*>* banks, uint64_t& row_function,
                     std::vector<uint64_t>& bank_rank_functions) {
-  int max_bits;
-  row_function = 0;
-  max_bits = (USE_SUPERPAGE) ? 30 : 21;
+  size_t num_expected_fns = std::log2(NUM_BANKS);
+  int num_tries = 0;
+  do {
+    int max_bits;
+    row_function = 0;
+    max_bits = (USE_SUPERPAGE) ? 30 : 21;
 
-  for (int ba = 6; ba < NUM_BANKS; ba++) {
-    auto addr = banks[ba].at(0);
+    for (int ba = 6; ba < NUM_BANKS; ba++) {
+      auto addr = banks[ba].at(0);
 
-    for (int b = 6; b < max_bits; b++) {
-      // flip the bit at position b in the given address
-      auto test_addr = (volatile char*)((uint64_t)addr ^ BIT_SET(b));
-      auto time = test_addr_against_bank(test_addr, banks[ba]);
-
-      if (time > THRESH) {
-        if (b > 13) {
-          row_function = row_function | BIT_SET(b);
-        }
-      } else {
-        // it is possible that flipping this bit changes the function
-        for (int tb = 6; tb < b; tb++) {
-          auto test_addr2 = (volatile char*)((uint64_t)test_addr ^ BIT_SET(tb));
-          time = test_addr_against_bank(test_addr2, banks[ba]);
-          if (time > THRESH) {
-            if (b > 13) {
-              row_function = row_function | BIT_SET(b);
-            }
-            uint64_t new_function = 0;
-            new_function = BIT_SET(b) | BIT_SET(tb);
-            auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
-            if (iter == bank_rank_functions.end()) {
-              bank_rank_functions.push_back(new_function);
+      for (int b = 6; b < max_bits; b++) {
+        // flip the bit at position b in the given address
+        auto test_addr = (volatile char*)((uint64_t)addr ^ BIT_SET(b));
+        auto time = test_addr_against_bank(test_addr, banks[ba]);
+        if (time > THRESH) {
+          if (b > 13) {
+            row_function = row_function | BIT_SET(b);
+          }
+        } else {
+          // it is possible that flipping this bit changes the function
+          for (int tb = 6; tb < b; tb++) {
+            auto test_addr2 = (volatile char*)((uint64_t)test_addr ^ BIT_SET(tb));
+            time = test_addr_against_bank(test_addr2, banks[ba]);
+            if (time > THRESH) {
+              if (b > 13) {
+                row_function = row_function | BIT_SET(b);
+              }
+              uint64_t new_function = 0;
+              new_function = BIT_SET(b) | BIT_SET(tb);
+              auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
+              if (iter == bank_rank_functions.end()) {
+                bank_rank_functions.push_back(new_function);
+              }
             }
           }
         }
       }
     }
+    num_tries++;
+  } while (num_tries < 10 && bank_rank_functions.size() != num_expected_fns);
+  if (num_tries == 10) {
+    fprintf(stderr,
+            FRED "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
+            "Giving up after %d tries. Exiting." NONE,
+            bank_rank_functions.size(), NUM_BANKS, num_expected_fns, num_tries);
+    exit(1);
   }
 }
 

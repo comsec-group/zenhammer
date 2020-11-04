@@ -14,6 +14,7 @@
 #include <cstring>
 #include <numeric>
 #include <vector>
+#include <unordered_set>
 
 #include "DramAnalyzer.h"
 #include "GlobalDefines.h"
@@ -90,7 +91,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
       *d2;
       after = rdtscp();
       lfence();
-      // stop if an REFRESH was issued
+      // stop if a REFRESH was issued
       if ((after - before) > 1000) break;
     }
   }
@@ -190,16 +191,22 @@ volatile char* allocate_memory() {
 
 /// Determine exactly 'size' target addresses in given bank.
 void find_targets(volatile char* target, std::vector<volatile char*>& target_bank, size_t size) {
+  // create an unordered set of the addresses in the target bank for a quick lookup
+  std::unordered_set<volatile char*> tmp(target_bank.begin(), target_bank.end());
+  size_t num_repetitions = 4;
   srand(time(0));
-  while (target_bank.size() < size) {
+  while (tmp.size() < size) {
     auto a1 = target + (rand() % (MEM_SIZE / 64)) * 64;
-    auto look = std::find(target_bank.begin(), target_bank.end(), a1);
-    if (look != target_bank.end()) continue;
+    if (tmp.count(a1) > 0) continue;
     uint64_t cumulative_times = 0;
-    for (const auto& addr : target_bank) {
-      cumulative_times += measure_time(a1, addr);
+    for (size_t i = 0; i < num_repetitions; i++) {
+      for (const auto& addr : tmp) {
+        cumulative_times += measure_time(a1, addr);
+      }
     }
-    if ((cumulative_times / (target_bank.size())) > THRESH) {
+    cumulative_times /= num_repetitions;
+    if ((cumulative_times / tmp.size()) > THRESH) {
+      tmp.insert(a1);
       target_bank.push_back(a1);
     }
   }
@@ -339,14 +346,25 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
 
 /// Determine the number of activations per refresh interval.
 int count_acts_per_ref(std::vector<volatile char*>* banks) {
+  size_t skip_first_N = 50;
   volatile char* a = banks[0].at(0);
   volatile char* b = banks[0].at(1);
   std::vector<uint64_t> acts;
+  uint64_t running_sum = 0;
   uint64_t before, after, count = 0, count_old = 0;
   *a;
   *b;
 
-  while (true) {
+  auto compute_std = [](std::vector<uint64_t>& values, uint64_t running_sum, int num_numbers) {
+    int mean = running_sum / num_numbers;
+    uint64_t var = 0;
+    for (const auto& num : values) {
+      var += std::pow(num - mean, 2);
+    }
+    return std::sqrt(var / num_numbers);
+  };
+
+  for (size_t i = 0;; i++) {
     clflushopt(a);
     clflushopt(b);
     mfence();
@@ -357,20 +375,18 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
     after = rdtscp();
     count++;
     if ((after - before) > 1000) {
-      if (count_old != 0) {
-        acts.push_back((count - count_old) * 2);
-        // stop if we collected 50 data points
-        if (acts.size() > 50) break;
+      if (i > skip_first_N && count_old != 0) {
+        uint64_t value = (count - count_old) * 2;
+        acts.push_back(value);
+        running_sum += value;
+        // check after each 200 data points if our standard deviation reached 0 -> then stop collecting measurements
+        if ((acts.size() % 200) == 0 && compute_std(acts, running_sum, acts.size()) == 0) break;
       }
       count_old = count;
     }
   }
 
-  count = 0;
-  for (size_t i = 10; i < acts.size(); i++) {
-    count += acts[i];
-  }
-  return (count / (acts.size() - 10));
+  return (running_sum / acts.size());
 }
 
 /// Prints metadata about this evaluation run.
@@ -403,7 +419,8 @@ int main(int argc, char** argv) {
   // prints the current git commit and the metadata
   print_metadata();
 
-  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison
+  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
+  // each DIMM to find patterns and for hammering)
   if (argc == 2) {
     char* p;
     errno = 0;
@@ -416,8 +433,6 @@ int main(int argc, char** argv) {
     EXECUTION_ROUNDS = conv;
     EXECUTION_ROUNDS_INFINITE = false;
   }
-
-  // TODO: Add help info on how to run this tool (sudo) and supported args
 
   volatile char* target;
   // create an array of size NUM_BANKS in which each element is a
@@ -445,17 +460,8 @@ int main(int argc, char** argv) {
 
   // determine the row and bank/rank functions
   find_functions(target, banks, row_function, bank_rank_functions);
-
-  // print row and bank/rank functions
   printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function,
-         get_row_increment(row_function),
-         bank_rank_functions.size());
-  if (bank_rank_functions.size() > 10) {
-    fprintf(stderr, FRED "[-] More than 10 bank/rank functions detected – that looks wrong. Please restart program." NONE "\n");
-    exit(1);
-  }
-
+         row_function, get_row_increment(row_function), bank_rank_functions.size());
   for (size_t i = 0; i < bank_rank_functions.size(); i++) {
     printf("0x%" PRIx64 " ", bank_rank_functions[i]);
     if (i == (bank_rank_functions.size() - 1)) printf("\n");
@@ -463,7 +469,7 @@ int main(int argc, char** argv) {
 
   // count the number of possible activations per refresh interval
   act = count_acts_per_ref(banks);
-  printf("[+] %d activations for each refresh interval\n", act);
+  printf("[+] %d activations per refresh interval\n", act);
 
   // determine bank/rank masks
   std::vector<uint64_t> bank_rank_masks[NUM_BANKS];

@@ -234,7 +234,9 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
 
   // sanity check
   if (aggressor_pairs.size() > 0 || nops.size() > 0) {
-    fprintf(stderr, "[-] Cannot generate new pattern without prior cleanup. Call cleanup_and_rerandomize before.\n");
+    fprintf(stderr,
+            "[-] Cannot generate new pattern without prior cleanup. "
+            "Call cleanup_and_rerandomize before requesting new pattern.\n");
     exit(1);
   }
   printf("[+] Generating a random hammering pattern.\n");
