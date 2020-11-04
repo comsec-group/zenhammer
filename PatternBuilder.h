@@ -95,7 +95,7 @@ class PatternBuilder {
   int get_total_duration_pi(int num_ref_intervals);
 
   // access the pattern that was previously created by calling generate_random_pattern
-  void access_pattern();
+  bool hammer_and_improve_params();
 
   void cleanup_and_rerandomize();
 

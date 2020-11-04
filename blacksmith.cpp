@@ -13,8 +13,8 @@
 #include <atomic>
 #include <cstring>
 #include <numeric>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 #include "DramAnalyzer.h"
 #include "GlobalDefines.h"
@@ -232,32 +232,39 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
 }
 
 void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
-                             std::vector<uint64_t>& bank_rank_functions, std::vector<uint64_t>* bank_rank_masks, int acts) {
-  auto row_increment = get_row_increment(row_function);
-
+                             std::vector<uint64_t>& bank_rank_functions,
+                             std::vector<uint64_t>* bank_rank_masks,
+                             int acts) {
   if (!USE_SYNC) {
     fprintf(stderr, "Fuzzing only supported with synchronized hammering. Aborting.");
     exit(0);
   }
 
   PatternBuilder pb(acts, target);
-  int cur_round = 0;
 
+  int exec_round = 0;
+  auto row_increment = get_row_increment(row_function);
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-    cur_round++;
     // hammer the first four banks
     for (int bank_no = 0; bank_no < 4; bank_no++) {
+      bool parameter_optimal = false;
       // generate a random pattern using fuzzing
-      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, bank_no);
+      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
       auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
                                                       row_increment, acts, bank_no);
-      // access this pattern synchronously with the REFRESH command
-      pb.access_pattern();
-      // check if any bit flips occurred while hammering
-      mem_values(target, false,
-                 agg_addresses.first - (row_increment * 100),
-                 agg_addresses.second + (row_increment * 120),
-                 row_function);
+      printf("[+] Entering hammering and pattern optimization feedback loop.\n");
+      int opt_round = 0;
+      do {
+        // access this pattern synchronously with the REFRESH command
+        parameter_optimal = pb.hammer_and_improve_params();
+        // check if any bit flips occurred while hammering
+        mem_values(target, false,
+                   agg_addresses.first - (row_increment * 100),
+                   agg_addresses.second + (row_increment * 120),
+                   row_function);
+        opt_round++;
+      } while (opt_round < 5);
+      printf("[+] Required %d iterations to improve hammering pattern.\n", opt_round);
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup_and_rerandomize();
     }

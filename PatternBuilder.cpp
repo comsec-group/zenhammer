@@ -19,7 +19,7 @@ PatternBuilder::PatternBuilder(int num_activations, volatile char* target_addres
 
 void PatternBuilder::randomize_parameters() {
   printf(FCYAN "[+] Generating new set of random parameters: ");
-  num_hammering_pairs = Range(5, 10).get_random_even_number();
+  num_hammering_pairs = Range(10, 10).get_random_even_number();
   multiplicator_hammering_pairs = Range(2, 12).get_random_number();
   agg_inter_distance = Range(1, 16).get_random_number();
   agg_intra_distance = Range(2, 2).get_random_number();
@@ -48,9 +48,17 @@ int PatternBuilder::get_total_duration_pi(int num_ref_intervals) {
   return num_ref_intervals * duration_full_refresh;
 }
 
-void PatternBuilder::access_pattern() {
+bool PatternBuilder::hammer_and_improve_params() {
   printf("[+] Hammering using jitted code...\n");
-  fn();
+  int num_total_acts_trailing_sync = fn();
+  printf("avg #acts: %d\n", num_total_acts_trailing_sync / num_refresh_intervals);
+  if (num_total_acts_trailing_sync > 10) {
+    rt.release(fn);
+    printf("[+] Removing one aggressor (now: %zu) and rebuilding pattern.\n", aggressor_pairs.size());
+    aggressor_pairs.pop_back();
+    jit_hammering_code(agg_rounds, num_refresh_intervals);
+  }
+  return true;  // TODO
 }
 
 void PatternBuilder::cleanup_and_rerandomize() {
@@ -140,6 +148,7 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
   // ------- part 2: perform hammering and then check for next ACTIVATE ---------------------------
 
   a.mov(asmjit::x86::rsi, hammering_intervals);  // loop counter
+  a.mov(asmjit::x86::edx, 0);
 
   // instead of "HAMMER_ROUNDS / ref_rounds" we use "hammering_intervals" which does the same but randomizes the
   // HAMMER_ROUNDS parameter
@@ -174,19 +183,24 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
   a.mfence();
   a.lfence();
 
+  a.push(asmjit::x86::edx);
   a.rdtscp();  // result of rdtscp is in [edx:eax]
   // discard upper 32 bits and store lower 32 bits in ebx to compare later
   a.mov(asmjit::x86::ebx, asmjit::x86::eax);
   a.lfence();
+  a.pop(asmjit::x86::edx);
 
   // access both NOPs once
   for (const auto& idx : random_indices) {
     a.mov(asmjit::x86::rax, (uint64_t)nops[idx]);
-    a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+    a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+    a.inc(asmjit::x86::edx);
   }
 
+  a.push(asmjit::x86::edx);
   a.rdtscp();  // result: edx:eax
   a.lfence();
+  a.pop(asmjit::x86::edx);
   // if ((after - before) > 1000) break;
   a.sub(asmjit::x86::eax, asmjit::x86::ebx);
   a.cmp(asmjit::x86::eax, (uint64_t)1000);
@@ -199,6 +213,8 @@ void PatternBuilder::jit_hammering_code(size_t agg_rounds, uint64_t hammering_in
   a.jmp(for1_begin);
 
   a.bind(for1_end);
+
+  a.mov(asmjit::x86::eax, asmjit::x86::edx);
   a.ret();  // this is ESSENTIAL otherwise execution of jitted code creates segfault
 
   // add the generated code to the runtime.
@@ -227,16 +243,13 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
     }
     return cur_next_addr;
   };
-  // auto get_remaining_accesses = [&](size_t num_cur_accesses) -> int {
-  //    return accesses_per_pattern - num_cur_accesses;
-  // };
   // ==================================
 
   // sanity check
   if (aggressor_pairs.size() > 0 || nops.size() > 0) {
     fprintf(stderr,
             "[-] Cannot generate new pattern without prior cleanup. "
-            "Call cleanup_and_rerandomize before requesting new pattern.\n");
+            "Call cleanup_and_rerandomize before requesting a new pattern.\n");
     exit(1);
   }
   printf("[+] Generating a random hammering pattern.\n");
