@@ -79,10 +79,12 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
                     std::vector<uint64_t>& bank_rank_functions) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
   int num_tries = 0;
+  const int max_num_tries = 5;
+  
   do {
-    int max_bits;
+    bank_rank_functions.clear();
+    int max_bits = (USE_SUPERPAGE) ? 30 : 21;
     row_function = 0;
-    max_bits = (USE_SUPERPAGE) ? 30 : 21;
 
     for (int ba = 6; ba < NUM_BANKS; ba++) {
       auto addr = banks[ba].at(0);
@@ -116,11 +118,13 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
       }
     }
     num_tries++;
-  } while (num_tries < 10 && bank_rank_functions.size() != num_expected_fns);
-  if (num_tries == 10) {
+  } while (num_tries < max_num_tries&& bank_rank_functions.size() != num_expected_fns);
+
+  // we cannot continue if we couldn't determine valid bank/rank functions
+  if (num_tries == max_num_tries) {
     fprintf(stderr,
             FRED "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
-            "Giving up after %d tries. Exiting." NONE,
+            "Giving up after %d tries. Exiting.\n" NONE,
             bank_rank_functions.size(), NUM_BANKS, num_expected_fns, num_tries);
     exit(1);
   }
