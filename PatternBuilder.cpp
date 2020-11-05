@@ -18,47 +18,71 @@ PatternBuilder::PatternBuilder(int num_activations, volatile char* target_addres
 }
 
 void PatternBuilder::randomize_parameters() {
+  // STATIC FUZZING PARAMETERS
+  // those parameters are only randomly selected when calling randomize_parameters
   printf(FCYAN "[+] Generating new set of random parameters: ");
-  num_hammering_pairs = Range(10, 10).get_random_even_number();
-  multiplicator_hammering_pairs = Range(2, 12).get_random_number();
+  num_hammering_pairs = Range(3, 26).get_random_number();
   agg_inter_distance = Range(1, 16).get_random_number();
   agg_intra_distance = Range(2, 2).get_random_number();
 
   // must always be >=2 because we use two NOPs for hammering synchronization
   num_nops = Range(2, 2).get_random_number();
-  multiplicator_nops = Range(1, 22).get_random_number();
 
   agg_rounds = num_activations / (num_hammering_pairs * 2);
   auto hammer_rounds = Range(850000, 1150000).get_random_number();
-  num_refresh_intervals = hammer_rounds / agg_rounds;
+  // num_refresh_intervals = hammer_rounds / agg_rounds;
+  num_refresh_intervals = Range(75, 80).get_random_number();
 
   random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
 
   printf("num_hammering_pairs: %d, ", num_hammering_pairs);
-  printf("multiplicator_hammering_pairs: %d, ", multiplicator_hammering_pairs);
   printf("agg_inter_distance: %d, ", agg_inter_distance);
   printf("agg_intra_distance: %d, ", agg_intra_distance);
   printf("num_nops: %d, ", num_nops);
-  printf("multiplicator_nops: %d, ", multiplicator_nops);
   printf("num_refresh_intervals: %d", num_refresh_intervals);
   printf(NONE "\n");
+
+  // DYNAMIC FUZZING PARAMETERS
+  // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
+  multiplicator_hammering_pairs = Range(4, 12);
+  multiplicator_nops = Range(1, 4);
 }
 
 int PatternBuilder::get_total_duration_pi(int num_ref_intervals) {
   return num_ref_intervals * duration_full_refresh;
 }
 
-bool PatternBuilder::hammer_and_improve_params() {
+/// This method hammers using a randomly generated pattern and then counts the number of NOP accesses that were required
+/// until the next REFRESH. This number is then minimized by iteratively removing accesses, or phrased differently,
+/// by reducing the length of the pattern such that it perfectly fits into a REFRESH interval.
+void PatternBuilder::hammer_and_improve_params() {
   printf("[+] Hammering using jitted code...\n");
-  int num_total_acts_trailing_sync = fn();
-  printf("avg #acts: %d\n", num_total_acts_trailing_sync / num_refresh_intervals);
-  if (num_total_acts_trailing_sync > 10) {
+
+  // the maximum number of optimization iterations
+  const int max_optimization_rounds = 25;
+  int optimization_rounds = 0;
+
+  // the number of activations after hammering until the next REFRESH; note that this is the number over all
+  // num_refresh_intervals repetitions, thus must be divided to get the average of activations
+  int num_total_acts_trailing_sync;
+
+  int num_activations_after_last_refresh;
+
+  int num_activations_to_next_refresh;
+
+  do {
+    optimization_rounds++;
+    num_total_acts_trailing_sync = fn();
+    num_activations_after_last_refresh = (num_total_acts_trailing_sync / num_refresh_intervals) % num_activations;
+    num_activations_to_next_refresh = num_activations - num_activations_after_last_refresh;
+    printf("avg #acts to prev. REFRESH: %d\n", num_activations_to_next_refresh);
+    for (size_t i = 0; i < (num_activations_to_next_refresh / (2 * optimization_rounds)); ++i) aggressor_pairs.pop_back();
+    printf("[+] Removed one aggressor (now: %zu) and rebuilding pattern now.\n", aggressor_pairs.size());
     rt.release(fn);
-    printf("[+] Removing one aggressor (now: %zu) and rebuilding pattern.\n", aggressor_pairs.size());
-    aggressor_pairs.pop_back();
     jit_hammering_code(agg_rounds, num_refresh_intervals);
-  }
-  return true;  // TODO
+  } while (num_activations_to_next_refresh > 10 && optimization_rounds < max_optimization_rounds);
+  printf("[+] Used %d iterations to improve hammering pattern (avg #acts: %d).\n",
+         optimization_rounds, num_total_acts_trailing_sync / num_refresh_intervals);
 }
 
 void PatternBuilder::cleanup_and_rerandomize() {
@@ -243,6 +267,12 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
     }
     return cur_next_addr;
   };
+  auto register_hammering_addresses = [&](int multiplicator, const std::vector<volatile char*>& addresses) {
+    aggressor_pairs.reserve(multiplicator * addresses.size());
+    for (size_t i = 0; i < multiplicator; i++) {
+      aggressor_pairs.insert(aggressor_pairs.end(), addresses.begin(), addresses.end());
+    }
+  };
   // ==================================
 
   // sanity check
@@ -252,72 +282,65 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
             "Call cleanup_and_rerandomize before requesting a new pattern.\n");
     exit(1);
   }
+
   printf("[+] Generating a random hammering pattern.\n");
 
-  // TODO: build sets of aggressors
+  std::vector<volatile char*> aggressor_candidates;
+  std::vector<volatile char*> nop_candidates;
+
+  // build sets of aggressors
   volatile char* cur_next_addr = normalize_address(random_start_address);
   printf("[+] Agg rows: ");
   for (int i = 0; i < num_hammering_pairs; i++) {
-    cur_next_addr = get_address(cur_next_addr, {agg_inter_distance, agg_intra_distance}, aggressor_pairs);
+    cur_next_addr = get_address(cur_next_addr, {agg_inter_distance, agg_intra_distance}, aggressor_candidates);
   }
   printf("\n");
-
-  // TODO: build sets of NOPs
+  // build sets of NOPs
   std::vector<int> nop_offsets = {100, agg_intra_distance};
   printf("[+] NOP rows: ");
   for (int i = 0; i < num_nops; i++) {
-    cur_next_addr = get_address(cur_next_addr, {nop_offsets.at(i % nop_offsets.size())}, nops);
+    cur_next_addr = get_address(cur_next_addr, {nop_offsets.at(i % nop_offsets.size())}, nop_candidates);
   }
   printf("\n");
 
-  // TODO: Add fuzzing logic (from bottom) that determines which of the addresses in aggressors and NOPs are accessed
+  const int total_allowed_accesses = num_activations * (0.95 * num_refresh_intervals);  // TODO: print this number
+  const int num_options = 2;
 
-  jit_hammering_code(agg_rounds, num_refresh_intervals);
+  // TODO fill arrays aggressor_pairs and nops with in total total_allowed_accesses accesses
+  // consider that we need to insert clflush before accessing an address again
+  int accesses_counter = 0;
+  auto get_remaining_accesses = [&]() -> int { return total_allowed_accesses - accesses_counter; };
+  while (accesses_counter < total_allowed_accesses) {
+    auto selection = rand() % num_options;
+    if (selection % num_options == 0) {  // randomly pick a hammering pair
+      // get a random even number in the range [0, #elements-1] where #elements is supposed to be even (as we use pairs)
+      int num_aggr_candidates = aggressor_candidates.size();
+      if (num_aggr_candidates % 2 != 0) {
+        fprintf(stderr, "[-] The number of aggressor candidate pairs is not even. Cannot continue - aborting.\n");
+        exit(1);
+      }
+      num_aggr_candidates -= 1;
+      int rand_even_idx = (rand() % ((num_aggr_candidates / 2) + 1)) * 2;
+      volatile char* agg1 = aggressor_candidates.at(rand_even_idx);
+      volatile char* agg2 = aggressor_candidates.at(rand_even_idx + 1);
+      int multiplicator = multiplicator_hammering_pairs.get_random_number(get_remaining_accesses() / 2);
+      if (multiplicator == -1) continue;
+      register_hammering_addresses(multiplicator, {agg1, agg2});
+      accesses_counter += 2 * multiplicator;
+    } else if (selection % num_options == 1) {  // randomly pick a nop
+      volatile char* nop = nop_candidates.at(rand() % nop_candidates.size());
+      int multiplicator = multiplicator_nops.get_random_number(get_remaining_accesses());
+      if (multiplicator == -1) continue;
+      register_hammering_addresses(multiplicator, {nop});
+      nops.push_back(nop);
+      accesses_counter += multiplicator;
+    }
+  }
 
-  return std::make_pair(aggressor_pairs.front(), aggressor_pairs.back());
+  // TODO: add printing of added pattern elements
 
-  // // generate pattern and generate jitted code
-  // // consider that we need to insert clflush before accessing an address again
-  // int accesses_counter = 0;
-  // auto get_remaining_accesses = [&]() -> int { return accesses_per_pattern - accesses_counter; };
-  // while (accesses_counter < accesses_per_pattern) {
-  //   auto selection = rand() % 2;
-  //   if (selection % 2 == 0) {
-  //     // use a randomly picked hammering pair
-  //     volatile char* pair = *select_randomly(aggressor_pairs.begin(), aggressor_pairs.end());
+  // generate jitted hammering code that hammers these selected addresses
+  jit_hammering_code(agg_rounds, num_refresh_intervals);  // TODO This is probably wrong...
 
-  //     std::stringstream result;
-  //     int multiplicator = multiplicator_hammering_pairs.get_random_number(get_remaining_accesses() / 2);
-  //     if (multiplicator == -1) {
-  //       std::cout << "[-] Skipping choice and rolling the dice again." << std::endl;
-  //       continue;
-  //     }
-  //     accesses_counter += 2 * multiplicator;
-  //     while (multiplicator--) {
-  //       result << pair;
-  //       result << " ";
-  //     }
-  //     // result.seekp(-1, std::ios_base::end);
-  //     // result << "|";
-  //     patterns[i].push_back(result.str());
-  //   } else if (selection % 2 == 1) {
-  //     // use a randomly picked nop
-  //     std::string pair = *select_randomly(Ns.begin(), Ns.end());
-
-  //     std::stringstream result;
-  //     int multiplicator = multiplicator_nops.get_random_number(get_remaining_accesses());
-  //     if (multiplicator == -1) {
-  //       std::cout << "[-] Skipping choice and rolling the dice again." << std::endl;
-  //       continue;
-  //     }
-  //     accesses_counter += multiplicator;
-  //     while (multiplicator--) {
-  //       result << pair;
-  //       result << " ";
-  //     }
-  //     // result << "|";
-  //     // result.seekp(-1, std::ios_base::end);
-  //     patterns[i].push_back(result.str());
-  //   }
-  // }
+  return std::make_pair(aggressor_candidates.front(), aggressor_candidates.back());
 }

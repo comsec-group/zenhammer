@@ -12,33 +12,31 @@
 typedef int (*JittedFunction)(void);
 
 struct Range {
+ public:
   int min;
   int max;
 
-  Range();
+  Range() = default;
 
   Range(int min, int max) : min(min), max(max) {}
 
   int get_random_number() {
-    return (min == max) ? min : rand() % (max + 1 - min) + min;
+    if (min > max) {
+      return -1;
+    } else {
+      return (min == max) ? min : rand() % (max + 1 - min) + min;
+    }
   }
 
-  int get_random_even_number() {
-    int new_max = ((max % 2) == 0) ? max : (max - 1);
-    int n2 = Range(min, new_max / 2).get_random_number() * 2;
-    return n2;
-  }
+  // int get_random_even_number() {
+  //   int new_max = ((max % 2) == 0) ? max : (max - 1);
+  //   int n2 = Range(min, new_max / 2).get_random_number() * 2;
+  //   return n2;
+  // }
 
   int get_random_number(int max_limit) {
     int new_max = (max > max_limit) ? max_limit : max;
-    if (min == new_max) {
-      return min;
-    } else if (new_max < min) {
-      printf("[-] Could not determine random number in malformed range (%d,%d). Exiting.\n", min, new_max);
-      exit(1);
-    } else {
-      return rand() % (new_max + 1 - min) + min;
-    }
+    return Range(min, new_max).get_random_number();
   }
 };
 
@@ -59,9 +57,9 @@ class PatternBuilder {
 
   int num_nops;
 
-  int multiplicator_hammering_pairs;
+  Range multiplicator_hammering_pairs;
 
-  int multiplicator_nops;
+  Range multiplicator_nops;
 
   int agg_inter_distance;
 
@@ -95,7 +93,7 @@ class PatternBuilder {
   int get_total_duration_pi(int num_ref_intervals);
 
   // access the pattern that was previously created by calling generate_random_pattern
-  bool hammer_and_improve_params();
+  void hammer_and_improve_params();
 
   void cleanup_and_rerandomize();
 
