@@ -44,6 +44,9 @@
 #define USE_SYNC 1
 
 /// whether to generate random patterns using fuzzing
-#define USE_FUZZING 1
+#define USE_FUZZING 0
+
+/// whether to run an experiment rather than do hammering
+#define RUN_EXPERIMENT 1
 
 #endif /* GLOBAL_DEFINES */

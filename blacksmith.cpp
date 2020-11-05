@@ -26,6 +26,85 @@
 static unsigned long long EXECUTION_ROUNDS = 0;
 static bool EXECUTION_ROUNDS_INFINITE = true;
 
+void run_experiment(volatile char* address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
+                    std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
+  uint64_t before = 0;
+  uint64_t after = 0;
+  auto row_increment = get_row_increment(row_function);
+
+  // generate addresses to the same bank but different rows
+  printf("rows in list_of_same_bank_addresses: ");
+  std::vector<volatile char*> list_of_same_bank_addresses;
+  for (size_t i = 0; i < 250; i++) {
+    address = normalize_addr_to_bank(address + row_increment,
+                                     cur_bank_rank_masks,
+                                     bank_rank_fns);
+    printf("%" PRIu64 " ", get_row_index(address, row_function));
+    list_of_same_bank_addresses.push_back(address);
+  }
+  printf("\n");
+
+  // choose randomly two addresses d1, d2
+  auto d1 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
+  auto d2 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
+  assert(d1 != d2 && "Picked d1=d2.. this won't work. Please rerun experiment.\n");
+
+  // ===== here start's the actual experiment ==================================================
+
+  lfence();
+  mfence();
+
+  size_t N = list_of_same_bank_addresses.size();
+  while (N > 0) {
+    int sum_time = 0;
+    int num_reps = 50;
+    int num_accesses = 0;
+    for (int i = 0; i < num_reps; i++) {
+      // synchronize with the beginning of an interval
+      while (true) {
+        clflushopt(d1);
+        clflushopt(d2);
+        mfence();
+        before = rdtscp();
+        lfence();
+        *d1;
+        *d2;
+        after = rdtscp();
+        // stop if an REFRESH was issued
+        if ((after - before) > 1000) break;
+      }
+      // before = rdtscp();
+      // for (size_t i = 0; i < N; i++) {
+      //   *list_of_same_bank_addresses[i];
+      // }
+
+      // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
+      while (true) {
+        clflushopt(d1);
+        clflushopt(d2);
+        sfence();
+        before = rdtscp();
+        *d1;
+        *d2;
+        after = rdtscp();
+        num_accesses += 2;
+        // stop if a REFRESH was issued
+        if ((after - before) > 1000) break;
+      }
+
+      // after = rdtscp();
+      sum_time += (after - before);
+      // printf("%zu accesses in %" PRIu64 " cycles, avg %" PRIu64 " cycles\n", N, (after - before), (after - before) / N);
+      // for (size_t i = 0; i < list_of_same_bank_addresses.size(); i++) {
+      //   clflushopt(list_of_same_bank_addresses[i]);
+      // }
+    }
+    printf("%zu,%d\n", N, num_accesses / num_reps);
+    // printf("%zu accesses in on avg in %d cycles, avg %d cycles per access\n", N, sum_time / num_reps, sum_time / num_reps / (int)N);
+    N--;
+  }
+}
+
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void hammer(std::vector<volatile char*>& aggressors) {
 #if 0
@@ -247,24 +326,19 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     // hammer the first four banks
     for (int bank_no = 0; bank_no < 4; bank_no++) {
-      bool parameter_optimal = false;
+      // bool parameter_optimal = false;
       // generate a random pattern using fuzzing
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
       auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
                                                       row_increment, acts, bank_no);
       printf("[+] Entering hammering and pattern optimization feedback loop.\n");
-      int opt_round = 0;
-      do {
-        // access this pattern synchronously with the REFRESH command
-        parameter_optimal = pb.hammer_and_improve_params();
-        // check if any bit flips occurred while hammering
-        mem_values(target, false,
-                   agg_addresses.first - (row_increment * 100),
-                   agg_addresses.second + (row_increment * 120),
-                   row_function);
-        opt_round++;
-      } while (opt_round < 5);
-      printf("[+] Required %d iterations to improve hammering pattern.\n", opt_round);
+      // access this pattern synchronously with the REFRESH command
+      pb.hammer_and_improve_params();
+      // check if any bit flips occurred while hammering
+      mem_values(target, false,
+                 agg_addresses.first - (row_increment * 100),
+                 agg_addresses.second + (row_increment * 120),
+                 row_function);
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup_and_rerandomize();
     }
@@ -316,6 +390,15 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
         aggressors.push_back(cur_next_addr);
       }
       printf("\n");
+
+      if (RUN_EXPERIMENT) {
+        printf("████████████████████████████████████████████████████████████████████\n");
+        printf("█████████████████████  RUNNING EXPERIMENT MODE  ████████████████████\n");
+        printf("████████████████████████████████████████████████████████████████████\n");
+        run_experiment(cur_next_addr, acts, bank_rank_masks[ba], bank_rank_functions, row_function);
+        printf("█████████████████████  TERMINATING EXPERIMENT  ████████████████████\n");
+        exit(0);
+      }
 
       if (!USE_SYNC) {
         printf("[+] Hammering %d aggressors with v %d d %d on bank %d\n", aggressor_rows_size, v, d, ba);
