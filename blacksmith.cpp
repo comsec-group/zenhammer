@@ -26,83 +26,162 @@
 static unsigned long long EXECUTION_ROUNDS = 0;
 static bool EXECUTION_ROUNDS_INFINITE = true;
 
+size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_accesses, size_t rounds) {
+  auto median = [](size_t* vals, size_t size) -> uint64_t {
+    auto gt = [](const void* a, const void* b) -> int {
+      return (*(int*)a - *(int*)b);
+    };
+    qsort(vals, size, sizeof(uint64_t), gt);
+    return ((size % 2) == 0) ? vals[size / 2] : (vals[(size_t)size / 2] + vals[((size_t)size / 2 + 1)]) / 2;
+  };
+  size_t* times = (size_t*)malloc(sizeof(size_t) * rounds);
+  for (size_t k = 0; k < 15; k++) {
+    sfence();
+    for (size_t l = 0; l < num_accesses; l++) {
+      *(volatile char*)patt[l];
+    }
+    for (size_t l = 0; l < num_accesses; l++) {
+      clflush(patt[l]);
+    }
+  }
+  for (size_t k = 0; k < rounds; k++) {
+    sfence();
+    size_t t0 = rdtscp();
+    for (size_t l = 0; l < num_accesses; l++) {
+      *(volatile char*)patt[l];
+    }
+    times[k] = rdtscp() - t0;
+    for (size_t l = 0; l < num_accesses; l++) {
+      clflush(patt[l]);
+    }
+  }
+  size_t median_sum_access_time = median(times, rounds);
+  // printf("Avg. cycles per access: %lu\n", median_sum_access_time / num_accesses);
+  free(times);
+  return median_sum_access_time;
+}
+
 void run_experiment(volatile char* address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
                     std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
+  const int NUM_NOPS = 5;
+  const int NUM_REPETITIONS = 50;
+  const int NUM_ADDRESSES = 200;
   uint64_t before = 0;
   uint64_t after = 0;
   auto row_increment = get_row_increment(row_function);
 
   // generate addresses to the same bank but different rows
   printf("rows in list_of_same_bank_addresses: ");
-  std::vector<volatile char*> list_of_same_bank_addresses;
-  for (size_t i = 0; i < 250; i++) {
+  unsigned char* same_bank_addrs[NUM_ADDRESSES];
+  std::vector<volatile char*> conflict_address_set;
+  // std::vector<volatile char*> same_bank_addrs;
+  for (size_t i = 0; i < NUM_ADDRESSES; i++) {
     address = normalize_addr_to_bank(address + row_increment,
                                      cur_bank_rank_masks,
                                      bank_rank_fns);
     printf("%" PRIu64 " ", get_row_index(address, row_function));
-    list_of_same_bank_addresses.push_back(address);
+    same_bank_addrs[i] = (unsigned char*)address;
+    conflict_address_set.push_back(address);
   }
   printf("\n");
 
-  // choose randomly two addresses d1, d2
-  auto d1 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
-  auto d2 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
-  assert(d1 != d2 && "Picked d1=d2.. this won't work. Please rerun experiment.\n");
+  const int NUM_ACCESSES_PER_REFRESH_INTERVAL =
+      count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
 
-  // ===== here start's the actual experiment ==================================================
+  // shrink set of addresses in conflict_address_set to 98%
+  while (conflict_address_set.size() > 0.98 * NUM_ACCESSES_PER_REFRESH_INTERVAL) conflict_address_set.pop_back();
 
-  lfence();
-  mfence();
-
-  size_t N = list_of_same_bank_addresses.size();
-  while (N > 0) {
-    int sum_time = 0;
-    int num_reps = 50;
-    int num_accesses = 0;
-    for (int i = 0; i < num_reps; i++) {
-      // synchronize with the beginning of an interval
-      while (true) {
-        clflushopt(d1);
-        clflushopt(d2);
-        mfence();
-        before = rdtscp();
-        lfence();
-        *d1;
-        *d2;
-        after = rdtscp();
-        // stop if an REFRESH was issued
-        if ((after - before) > 1000) break;
-      }
-      // before = rdtscp();
-      // for (size_t i = 0; i < N; i++) {
-      //   *list_of_same_bank_addresses[i];
-      // }
-
-      // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
-      while (true) {
-        clflushopt(d1);
-        clflushopt(d2);
-        sfence();
-        before = rdtscp();
-        *d1;
-        *d2;
-        after = rdtscp();
-        num_accesses += 2;
-        // stop if a REFRESH was issued
-        if ((after - before) > 1000) break;
-      }
-
-      // after = rdtscp();
-      sum_time += (after - before);
-      // printf("%zu accesses in %" PRIu64 " cycles, avg %" PRIu64 " cycles\n", N, (after - before), (after - before) / N);
-      // for (size_t i = 0; i < list_of_same_bank_addresses.size(); i++) {
-      //   clflushopt(list_of_same_bank_addresses[i]);
-      // }
+  // do some warmup..
+  for (size_t k = 0; k < 15; k++) {
+    sfence();
+    for (size_t l = 0; l < conflict_address_set.size(); l++) {
+      *conflict_address_set.at(l);
     }
-    printf("%zu,%d\n", N, num_accesses / num_reps);
-    // printf("%zu accesses in on avg in %d cycles, avg %d cycles per access\n", N, sum_time / num_reps, sum_time / num_reps / (int)N);
-    N--;
+    for (size_t l = 0; l < conflict_address_set.size(); l++) {
+      clflush(conflict_address_set.at(l));
+    }
   }
+
+  int t = 0;
+  for (size_t i = 0; i < NUM_REPETITIONS; i++) {
+    sfence();
+    // access all addresses sequentially
+    before = rdtscp();
+    for (volatile char* addr : conflict_address_set) {
+      *addr;
+      clflushopt(addr);
+    }
+    for (size_t j = 0; j < NUM_NOPS; ++j) {
+      asm("nop");
+    }
+    after = rdtscp();
+    t += (after - before);
+    printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+  }
+  printf("== avg #cycles per access: %d\n", t / NUM_REPETITIONS / (int)conflict_address_set.size());
+
+  return;
+
+  // // access some nops
+  // for (size_t i = 0; i < NUM_NOPS; i++) asm("nop");
+
+  // // choose randomly two addresses d1, d2
+  // auto d1 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
+  // auto d2 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
+  // assert(d1 != d2 && "Picked d1=d2.. this won't work. Please rerun experiment.\n");
+
+  // lfence();
+  // mfence();
+
+  // size_t N = list_of_same_bank_addresses.size();
+  // while (N > 0) {
+  //   int sum_time = 0;
+  //   int num_reps = 50;
+  //   int num_accesses = 0;
+  //   for (int i = 0; i < num_reps; i++) {
+  //     // synchronize with the beginning of an interval
+  //     while (true) {
+  //       clflushopt(d1);
+  //       clflushopt(d2);
+  //       mfence();
+  //       before = rdtscp();
+  //       lfence();
+  //       *d1;
+  //       *d2;
+  //       after = rdtscp();
+  //       // stop if an REFRESH was issued
+  //       if ((after - before) > 1000) break;
+  //     }
+  //     // before = rdtscp();
+  //     // for (size_t i = 0; i < N; i++) {
+  //     //   *list_of_same_bank_addresses[i];
+  //     // }
+
+  //     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
+  //     while (true) {
+  //       clflushopt(d1);
+  //       clflushopt(d2);
+  //       sfence();
+  //       before = rdtscp();
+  //       *d1;
+  //       *d2;
+  //       after = rdtscp();
+  //       num_accesses += 2;
+  //       // stop if a REFRESH was issued
+  //       if ((after - before) > 1000) break;
+  //     }
+
+  //     // after = rdtscp();
+  //     sum_time += (after - before);
+  //     // printf("%zu accesses in %" PRIu64 " cycles, avg %" PRIu64 " cycles\n", N, (after - before), (after - before) / N);
+  //     // for (size_t i = 0; i < list_of_same_bank_addresses.size(); i++) {
+  //     //   clflushopt(list_of_same_bank_addresses[i]);
+  //     // }
+  //   }
+  //   printf("%zu,%d\n", N, num_accesses / num_reps);
+  //   // printf("%zu accesses in on avg in %d cycles, avg %d cycles per access\n", N, sum_time / num_reps, sum_time / num_reps / (int)N);
+  //   N--;
+  // }
 }
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
