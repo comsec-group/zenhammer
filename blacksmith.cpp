@@ -63,63 +63,66 @@ size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_a
 
 void run_experiment(volatile char* address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
                     std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
-  const int NUM_NOPS = 5;
-  const int NUM_REPETITIONS = 50;
-  const int NUM_ADDRESSES = 200;
-  uint64_t before = 0;
-  uint64_t after = 0;
-  auto row_increment = get_row_increment(row_function);
+  std::vector<int> NOPS = {0, 1, 2, 5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 700, 1000};
+  for (const auto& NUM_NOPS : NOPS) {
+    printf("###### NUM_NOPS: %d ######\n", NUM_NOPS);
+    // const int NUM_NOPS = 5;
+    const int NUM_REPETITIONS = 50;
+    const int NUM_ADDRESSES = 200;
+    uint64_t before = 0;
+    uint64_t after = 0;
+    auto row_increment = get_row_increment(row_function);
 
-  // generate addresses to the same bank but different rows
-  printf("rows in list_of_same_bank_addresses: ");
-  unsigned char* same_bank_addrs[NUM_ADDRESSES];
-  std::vector<volatile char*> conflict_address_set;
-  // std::vector<volatile char*> same_bank_addrs;
-  for (size_t i = 0; i < NUM_ADDRESSES; i++) {
-    address = normalize_addr_to_bank(address + row_increment,
-                                     cur_bank_rank_masks,
-                                     bank_rank_fns);
-    printf("%" PRIu64 " ", get_row_index(address, row_function));
-    same_bank_addrs[i] = (unsigned char*)address;
-    conflict_address_set.push_back(address);
+    // generate addresses to the same bank but different rows
+    printf("rows in list_of_same_bank_addresses: ");
+    unsigned char* same_bank_addrs[NUM_ADDRESSES];
+    std::vector<volatile char*> conflict_address_set;
+    // std::vector<volatile char*> same_bank_addrs;
+    for (size_t i = 0; i < NUM_ADDRESSES; i++) {
+      address = normalize_addr_to_bank(address + row_increment,
+                                       cur_bank_rank_masks,
+                                       bank_rank_fns);
+      printf("%" PRIu64 " ", get_row_index(address, row_function));
+      same_bank_addrs[i] = (unsigned char*)address;
+      conflict_address_set.push_back(address);
+    }
+    printf("\n");
+
+    const int NUM_ACCESSES_PER_REFRESH_INTERVAL =
+        count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
+
+    // shrink set of addresses in conflict_address_set to 98%
+    while (conflict_address_set.size() > 0.95 * NUM_ACCESSES_PER_REFRESH_INTERVAL) conflict_address_set.pop_back();
+
+    // do some warmup..
+    for (size_t k = 0; k < 15; k++) {
+      sfence();
+      for (size_t l = 0; l < conflict_address_set.size(); l++) {
+        *conflict_address_set.at(l);
+      }
+      for (size_t l = 0; l < conflict_address_set.size(); l++) {
+        clflush(conflict_address_set.at(l));
+      }
+    }
+
+    int t = 0;
+    for (size_t i = 0; i < NUM_REPETITIONS; i++) {
+      sfence();
+      // access all addresses sequentially
+      before = rdtscp();
+      for (volatile char* addr : conflict_address_set) {
+        *addr;
+        clflushopt(addr);
+      }
+      for (size_t j = 0; j < NUM_NOPS; ++j) {
+        asm("nop");
+      }
+      after = rdtscp();
+      t += (after - before);
+      printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+    }
+    printf("== avg #cycles per access: %d\n\n", t / NUM_REPETITIONS / (int)conflict_address_set.size());
   }
-  printf("\n");
-
-  const int NUM_ACCESSES_PER_REFRESH_INTERVAL =
-      count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
-
-  // shrink set of addresses in conflict_address_set to 98%
-  while (conflict_address_set.size() > 0.98 * NUM_ACCESSES_PER_REFRESH_INTERVAL) conflict_address_set.pop_back();
-
-  // do some warmup..
-  for (size_t k = 0; k < 15; k++) {
-    sfence();
-    for (size_t l = 0; l < conflict_address_set.size(); l++) {
-      *conflict_address_set.at(l);
-    }
-    for (size_t l = 0; l < conflict_address_set.size(); l++) {
-      clflush(conflict_address_set.at(l));
-    }
-  }
-
-  int t = 0;
-  for (size_t i = 0; i < NUM_REPETITIONS; i++) {
-    sfence();
-    // access all addresses sequentially
-    before = rdtscp();
-    for (volatile char* addr : conflict_address_set) {
-      *addr;
-      clflushopt(addr);
-    }
-    for (size_t j = 0; j < NUM_NOPS; ++j) {
-      asm("nop");
-    }
-    after = rdtscp();
-    t += (after - before);
-    printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
-  }
-  printf("== avg #cycles per access: %d\n", t / NUM_REPETITIONS / (int)conflict_address_set.size());
-
   return;
 
   // // access some nops
