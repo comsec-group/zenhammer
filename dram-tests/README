@@ -1,0 +1,113 @@
+## DRAMA
+
+The assignment for Week 1 is a modified version of the DRAMA attack [1] used to recover the DRAM addressing function from a timing side channel. 
+
+The assignment consists in three stages: 
+
+1. You need to identify the timing threshold to discern a row hit from a row conflict -- you should do this manually. 
+2. You need to use this threshold to extract a pool of conflicting addresses from which you can extract the meaningful bits that choose the banks.
+3. You neet to autmoate the first step to automatically detect the threshold and cluster conflicting addresses in order to build a complete solver.
+
+## Instructions 
+
+Here you have more details for every single stage of the assignment. 
+
+### Stage 1: Bank conflict 
+
+Since the DRAM addressing function gets decided based on the physical address you're required to have (partial) control over the latter.  
+
+To make it easier for us to grade we ask you all to use transparent hugepages (THPs) to get contiguous memory. 
+These pages are of size 2MB. This means that you can control the last 20 bits of any physical address within that allocation. 
+
+Check if THPs enabled by querying the sysfs entry `/sys/kernel/mm/transparent_hugepages/enabled`. 
+You want to set it to `[always]`.
+
+You're supposed to allocate a big chunk of memory (~500 MB) and detect the THPs using `/proc/self/pagemap` to map virtual addresses to PFNs.
+Then select one (or more if you want to make your test more accurate) of these THPs and create a pool of random addresses to check for conflicts. 
+
+**[NOTES]**
+
+1. these addresses need to belong to the same THP; 
+2. the pool should be in the order of 10/15K addresses to increase accuracy; 
+3. you shouldn't care about the last 6 bits of the address since they're used to choose the offset within a cacheline (`log2(64bytes) == 6`).
+
+Select a _base_ address out of this pool and test all the other (_probe_) addresses for conflicts –– that is, perform multiple accesses between _base_ and _probe_ (around 5K rounds should be good).
+
+You should export the data from this stage in a file named "{studentID}-time.csv" containing the following columns:
+
+* `baseVirt`: base virtual address
+* `probeVirt`: probe virtual address 
+* `basePhys`: base physical address
+* `probePhys`: probe physical address
+* `time`: access time between the two
+
+You can now detect the threshold by plotting the access time data in your export file and identify manually the two clusters. 
+
+
+### Stage 2: Function's bit recovery 
+
+Once you know the threshold you can run the second stage of the program.  
+Here you will perform all the same steps of stage 1 before the file export. 
+Then, based on the threshold value you previously identified you should cluster your data in addresses that trigger a row conflict and those that don't. 
+
+You want to export the conflicting one and check the effect of bitwise modifications on everyone of them. That is, you want to change (for every address in the pool) every bit one by one and time again the accesses. 
+If modifying a bit in the address doesn't trigger a row conflict anymore it means that the bit is meaningful for the addressing function. 
+Beware that it is likely you won't get 100% precision on these measurements so you should rely on probabilities to extract the meaningful bits. 
+
+If you decide to use multiple THPs to increase accuracy you'll perform the same steps for all of the THPs separately and eventually extract the meaningful bits out of the most probable intersection of all these sets. 
+
+#### Validation
+To test the validity of your "solver" you should try modifying all the bits between 0 and 20. Theoretically you shouldn't see any meaningful bit between bits 0 and 5 (most likely also 6). This should already give you a hint that your program is working.  
+Furthermore, if your system is part of the one listed in the DRAMA paper [1] you can cross-validate with that list. 
+
+### Stage #3: Automatic recovery
+
+For the last stage you need to automate the detection of the time threshold between hits and conflicts. 
+The program should combine Stages #1 and #2 and run everything in one go. You can decide how you want to perform the clustering. 
+
+
+## Deliverable
+
+You're asked to submit the source code of two binaries along with a makefile. One source file for stages #1 and #2 and a separate one for stage #3.
+
+Along with the source code you should export an histogram like the one showed at the lecture showing the bank conflict side channel in your system. 
+
+
+### Binaries
+
+**Stages #1 and #2:**
+After running `make simple` you should output a binary that runs matching the following syntax: 
+`./{studentID} -e [-t <threshold_time>]`
+
+If run with `-e` it should run stage 1 and export the data into the `{studentID}-time.csv` file.
+
+If run with `[-t <threshold_time>]` it should generate a pool of conflicting addresses based on the threshold and try to recover the meaningful bits of the function. You should then export these bits (one per line) to `{studentID}-bits.txt`.
+
+Along with this we also want a plotted histogram of the timing side channel on your testing system.
+
+**Stage #3:** 
+A binary named `{studentID}-auto` should be generated after running `make auto`. 
+This binary shouldn't require any input and it should simply run stages #1 and #2 together autmating the data clustering.  
+You should then export the recovered bits one per line to `{studentID}-auto-bits.txt`.
+
+
+
+## Deadline 
+
+You're required to submit before Friday Nov 2, 23:59.
+Every late day causes 1 penalty point on the grade (max. 3-day delay).  
+
+## Grades
+ 
+ 6: (Stage 1) You managed to build the bank conflict timing channel and delivered a plot and source code demonstrating it.
+ 8: (Stage 2) You built the solver recovering the meaningful bits of the addressing function.
+10: (Stage 3) Automatic solver.  
+
+**Note** Your code should run in less than 5 mins. Otherwise our grading system will kill the binary. The applications shouldn't require such a long time so this is already a conservative measurement.  
+
+
+
+
+## References
+
+Pessl, P., Gruss, D., Maurice, C., Schwarz, M., & Mangard, S. (2016, August). DRAMA: Exploiting DRAM Addressing for Cross-CPU Attacks. In USENIX Security Symposium (pp. 565-581).
