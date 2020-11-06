@@ -63,11 +63,10 @@ size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_a
 
 void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
                     std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
-  const int NUM_INTERVALS = 35;
+  const int NUM_INTERVALS = 500;
   std::vector<int> NOPS = {0, 1, 2, 5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 700, 1000};
   for (const auto& NUM_NOPS : NOPS) {
     printf("###### NUM_NOPS: %d ######\n", NUM_NOPS);
-    // const int NUM_NOPS = 5;
     volatile char* address = start_address;
     const int NUM_ADDRESSES = 200;
     uint64_t before = 0;
@@ -110,29 +109,43 @@ void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t
     }
     clflushopt(last_addr);
 
+    int cnt = 0;
     for (size_t i = 0; i < NUM_INTERVALS; i++) {
       // now access all addresses, then a NUM_NOPS nops, and then time the access to an arbitrary address
       int t = 0;
-        sfence();
-        // access all addresses sequentially
-        for (volatile char* addr : conflict_address_set) {
-          *addr;
-          clflushopt(addr);
-        }
-        for (int j = 0; j < NUM_NOPS; ++j) {
-          asm("nop");
-        }
-        before = rdtscp();
-        *last_addr;
-        after = rdtscp();
-        t += (after - before);
-        // printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
-        printf("#cycles for last access: %" PRIu64 "\n", (after - before));
-        clflushopt(last_addr);
+      sfence();
+      // access all addresses sequentially
+      for (volatile char* addr : conflict_address_set) {
+        *addr;
+        clflushopt(addr);
+      }
+      for (int j = 0; j < NUM_NOPS / 2; ++j) {
+        asm("nop");
+      }
+      before = rdtscp();
+      *last_addr;
+      after = rdtscp();
+      for (int j = (NUM_NOPS / 2) + 1; j < NUM_NOPS; ++j) {
+        asm("nop");
+      }
+      t += (after - before);
+      // printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+      // printf("#cycles for last access: %" PRIu64 "\n", (after - before));
+      if ((after - before) > 1000) cnt++;
+      clflushopt(last_addr);
     }
+    printf("#intervals with #cycles > 1000: %d of %d\n", cnt, NUM_INTERVALS);
     printf("\n");
   }
-  return;
+
+  // Findings of experiments conducted in run_experiment in this and previous commits:
+  // - using tREFI/tRC = 7800/46.750 ≈ 167 we can find out how many activates are theoretically possible within a 
+  //   REFRESH interval
+  // - the theoretic value can be approximated by synchronizing with the start of the REFRESH interval and then 
+  //   accessing N same-bank addresses (see method count_activations_per_refresh_interval)
+  // - if we choose 95% of the determined possible accesses as length for the hammering pattern, followed by M NOPs, we
+  //   can see that the REFRESH happens most of the time (approx. 95%) within the NOPs, this effectively allows us to 
+  //   avoid using expensive fences and do a kind of soft-synchronization –- see the code in run_experiment
 }
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
