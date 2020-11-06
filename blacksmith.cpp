@@ -58,41 +58,45 @@ size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_a
   size_t median_sum_access_time = median(times, rounds);
   // printf("Avg. cycles per access: %lu\n", median_sum_access_time / num_accesses);
   free(times);
-  return median_sum_access_time;
+  return median_sum_access_time / num_accesses;
 }
 
-void run_experiment(volatile char* address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
+void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
                     std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
   std::vector<int> NOPS = {0, 1, 2, 5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 700, 1000};
   for (const auto& NUM_NOPS : NOPS) {
     printf("###### NUM_NOPS: %d ######\n", NUM_NOPS);
     // const int NUM_NOPS = 5;
-    const int NUM_REPETITIONS = 50;
+    volatile char* address = start_address;
+    const int NUM_REPETITIONS = 1;
     const int NUM_ADDRESSES = 200;
     uint64_t before = 0;
     uint64_t after = 0;
     auto row_increment = get_row_increment(row_function);
 
     // generate addresses to the same bank but different rows
-    printf("rows in list_of_same_bank_addresses: ");
+    // printf("rows in list_of_same_bank_addresses: ");
     unsigned char* same_bank_addrs[NUM_ADDRESSES];
     std::vector<volatile char*> conflict_address_set;
-    // std::vector<volatile char*> same_bank_addrs;
     for (size_t i = 0; i < NUM_ADDRESSES; i++) {
-      address = normalize_addr_to_bank(address + row_increment,
-                                       cur_bank_rank_masks,
-                                       bank_rank_fns);
-      printf("%" PRIu64 " ", get_row_index(address, row_function));
+      address = normalize_addr_to_bank(address + row_increment, cur_bank_rank_masks, bank_rank_fns);
+      // printf("   (r %" PRIu64 ", addr %p)\n", get_row_index(address, row_function), address);
       same_bank_addrs[i] = (unsigned char*)address;
       conflict_address_set.push_back(address);
     }
-    printf("\n");
+    // printf("\n");
+    if ((long)address > (ADDR + (GB(1)))) {
+      fprintf(stderr, "[-] Crossed boundary of 1 GB superpage. Exiting!");
+      exit(1);
+    }
 
-    const int NUM_ACCESSES_PER_REFRESH_INTERVAL =
-        count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
+    volatile char* last_addr = normalize_addr_to_bank(address + (rand() % 42) * row_increment, cur_bank_rank_masks, bank_rank_fns);
 
+    const int NUM_ACCESSES_PER_REFRESH_INTERVAL = count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
+    printf("NUM_ACCESSES_PER_REFRESH_INTERVAL: %d\n", NUM_ACCESSES_PER_REFRESH_INTERVAL);
     // shrink set of addresses in conflict_address_set to 98%
     while (conflict_address_set.size() > 0.95 * NUM_ACCESSES_PER_REFRESH_INTERVAL) conflict_address_set.pop_back();
+    printf("accessing %zu addresses\n", conflict_address_set.size());
 
     // do some warmup..
     for (size_t k = 0; k < 15; k++) {
@@ -101,90 +105,33 @@ void run_experiment(volatile char* address, int acts, std::vector<uint64_t>& cur
         *conflict_address_set.at(l);
       }
       for (size_t l = 0; l < conflict_address_set.size(); l++) {
-        clflush(conflict_address_set.at(l));
+        clflushopt(conflict_address_set.at(l));
       }
     }
+    clflushopt(last_addr);
 
+    // now access all addresses, then a NUM_NOPS nops, and then time the access to an arbitrary address
     int t = 0;
     for (size_t i = 0; i < NUM_REPETITIONS; i++) {
       sfence();
       // access all addresses sequentially
-      before = rdtscp();
       for (volatile char* addr : conflict_address_set) {
         *addr;
         clflushopt(addr);
       }
-      for (size_t j = 0; j < NUM_NOPS; ++j) {
+      for (int j = 0; j < NUM_NOPS; ++j) {
         asm("nop");
       }
+      before = rdtscp();
+      *last_addr;
       after = rdtscp();
       t += (after - before);
-      printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+      // printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+      printf("#cycles for last access: %" PRIu64 "\n", (after - before));
     }
-    printf("== avg #cycles per access: %d\n\n", t / NUM_REPETITIONS / (int)conflict_address_set.size());
+    // printf("== avg #cycles per access: %d\n\n", t / NUM_REPETITIONS / (int)conflict_address_set.size());
   }
   return;
-
-  // // access some nops
-  // for (size_t i = 0; i < NUM_NOPS; i++) asm("nop");
-
-  // // choose randomly two addresses d1, d2
-  // auto d1 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
-  // auto d2 = list_of_same_bank_addresses.at(rand() % list_of_same_bank_addresses.size() - 1);
-  // assert(d1 != d2 && "Picked d1=d2.. this won't work. Please rerun experiment.\n");
-
-  // lfence();
-  // mfence();
-
-  // size_t N = list_of_same_bank_addresses.size();
-  // while (N > 0) {
-  //   int sum_time = 0;
-  //   int num_reps = 50;
-  //   int num_accesses = 0;
-  //   for (int i = 0; i < num_reps; i++) {
-  //     // synchronize with the beginning of an interval
-  //     while (true) {
-  //       clflushopt(d1);
-  //       clflushopt(d2);
-  //       mfence();
-  //       before = rdtscp();
-  //       lfence();
-  //       *d1;
-  //       *d2;
-  //       after = rdtscp();
-  //       // stop if an REFRESH was issued
-  //       if ((after - before) > 1000) break;
-  //     }
-  //     // before = rdtscp();
-  //     // for (size_t i = 0; i < N; i++) {
-  //     //   *list_of_same_bank_addresses[i];
-  //     // }
-
-  //     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
-  //     while (true) {
-  //       clflushopt(d1);
-  //       clflushopt(d2);
-  //       sfence();
-  //       before = rdtscp();
-  //       *d1;
-  //       *d2;
-  //       after = rdtscp();
-  //       num_accesses += 2;
-  //       // stop if a REFRESH was issued
-  //       if ((after - before) > 1000) break;
-  //     }
-
-  //     // after = rdtscp();
-  //     sum_time += (after - before);
-  //     // printf("%zu accesses in %" PRIu64 " cycles, avg %" PRIu64 " cycles\n", N, (after - before), (after - before) / N);
-  //     // for (size_t i = 0; i < list_of_same_bank_addresses.size(); i++) {
-  //     //   clflushopt(list_of_same_bank_addresses[i]);
-  //     // }
-  //   }
-  //   printf("%zu,%d\n", N, num_accesses / num_reps);
-  //   // printf("%zu accesses in on avg in %d cycles, avg %d cycles per access\n", N, sum_time / num_reps, sum_time / num_reps / (int)N);
-  //   N--;
-  // }
 }
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
@@ -354,7 +301,8 @@ volatile char* allocate_memory() {
 void find_targets(volatile char* target, std::vector<volatile char*>& target_bank, size_t size) {
   // create an unordered set of the addresses in the target bank for a quick lookup
   std::unordered_set<volatile char*> tmp(target_bank.begin(), target_bank.end());
-  size_t num_repetitions = 4;
+  target_bank.clear();
+  size_t num_repetitions = 5;
   srand(time(0));
   while (tmp.size() < size) {
     auto a1 = target + (rand() % (MEM_SIZE / 64)) * 64;

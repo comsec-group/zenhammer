@@ -76,7 +76,7 @@ void PatternBuilder::hammer_and_improve_params() {
     num_activations_after_last_refresh = (num_total_acts_trailing_sync / num_refresh_intervals) % num_activations;
     num_activations_to_next_refresh = num_activations - num_activations_after_last_refresh;
     printf("avg #acts to prev. REFRESH: %d\n", num_activations_to_next_refresh);
-    for (size_t i = 0; i < (num_activations_to_next_refresh / (2 * optimization_rounds)); ++i) aggressor_pairs.pop_back();
+    for (int i = 0; i < (num_activations_to_next_refresh / (2 * optimization_rounds)); ++i) aggressor_pairs.pop_back();
     printf("[+] Removed one aggressor (now: %zu) and rebuilding pattern now.\n", aggressor_pairs.size());
     rt.release(fn);
     jit_hammering_code(agg_rounds, num_refresh_intervals);
@@ -267,9 +267,9 @@ std::pair<volatile char*, volatile char*> PatternBuilder::generate_random_patter
     }
     return cur_next_addr;
   };
-  auto register_hammering_addresses = [&](int multiplicator, const std::vector<volatile char*>& addresses) {
-    aggressor_pairs.reserve(multiplicator * addresses.size());
-    for (size_t i = 0; i < multiplicator; i++) {
+  auto register_hammering_addresses = [&](size_t num_repetitions, const std::vector<volatile char*>& addresses) {
+    aggressor_pairs.reserve(num_repetitions * addresses.size());
+    for (size_t i = 0; i < num_repetitions; i++) {
       aggressor_pairs.insert(aggressor_pairs.end(), addresses.begin(), addresses.end());
     }
   };

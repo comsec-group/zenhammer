@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <algorithm>
 #include <cmath>
@@ -80,7 +81,6 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
   size_t num_expected_fns = std::log2(NUM_BANKS);
   int num_tries = 0;
   const int max_num_tries = 5;
-  
   do {
     bank_rank_functions.clear();
     int max_bits = (USE_SUPERPAGE) ? 30 : 21;
@@ -170,19 +170,14 @@ void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* ban
         }
       }
 
-      // stop if we already determined all bank functions
+      // stop if we already determined addresses for each bank
       if (all_banks_set) return;
 
-      // store bank functions
-      for (size_t i = 0; i < NUM_BANKS; i++) {
-        auto bank = &banks[i];
-        if (bank->empty()) {
-          bank->push_back(a1);
-          bank->push_back(a2);
-          nr_banks_cur++;
-          break;
-        }
-      }
+      // store addresses found for each bank
+      assert(banks[nr_banks_cur].size() == 0 && "Bank not empty");
+      banks[nr_banks_cur].push_back(a1);
+      banks[nr_banks_cur].push_back(a2);
+      nr_banks_cur++;
     }
   }
 }

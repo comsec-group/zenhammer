@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -std=c++11 -g
+CXXFLAGS = -Wall -std=c++11 -g -Wno-unused-variable
 OBJ = blacksmith.o PatternBuilder.o DramAnalyzer.o
 INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
 
