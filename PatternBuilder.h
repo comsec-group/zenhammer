@@ -6,11 +6,35 @@
 #include <iostream>
 #include <iterator>
 #include <random>
+#include <unordered_map>
 #include <utility>
+
+enum class FLUSHING_STRATEGY {
+  // flush an accessed aggressor as soon as it has been accessed (i.e., pairs are flushed in-between)
+  EARLIEST_POSSIBLE
+};
+
+static std::string to_string(FLUSHING_STRATEGY strategy) {
+  std::unordered_map<FLUSHING_STRATEGY, std::string> map =
+      {{FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"}};
+  return map.at(strategy);
+}
+
+enum class FENCING_STRATEGY {
+  // add the fence right before the next access of the aggressor if it has been flushed before
+  LATEST_POSSIBLE
+};
+
+static std::string to_string(FENCING_STRATEGY strategy) {
+  std::unordered_map<FENCING_STRATEGY, std::string> map =
+      {{FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"}};
+  return map.at(strategy);
+}
 
 // Signature of the generated function.
 typedef int (*JittedFunction)(void);
 
+///
 struct Range {
  public:
   int min;
@@ -28,12 +52,6 @@ struct Range {
     }
   }
 
-  // int get_random_even_number() {
-  //   int new_max = ((max % 2) == 0) ? max : (max - 1);
-  //   int n2 = Range(min, new_max / 2).get_random_number() * 2;
-  //   return n2;
-  // }
-
   int get_random_number(int max_limit) {
     int new_max = (max > max_limit) ? max_limit : max;
     return Range(min, new_max).get_random_number();
@@ -48,18 +66,15 @@ class PatternBuilder {
   /// hammering function that was generated at runtime
   JittedFunction fn;
 
-  /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
-  const int duration_full_refresh = 64;
+  bool use_agg_only_once;
 
+  bool use_fixed_amplitude_per_aggressor;
+
+  /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
   int num_refresh_intervals;
 
-  int num_hammering_pairs;
-
-  int num_nops;
-
-  Range multiplicator_hammering_pairs;
-
-  Range multiplicator_nops;
+  // the numbers of aggressors to be picked from during random pattern generation
+  int num_aggressors;
 
   int agg_inter_distance;
 
@@ -69,6 +84,16 @@ class PatternBuilder {
 
   int agg_rounds;
 
+  int hammer_rounds;
+
+  Range amplitude;
+
+  Range N_sided;
+
+  FLUSHING_STRATEGY flushing_strategy;
+
+  FENCING_STRATEGY fencing_strategy;
+
   volatile char* target_addr;
 
   volatile char* random_start_address;
@@ -77,30 +102,27 @@ class PatternBuilder {
 
   std::vector<volatile char*> aggressor_pairs;
 
-  std::vector<volatile char*> nops;
-
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
   void jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals);
 
   void randomize_parameters();
 
+  void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
+
  public:
   /// default constructor that randomizes fuzzing parameters
   PatternBuilder(int num_activations, volatile char* target_address);
 
-  // Total duration of hammering period in us: pi = num_refresh_intervals * duration_full_refresh;
-  int get_total_duration_pi(int num_ref_intervals);
-
   // access the pattern that was previously created by calling generate_random_pattern
-  void hammer_and_improve_params();
+  void hammer_pattern();
 
   void cleanup_and_rerandomize();
 
-  std::pair<volatile char*, volatile char*>
-  generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
-                          std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
-                          u_int64_t row_increment, int num_activations, int ba);
+  void generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
+                               std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
+                               u_int64_t row_increment, int num_activations, int ba,
+                               volatile char** first_address, volatile char** last_address);
 };
 
 #endif /* PATTERNBUILDER */

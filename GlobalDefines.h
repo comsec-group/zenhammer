@@ -1,15 +1,18 @@
 #ifndef GLOBAL_DEFINES
 #define GLOBAL_DEFINES
 
-//fonts color
-#define FRED        "\e[0;31m"
-#define FGREEN      "\e[0;32m"
-#define FYELLOW     "\e[0;33m"
-#define FBLUE       "\e[0;34m"
-#define FCYAN       "\e[0;36m"
+// fonts color
+#define FRED "\e[0;31m"
+#define FGREEN "\e[0;32m"
+#define FYELLOW "\e[0;33m"
+#define FBLUE "\e[0;34m"
+#define FCYAN "\e[0;36m"
+// end coloring, revert to default color
+#define NONE "\e[0m"
 
-//end color
-#define NONE        "\e[0m"
+// ########################################################
+// ################### CONFIG PARAMETERS ##################
+// ########################################################
 
 /// the starting address of the allocated memory area
 #define ADDR 0x2000000000
@@ -40,13 +43,17 @@
 /// allocate a super page
 #define USE_SUPERPAGE 1
 
+// #########################################################
+// ################ PROGRAM FLOW PARAMETERS ################
+// #########################################################
+
 /// do synchronized hammering
 #define USE_SYNC 1
 
 /// whether to generate random patterns using fuzzing
-#define USE_FUZZING 0
+#define USE_FUZZING 1
 
 /// whether to run an experiment rather than do hammering
-#define RUN_EXPERIMENT 1
+#define RUN_EXPERIMENT 0
 
 #endif /* GLOBAL_DEFINES */

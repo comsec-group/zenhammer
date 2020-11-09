@@ -139,12 +139,12 @@ void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t
   }
 
   // Findings of experiments conducted in run_experiment in this and previous commits:
-  // - using tREFI/tRC = 7800/46.750 ≈ 167 we can find out how many activates are theoretically possible within a 
+  // - using tREFI/tRC = 7800/46.750 ≈ 167 we can find out how many activates are theoretically possible within a
   //   REFRESH interval
-  // - the theoretic value can be approximated by synchronizing with the start of the REFRESH interval and then 
+  // - the theoretic value can be approximated by synchronizing with the start of the REFRESH interval and then
   //   accessing N same-bank addresses (see method count_activations_per_refresh_interval)
   // - if we choose 95% of the determined possible accesses as length for the hammering pattern, followed by M NOPs, we
-  //   can see that the REFRESH happens most of the time (approx. 95%) within the NOPs, this effectively allows us to 
+  //   can see that the REFRESH happens most of the time (approx. 95%) within the NOPs, this effectively allows us to
   //   avoid using expensive fences and do a kind of soft-synchronization –- see the code in run_experiment
 }
 
@@ -168,6 +168,8 @@ void hammer(std::vector<volatile char*>& aggressors) {
 /// Performs synchronized hammering on the given aggressor rows.
 void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
   int ref_rounds = acts / aggressors.size();
+  printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
+         acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
   int agg_rounds = ref_rounds;
   uint64_t before = 0;
   uint64_t after = 0;
@@ -373,15 +375,16 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       // bool parameter_optimal = false;
       // generate a random pattern using fuzzing
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
-      auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
-                                                      row_increment, acts, bank_no);
-      printf("[+] Entering hammering and pattern optimization feedback loop.\n");
+      volatile char* first_address;
+      volatile char* last_address;
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,row_increment, acts, bank_no,
+      &first_address, &last_address);
       // access this pattern synchronously with the REFRESH command
-      pb.hammer_and_improve_params();
+      pb.hammer_pattern();
       // check if any bit flips occurred while hammering
       mem_values(target, false,
-                 agg_addresses.first - (row_increment * 100),
-                 agg_addresses.second + (row_increment * 120),
+                 first_address - (row_increment * 100),
+                 last_address + (row_increment * 120),
                  row_function);
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup_and_rerandomize();
@@ -532,7 +535,7 @@ void print_metadata() {
   fflush(stdout);
   system("echo Git_Status: `if [ \"$(git diff --stat)\" != \"\" ]; then echo dirty; else echo clean; fi`");
   fflush(stdout);
-  printf("------ Program Arguments ------\n");
+  printf("------ Run Configuration ------\n");
   printf("ADDR: 0x%lx\n", ADDR);
   printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
   printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
@@ -580,17 +583,15 @@ int main(int argc, char** argv) {
   ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
-  // allocate a bulk of memory
+  // allocate a large bulk of contigous memory
   target = allocate_memory();
 
   // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
-  printf("[+] Found bank conflicts\n");
-
+  printf("[+] Found bank conflicts.\n");
   for (size_t i = 0; i < NUM_BANKS; i++) {
     find_targets(target, banks[i], NUM_TARGETS);
-  }
-  printf("[+] Populated addresses from different banks\n");
+  printf("[+] Populated addresses from different banks.\n");
 
   // determine the row and bank/rank functions
   find_functions(target, banks, row_function, bank_rank_functions);

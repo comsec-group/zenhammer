@@ -23,4 +23,4 @@ clean:
 	rm -f *.h.gch
 
 debug: blacksmith
-	sudo gdb -ex="set confirm off" -ex=r blacksmith
+	sudo gdb -ex="set confirm off" blacksmith
