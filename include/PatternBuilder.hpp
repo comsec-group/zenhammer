@@ -9,27 +9,7 @@
 #include <unordered_map>
 #include <utility>
 
-enum class FLUSHING_STRATEGY {
-  // flush an accessed aggressor as soon as it has been accessed (i.e., pairs are flushed in-between)
-  EARLIEST_POSSIBLE
-};
-
-static std::string get_string(FLUSHING_STRATEGY strategy) {
-  std::unordered_map<FLUSHING_STRATEGY, std::string> map =
-      {{FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"}};
-  return map.at(strategy);
-}
-
-enum class FENCING_STRATEGY {
-  // add the fence right before the next access of the aggressor if it has been flushed before
-  LATEST_POSSIBLE
-};
-
-static std::string get_string(FENCING_STRATEGY strategy) {
-  std::unordered_map<FENCING_STRATEGY, std::string> map =
-      {{FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"}};
-  return map.at(strategy);
-}
+#include "../include/CodeJitter.hpp"
 
 // Signature of the generated function.
 typedef int (*JittedFunction)(void);
@@ -39,9 +19,9 @@ struct Range {
  public:
   int min;
   int max;
-  
+
   Range() = default;
-  
+
   Range(int min, int max) : min(min), max(max) {}
 
   int get_random_number() {
@@ -61,15 +41,13 @@ struct Range {
 
 class PatternBuilder {
  private:
-  /// runtime for JIT code execution
-  asmjit::JitRuntime rt;
-
-  /// hammering function that was generated at runtime
-  JittedFunction fn;
+  CodeJitter jitter;
 
   bool use_agg_only_once;
 
   bool use_fixed_amplitude_per_aggressor;
+
+  bool use_unused_pair_as_dummies;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
   int num_refresh_intervals;

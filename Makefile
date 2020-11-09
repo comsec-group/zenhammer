@@ -4,7 +4,7 @@ OBJ_DIR := obj
 BIN_DIR := bin
 
 CXX = g++
-CXXFLAGS = -Wall -std=c++11 -g -Wno-unused-variable -I$(INC_DIR)
+CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR)
 INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
 
 BIN_NAME := blacksmith
@@ -17,7 +17,7 @@ all: $(EXE)
 .PHONY: all
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(BIN_DIR) $(OBJ_DIR):
 	mkdir -p $@
@@ -26,13 +26,13 @@ $(BIN_DIR)/$(BIN_NAME): $(OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -o $@ $^
 
 run: $(EXE)
-	sudo $(BIN_DIR)/$(BIN_NAME) 100
+	sudo $(EXE) 100
 
 benchmark: $(EXE)
-	sudo $(BIN_DIR)/$(BIN_NAME) 100000
+	sudo $(EXE) 100000
 
 clean:
 	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)
 
 debug: $(EXE)
-	sudo gdb -ex="set confirm off" $(BIN_NAME)
+	sudo gdb -ex="set confirm off" $(EXE)

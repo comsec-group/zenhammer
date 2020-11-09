@@ -16,10 +16,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "../include/DramAnalyzer.h"
-#include "../include/GlobalDefines.h"
-#include "../include/PatternBuilder.h"
-#include "../include/utils.h"
+#include "../include/DramAnalyzer.hpp"
+#include "../include/GlobalDefines.hpp"
+#include "../include/PatternBuilder.hpp"
+#include "../include/utils.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -439,9 +439,7 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
       printf("\n");
 
       if (RUN_EXPERIMENT) {
-        printf("████████████████████████████████████████████████████████████████████\n");
         printf("█████████████████████  RUNNING EXPERIMENT MODE  ████████████████████\n");
-        printf("████████████████████████████████████████████████████████████████████\n");
         run_experiment(cur_next_addr, acts, bank_rank_masks[ba], bank_rank_functions, row_function);
         printf("█████████████████████  TERMINATING EXPERIMENT  ████████████████████\n");
         exit(0);

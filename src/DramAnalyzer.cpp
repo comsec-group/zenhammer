@@ -1,4 +1,4 @@
-#include "../include/DramAnalyzer.h"
+#include "../include/DramAnalyzer.hpp"
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -8,8 +8,8 @@
 #include <cmath>
 #include <vector>
 
-#include "../include/GlobalDefines.h"
-#include "../include/utils.h"
+#include "../include/GlobalDefines.hpp"
+#include "../include/utils.hpp"
 
 volatile char* normalize_addr_to_bank(volatile char* cur_addr, std::vector<uint64_t>& cur_bank_rank,
                                       std::vector<uint64_t>& bank_rank_functions) {
