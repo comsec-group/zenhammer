@@ -1,4 +1,4 @@
-#include "PatternBuilder.h"
+#include "../include/PatternBuilder.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -10,9 +10,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "DramAnalyzer.h"
-#include "GlobalDefines.h"
-#include "utils.h"
+#include "../include/DramAnalyzer.h"
+#include "../include/GlobalDefines.h"
+#include "../include/utils.h"
+
 PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
     : num_activations(num_activations), target_addr(target_address) {
   randomize_parameters();
@@ -27,8 +28,8 @@ void PatternBuilder::randomize_parameters() {
   use_agg_only_once = true;
   use_fixed_amplitude_per_aggressor = true;
 
-  printf("    flushing_strategy: %s\n", to_string(flushing_strategy).c_str());
-  printf("    fencing_strategy: %s\n", to_string(fencing_strategy).c_str());
+  printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
+  printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
   printf("    use_agg_only_once: %s\n", use_agg_only_once ? "true" : "false");
   printf("    use_fixed_amplitude_per_aggressor: %s\n",
          (use_fixed_amplitude_per_aggressor ? "true" : "false"));

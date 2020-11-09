@@ -16,10 +16,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "DramAnalyzer.h"
-#include "GlobalDefines.h"
-#include "PatternBuilder.h"
-#include "utils.h"
+#include "../include/DramAnalyzer.h"
+#include "../include/GlobalDefines.h"
+#include "../include/PatternBuilder.h"
+#include "../include/utils.h"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -377,8 +377,8 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
       volatile char* first_address;
       volatile char* last_address;
-      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,row_increment, acts, bank_no,
-      &first_address, &last_address);
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, bank_no,
+                                 &first_address, &last_address);
       // access this pattern synchronously with the REFRESH command
       pb.hammer_pattern();
       // check if any bit flips occurred while hammering
@@ -591,33 +591,34 @@ int main(int argc, char** argv) {
   printf("[+] Found bank conflicts.\n");
   for (size_t i = 0; i < NUM_BANKS; i++) {
     find_targets(target, banks[i], NUM_TARGETS);
-  printf("[+] Populated addresses from different banks.\n");
+    printf("[+] Populated addresses from different banks.\n");
 
-  // determine the row and bank/rank functions
-  find_functions(target, banks, row_function, bank_rank_functions);
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function, get_row_increment(row_function), bank_rank_functions.size());
-  for (size_t i = 0; i < bank_rank_functions.size(); i++) {
-    printf("0x%" PRIx64 " ", bank_rank_functions[i]);
-    if (i == (bank_rank_functions.size() - 1)) printf("\n");
+    // determine the row and bank/rank functions
+    find_functions(target, banks, row_function, bank_rank_functions);
+    printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
+           row_function, get_row_increment(row_function), bank_rank_functions.size());
+    for (size_t i = 0; i < bank_rank_functions.size(); i++) {
+      printf("0x%" PRIx64 " ", bank_rank_functions[i]);
+      if (i == (bank_rank_functions.size() - 1)) printf("\n");
+    }
+
+    // count the number of possible activations per refresh interval
+    act = count_acts_per_ref(banks);
+    printf("[+] %d activations per refresh interval\n", act);
+
+    // determine bank/rank masks
+    std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
+    for (size_t i = 0; i < NUM_BANKS; i++) {
+      bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
+    }
+
+    // perform the hammering and check the flipped bits after each round
+    if (USE_FUZZING) {
+      n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
+    } else {
+      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
+    }
+
+    return 0;
   }
-
-  // count the number of possible activations per refresh interval
-  act = count_acts_per_ref(banks);
-  printf("[+] %d activations per refresh interval\n", act);
-
-  // determine bank/rank masks
-  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-  for (size_t i = 0; i < NUM_BANKS; i++) {
-    bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
-  }
-
-  // perform the hammering and check the flipped bits after each round
-  if (USE_FUZZING) {
-    n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
-  } else {
-    n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
-  }
-
-  return 0;
 }

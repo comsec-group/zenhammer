@@ -14,7 +14,7 @@ enum class FLUSHING_STRATEGY {
   EARLIEST_POSSIBLE
 };
 
-static std::string to_string(FLUSHING_STRATEGY strategy) {
+static std::string get_string(FLUSHING_STRATEGY strategy) {
   std::unordered_map<FLUSHING_STRATEGY, std::string> map =
       {{FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"}};
   return map.at(strategy);
@@ -25,7 +25,7 @@ enum class FENCING_STRATEGY {
   LATEST_POSSIBLE
 };
 
-static std::string to_string(FENCING_STRATEGY strategy) {
+static std::string get_string(FENCING_STRATEGY strategy) {
   std::unordered_map<FENCING_STRATEGY, std::string> map =
       {{FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"}};
   return map.at(strategy);
@@ -34,22 +34,23 @@ static std::string to_string(FENCING_STRATEGY strategy) {
 // Signature of the generated function.
 typedef int (*JittedFunction)(void);
 
-///
+/// A range is equivalent to the mathematical notation [i,j] where i,j ∈ ℕ.
 struct Range {
  public:
   int min;
   int max;
-
+  
   Range() = default;
-
+  
   Range(int min, int max) : min(min), max(max) {}
 
   int get_random_number() {
-    if (min > max) {
+    if (min > max)
       return -1;
-    } else {
-      return (min == max) ? min : rand() % (max + 1 - min) + min;
-    }
+    else if (min == max)
+      return min;
+    else
+      return rand() % (max + 1 - min) + min;
   }
 
   int get_random_number(int max_limit) {

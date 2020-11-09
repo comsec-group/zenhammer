@@ -1,26 +1,38 @@
+SRC_DIR := src
+INC_DIR := include
+OBJ_DIR := obj
+BIN_DIR := bin
+
 CXX = g++
-CXXFLAGS = -Wall -std=c++11 -g -Wno-unused-variable
-OBJ = blacksmith.o PatternBuilder.o DramAnalyzer.o
+CXXFLAGS = -Wall -std=c++11 -g -Wno-unused-variable -I$(INC_DIR)
 INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
 
-# force that calling 'make' always rebuilds things
-.PHONY: blacksmith
+BIN_NAME := blacksmith
+EXE := $(BIN_DIR)/$(BIN_NAME)
+SRC := $(wildcard $(SRC_DIR)/*.cpp)
+OBJ := $(SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
-%.o: %.c
-	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -c -o $@ $<
+all: $(EXE)
 
-blacksmith: $(OBJ)
+.PHONY: all
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BIN_DIR) $(OBJ_DIR):
+	mkdir -p $@
+
+$(BIN_DIR)/$(BIN_NAME): $(OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -o $@ $^
 
-run: blacksmith
-	sudo ./blacksmith 100
+run: $(EXE)
+	sudo $(BIN_DIR)/$(BIN_NAME) 100
 
-benchmark: blacksmith
-	sudo ./blacksmith 100000
+benchmark: $(EXE)
+	sudo $(BIN_DIR)/$(BIN_NAME) 100000
 
 clean:
-	rm -f *.o blacksmith
-	rm -f *.h.gch
+	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)
 
-debug: blacksmith
-	sudo gdb -ex="set confirm off" blacksmith
+debug: $(EXE)
+	sudo gdb -ex="set confirm off" $(BIN_NAME)
