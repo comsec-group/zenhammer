@@ -67,6 +67,8 @@ class PatternBuilder {
 
   int hammer_rounds;
 
+  int distance_to_dummy_pair;
+
   Range amplitude;
 
   Range N_sided;

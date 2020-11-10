@@ -28,28 +28,30 @@ void PatternBuilder::randomize_parameters() {
   use_agg_only_once = false;
   use_fixed_amplitude_per_aggressor = false;
   use_unused_pair_as_dummies = true;
-  use_sequential_aggressors = (bool)(Range(0,1).get_random_number());
 
   // SEMI-DYNAMIC FUZZING PARAMETERS
   num_activations = Range(80, 110).get_random_number();
   // those parameters are only randomly selected once, i.e., when calling this function
-  num_aggressors = Range(18, 26).get_random_number();
-  agg_inter_distance = Range(1, 12).get_random_number();
+  num_aggressors = Range(18, 22).get_random_number();
+  agg_inter_distance = Range(2, 4).get_random_number();
   agg_intra_distance = Range(1, 2).get_random_number();
   // agg_rounds = Range(128, 2048).get_random_number();
   // agg_rounds = num_activations / num_aggressors;
   // if (agg_rounds == 0)
-  agg_rounds = Range(2,8).get_random_number();
+  agg_rounds = Range(2, 8).get_random_number();
   // agg_rounds = num_activations / (2 * num_aggressors);
   // hammer_rounds = Range(800, 1500).get_random_number();
   hammer_rounds = agg_rounds;
   num_refresh_intervals = Range(100000, 400000).get_random_number();
   // num_refresh_intervals = hammer_rounds / agg_rounds;
   random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
+  use_sequential_aggressors = (bool)(Range(0, 1).get_random_number());
+  distance_to_dummy_pair = Range(80,120).get_random_number();
+
   // DYNAMIC FUZZING PARAMETERS
   // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
-  amplitude = Range(1, 2);
-  N_sided = Range(2, 2);
+  amplitude = Range(1, 4);
+  N_sided = Range(2, 3);
 
   printf("    agg_inter_distance: %d\n", agg_inter_distance);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
@@ -335,9 +337,7 @@ void PatternBuilder::generate_random_pattern(
 
   if (use_unused_pair_as_dummies) {
     std::vector<std::vector<volatile char*>> tmp;
-    // TODO: Make this distance 100 a parameter
-    cur_next_addr = add_aggressors(&cur_next_addr, 2, 100, agg_intra_distance, tmp, false);
-    auto first = tmp.front();
+    cur_next_addr = add_aggressors(&cur_next_addr, 2, distance_to_dummy_pair, agg_intra_distance, tmp, false);
     dummy_pair = std::move(tmp.front());
   }
 
