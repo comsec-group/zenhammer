@@ -17,7 +17,6 @@
 
 PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
     : num_activations(num_activations), target_addr(target_address) {
-  randomize_parameters();
 }
 
 void PatternBuilder::randomize_parameters() {
@@ -32,7 +31,7 @@ void PatternBuilder::randomize_parameters() {
   use_sequential_aggressors = (bool)(Range(0,1).get_random_number());
 
   // SEMI-DYNAMIC FUZZING PARAMETERS
-  num_activations = Range(80, 170).get_random_number();
+  num_activations = Range(80, 110).get_random_number();
   // those parameters are only randomly selected once, i.e., when calling this function
   num_aggressors = Range(18, 26).get_random_number();
   agg_inter_distance = Range(1, 12).get_random_number();
@@ -76,11 +75,10 @@ void PatternBuilder::hammer_pattern() {
   jitter.fn();
 }
 
-void PatternBuilder::cleanup_and_rerandomize() {
+void PatternBuilder::cleanup() {
   // rt.release(fn);
   jitter.cleanup();
   aggressor_pairs.clear();
-  randomize_parameters();
 }
 
 void PatternBuilder::get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices) {
@@ -250,7 +248,6 @@ void PatternBuilder::generate_random_pattern(
     cur_next_addr = add_aggressors(&cur_next_addr, N, agg_inter_distance, agg_intra_distance, agg_candidates_by_size[N]);
     printf("\n");
   }
-  printf("\n");
   *last_address = cur_next_addr;
 
   // define the maximum number of tries for pattern generation, otherwise in rare cases we won't be able to produce a

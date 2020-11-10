@@ -87,8 +87,6 @@ class PatternBuilder {
 
   void jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals);
 
-  void randomize_parameters();
-
   void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
 
  public:
@@ -98,7 +96,9 @@ class PatternBuilder {
   // access the pattern that was previously created by calling generate_random_pattern
   void hammer_pattern();
 
-  void cleanup_and_rerandomize();
+  void cleanup();
+
+  void randomize_parameters();
 
   void generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
                                std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,

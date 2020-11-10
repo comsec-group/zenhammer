@@ -377,6 +377,7 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
       volatile char* first_address;
       volatile char* last_address;
+      pb.randomize_parameters();
       pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, bank_no,
                                  &first_address, &last_address);
       // access this pattern synchronously with the REFRESH command
@@ -387,7 +388,8 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
                  last_address + (row_increment * 120),
                  row_function);
       // clean up the code jitting runtime for reuse with the next pattern
-      pb.cleanup_and_rerandomize();
+      pb.cleanup();
+      printf("\n");
     }
   }
 }
