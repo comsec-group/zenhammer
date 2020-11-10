@@ -2,6 +2,7 @@ SRC_DIR := src
 INC_DIR := include
 OBJ_DIR := obj
 BIN_DIR := bin
+LOG_DIR := log
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR)
@@ -19,7 +20,7 @@ all: $(EXE)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	$(CC) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-$(BIN_DIR) $(OBJ_DIR):
+$(BIN_DIR) $(OBJ_DIR) $(LOG_DIR):
 	mkdir -p $@
 
 $(BIN_DIR)/$(BIN_NAME): $(OBJ) | $(BIN_DIR)
@@ -29,7 +30,7 @@ run: $(EXE)
 	sudo $(EXE) 100
 
 benchmark: $(EXE)
-	sudo $(EXE) 100000
+	sudo $(EXE) 100000 | tee $(LOG_DIR)/`date +"%Y%M%d_%H%M%S.log"` | tail -f
 
 clean:
 	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)

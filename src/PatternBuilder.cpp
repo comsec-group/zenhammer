@@ -32,8 +32,8 @@ void PatternBuilder::randomize_parameters() {
 
   // SEMI-DYNAMIC FUZZING PARAMETERS
   // those parameters are only randomly selected once, i.e., when calling this function
-  num_aggressors = Range(2, 26).get_random_number();
-  agg_inter_distance = Range(1, 15).get_random_number();
+  num_aggressors = Range(18, 22).get_random_number();
+  agg_inter_distance = Range(1, 8).get_random_number();
   agg_intra_distance = Range(2, 2).get_random_number();
   // agg_rounds = Range(128, 2048).get_random_number();
   // agg_rounds = num_activations / num_aggressors;
@@ -47,24 +47,25 @@ void PatternBuilder::randomize_parameters() {
   random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
   // DYNAMIC FUZZING PARAMETERS
   // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
-  amplitude = Range(1, 2);
+  amplitude = Range(1, 3);
   N_sided = Range(2, 2);
 
-  printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
-  printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
-  printf("    use_agg_only_once: %s\n", use_agg_only_once ? "true" : "false");
-  printf("    use_fixed_amplitude_per_aggressor: %s\n", (use_fixed_amplitude_per_aggressor ? "true" : "false"));
-  printf("    use_unused_pair_as_dummies: %s\n", (use_unused_pair_as_dummies ? "true" : "false"));
-  printf("    num_aggressors: %d\n", num_aggressors);
   printf("    agg_inter_distance: %d\n", agg_inter_distance);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
   printf("    agg_rounds: %d\n", agg_rounds);
+  printf("    amplitude: (%d, %d)\n", amplitude.min, amplitude.max);
+  printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
+  printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
   printf("    hammer_rounds: %d\n", hammer_rounds);
+  printf("    N_sided: (%d, %d)\n", N_sided.min, N_sided.max);
+  printf("    num_activations: %d\n", num_activations);
+  printf("    num_aggressors: %d\n", num_aggressors);
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    random_start_address: %p\n", random_start_address);
-  printf("    amplitude: (%d, %d)\n", amplitude.min, amplitude.max);
-  printf("    N_sided: (%d, %d)", N_sided.min, N_sided.max);
-  printf(NONE "\n");
+  printf("    use_agg_only_once: %s\n", use_agg_only_once ? "true" : "false");
+  printf("    use_fixed_amplitude_per_aggressor: %s\n", (use_fixed_amplitude_per_aggressor ? "true" : "false"));
+  printf("    use_unused_pair_as_dummies: %s\n", (use_unused_pair_as_dummies ? "true" : "false"));
+  printf(NONE);
 }
 
 void PatternBuilder::hammer_pattern() {
@@ -184,7 +185,7 @@ void PatternBuilder::generate_random_pattern(
   std::map<int, std::vector<std::vector<volatile char*>>> agg_candidates_by_size;
 
   // TODO: Use count_activations_per_refresh_interval instead of hard-coded machine-specific value (177)
-  const size_t total_allowed_accesses = Range(12, 0.95 * 177).get_random_number();
+  const size_t total_allowed_accesses = num_aggressors;
 
   // === utility functions ===========
 
@@ -315,6 +316,7 @@ void PatternBuilder::generate_random_pattern(
 
   if (use_unused_pair_as_dummies) {
     std::vector<std::vector<volatile char*>> tmp;
+    // TODO: Make this distance 100 a parameter
     cur_next_addr = add_aggressors(&cur_next_addr, 2, 100, agg_intra_distance, tmp, false);
     auto first = tmp.front();
     dummy_pair = std::move(tmp.front());
