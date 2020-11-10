@@ -49,6 +49,8 @@ class PatternBuilder {
 
   bool use_unused_pair_as_dummies;
 
+  bool use_sequential_aggressors;
+
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
   int num_refresh_intervals;
 

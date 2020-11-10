@@ -30,7 +30,9 @@ run: $(EXE)
 	sudo $(EXE) 100
 
 benchmark: $(EXE)
-	sudo $(EXE) 100000 | tee $(LOG_DIR)/`date +"%Y%M%d_%H%M%S.log"` | tail -f
+	@ts=$(shell date +"%Y%M%d_%H%M%S.log"); \
+	echo "Writing log into $(shell pwd)/$(LOG_DIR)/$$ts"; \
+	sudo $(EXE) 100000 | tee $(LOG_DIR)/`date +"%Y%M%d_%H%M%S.log"`
 
 clean:
 	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)

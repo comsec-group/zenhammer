@@ -134,9 +134,9 @@ void CodeJitter::jit_hammering_code_fenced(size_t agg_rounds, uint64_t hammering
   for (size_t i = 0; i < agg_rounds; i++) {
     for (size_t i = 0; i < aggressor_pairs.size(); i++) {
       // if this has aggressor has been accessed in the past, first add a mfence to make sure that any flushing finished
-      //   if (fencing_strategy == FENCING_STRATEGY::LATEST_POSSIBLE && access_frequency.count(aggressor_pairs[i]) > 0) {
-      //     a.mfence();
-      //   }
+      if (fencing_strategy == FENCING_STRATEGY::LATEST_POSSIBLE && access_frequency.count(aggressor_pairs[i]) > 0) {
+        a.mfence();
+      }
 
       // "hammer": now perform the access
       a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
@@ -144,10 +144,10 @@ void CodeJitter::jit_hammering_code_fenced(size_t agg_rounds, uint64_t hammering
 
       // flush the accessed aggressor even if it will not be accessed in this aggressor round anymore it will be
       // accessed in the next round, hence we need to always flush it
-      //   if (flushing_strategy == FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-      //     a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
-      //     a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
-      //   }
+      if (flushing_strategy == FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
+        a.mov(asmjit::x86::rax, (uint64_t)aggressor_pairs[i]);
+        a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+      }
     }
 
     for (size_t i = 0; i < aggressor_pairs.size(); i++) {
