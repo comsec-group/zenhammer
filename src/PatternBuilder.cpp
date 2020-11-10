@@ -21,37 +21,31 @@ PatternBuilder::PatternBuilder(int num_activations, volatile char* target_addres
 
 void PatternBuilder::randomize_parameters() {
   printf(FCYAN "[+] Randomizing fuzzing parameters:\n");
+
+  // DYNAMIC FUZZING PARAMETERS
+  // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
+  amplitude = Range(1, 3);
+  N_sided = Range(2, 2);
+
   // STATIC FUZZING PARAMETERS
   // those static parameters must be configured before running this program and are not randomized
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
-  use_agg_only_once = false;
   use_fixed_amplitude_per_aggressor = false;
   use_unused_pair_as_dummies = true;
 
   // SEMI-DYNAMIC FUZZING PARAMETERS
-  num_activations = Range(15, 30).get_random_number();
   // those parameters are only randomly selected once, i.e., when calling this function
-  num_aggressors = Range(18, 22).get_random_number();
-  agg_inter_distance = Range(2, 4).get_random_number();
-  agg_intra_distance = Range(1, 2).get_random_number();
-  // agg_rounds = Range(128, 2048).get_random_number();
-  // agg_rounds = num_activations / num_aggressors;
-  // if (agg_rounds == 0)
-  agg_rounds = Range(2, 8).get_random_number();
-  // agg_rounds = num_activations / (2 * num_aggressors);
-  // hammer_rounds = Range(800, 1500).get_random_number();
+  num_aggressors = Range(16, 24).get_random_number();
+  agg_inter_distance = Range(3, 4).get_random_number();
+  agg_intra_distance = Range(2, 2).get_random_number();
+  agg_rounds = Range(1, 5).get_random_number();
   hammer_rounds = agg_rounds;
   num_refresh_intervals = Range(100000, 400000).get_random_number();
-  // num_refresh_intervals = hammer_rounds / agg_rounds;
   random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
+  distance_to_dummy_pair = Range(80, 120).get_random_number();
   use_sequential_aggressors = (bool)(Range(0, 1).get_random_number());
-  distance_to_dummy_pair = Range(80,120).get_random_number();
-
-  // DYNAMIC FUZZING PARAMETERS
-  // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
-  amplitude = Range(1, 4);
-  N_sided = Range(2, 3);
+  use_agg_only_once = (bool)(Range(0, 1).get_random_number());
 
   printf("    agg_inter_distance: %d\n", agg_inter_distance);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
@@ -189,7 +183,7 @@ void PatternBuilder::generate_random_pattern(
   std::map<int, std::vector<std::vector<volatile char*>>> agg_candidates_by_size;
 
   // TODO: Use count_activations_per_refresh_interval instead of hard-coded machine-specific value (177)
-  const size_t total_allowed_accesses = num_activations;
+  const size_t total_allowed_accesses = num_aggressors;
 
   // === utility functions ===========
 
