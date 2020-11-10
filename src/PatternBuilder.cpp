@@ -30,7 +30,7 @@ void PatternBuilder::randomize_parameters() {
   use_unused_pair_as_dummies = true;
 
   // SEMI-DYNAMIC FUZZING PARAMETERS
-  num_activations = Range(80, 110).get_random_number();
+  num_activations = Range(15, 30).get_random_number();
   // those parameters are only randomly selected once, i.e., when calling this function
   num_aggressors = Range(18, 22).get_random_number();
   agg_inter_distance = Range(2, 4).get_random_number();
@@ -57,6 +57,7 @@ void PatternBuilder::randomize_parameters() {
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
   printf("    agg_rounds: %d\n", agg_rounds);
   printf("    amplitude: (%d, %d)\n", amplitude.min, amplitude.max);
+  printf("    distance_to_dummy_pair: %d\n", distance_to_dummy_pair);
   printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
   printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
   printf("    hammer_rounds: %d\n", hammer_rounds);
@@ -188,7 +189,7 @@ void PatternBuilder::generate_random_pattern(
   std::map<int, std::vector<std::vector<volatile char*>>> agg_candidates_by_size;
 
   // TODO: Use count_activations_per_refresh_interval instead of hard-coded machine-specific value (177)
-  const size_t total_allowed_accesses = num_aggressors;
+  const size_t total_allowed_accesses = num_activations;
 
   // === utility functions ===========
 
