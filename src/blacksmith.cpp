@@ -167,6 +167,9 @@ void hammer(std::vector<volatile char*>& aggressors) {
 
 /// Performs synchronized hammering on the given aggressor rows.
 void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
+  char d1_value = *d1;
+  char d2_value = *d2;
+
   int ref_rounds = acts / aggressors.size();
   printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
          acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
@@ -191,6 +194,9 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     if ((after - before) > 1000) break;
   }
 
+  // int cnt_d = 0;
+  // int cnt_f = 0;
+
   // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
     for (int j = 0; j < agg_rounds; j++) {
@@ -205,20 +211,35 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
 
     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
     while (true) {
-      clflushopt(d1);
-      clflushopt(d2);
-      mfence();
-      lfence();
+      // two activations: flush from cache which triggers a write-back to the DRAM as cache line is dirty after write
       before = rdtscp();
       lfence();
-      *d1;
-      *d2;
+      clflush(d1);
+      clflush(d2);
+      sfence();
       after = rdtscp();
       lfence();
-      // stop if a REFRESH was issued
-      if ((after - before) > 1000) break;
+      if ((after - before) > 1000) {
+        // cnt_f++;
+        break;
+      }
+
+      // two activations: read and write the value to the cache
+      before = rdtscp();
+      lfence();
+      *d1 = *d1;
+      *d2 = *d2;
+      mfence();
+      after = rdtscp();
+      lfence();
+      if ((after - before) > 1000) {
+        // cnt_d++;
+        break;
+      }
     }
   }
+  // printf("[DEBUG] cnt_f: %d\n", cnt_f);
+  // printf("[DEBUG] cnt_d: %d\n", cnt_d);
 }
 
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
@@ -553,7 +574,10 @@ void print_metadata() {
 }
 
 int main(int argc, char** argv) {
-  // prints the current git commit and the metadata
+  // seed srand with the current time
+  srand(time(NULL));
+
+  // prints the current git commit and some metadata
   print_metadata();
 
   // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
@@ -616,7 +640,7 @@ int main(int argc, char** argv) {
     if (USE_FUZZING) {
       n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
     } else {
-      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
+      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, (rand() % 25) + 80);
     }
 
     return 0;

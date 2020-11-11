@@ -15,16 +15,17 @@
 typedef int (*JittedFunction)(void);
 
 /// A range is equivalent to the mathematical notation [i,j] where i,j ∈ ℕ.
+template <typename T>
 struct Range {
  public:
-  int min;
-  int max;
+  T min;
+  T max;
 
   Range() = default;
 
-  Range(int min, int max) : min(min), max(max) {}
+  Range(T min, T max) : min(min), max(max) {}
 
-  int get_random_number() {
+  T get_random_number() {
     if (min > max)
       return -1;
     else if (min == max)
@@ -33,57 +34,80 @@ struct Range {
       return rand() % (max + 1 - min) + min;
   }
 
-  int get_random_number(int max_limit) {
-    int new_max = (max > max_limit) ? max_limit : max;
+  T get_random_number(T max_limit) {
+    T new_max = (max > max_limit) ? max_limit : max;
     return Range(min, new_max).get_random_number();
   }
 };
 
 class PatternBuilder {
  private:
+  /// A instance of the CodeJitter that is used to generate the ASM code for the produced hammering pattern.
   CodeJitter jitter;
 
-  bool use_agg_only_once;
+  /// The number of consecutive segments an aggressor can appear in the pattern.
+  /// For example, if agg_frequency = 1, then an aggressor pair (A1,A2) can only be repeated once N-times within an
+  /// interval where N is the randomly chosen amplitude.
+  int agg_frequency;
 
+  ///
   bool use_fixed_amplitude_per_aggressor;
 
+  ///
   bool use_unused_pair_as_dummies;
 
+  ///
   bool use_sequential_aggressors;
 
-  /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval
+  /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals;
 
-  // the numbers of aggressors to be picked from during random pattern generation
+  /// The numbers of aggressors to be picked from during random pattern generation.
   int num_aggressors;
 
+  ///
   int agg_inter_distance;
 
+  ///
   int agg_intra_distance;
 
+  ///
   int num_activations;
 
+  ///
   int agg_rounds;
 
+  ///
   int hammer_rounds;
 
+  ///
   int distance_to_dummy_pair;
 
-  Range amplitude;
+  ///
+  Range<int> amplitude;
 
-  Range N_sided;
+  ///
+  Range<int> N_sided;
 
+  std::discrete_distribution<int> N_sided_probabilities;
+
+  ///
   FLUSHING_STRATEGY flushing_strategy;
 
+  ///
   FENCING_STRATEGY fencing_strategy;
 
+  ///
   volatile char* target_addr;
 
+  ///
   volatile char* random_start_address;
 
   asmjit::StringLogger* logger;
 
+
   std::vector<volatile char*> aggressor_pairs;
+
 
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
