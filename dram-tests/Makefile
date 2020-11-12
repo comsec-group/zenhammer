@@ -3,7 +3,7 @@
 INC=include
 SRC=$(wildcard src/*.c)
 OBJ=obj/tester
-CFLAGS = -I$(INC) -g -lm -msse4.2 
+CFLAGS = -I$(INC) -g -lm -msse4.2  #-DDEBUG 
 
 all: 
 	echo "Nada"
@@ -18,7 +18,7 @@ functions: $(SRC)
 
 
 hammer: $(SRC)
-	gcc -DSYNC -o $(OBJ) $^ $(CFLAGS) 
-
+	@gcc -DSYNC -o $(OBJ) $^ $(CFLAGS) 
+	@./obj/tester
 clean:
 	rm -f $(OBJ) 

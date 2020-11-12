@@ -156,7 +156,7 @@ void* to_phys(DRAMAddr d) {
 		res <<= 1ULL;
 		res |= (size_t) __builtin_parityl(l & PHYS_MTX[i]);
 	}
-	void* end = (void*)(d.msb | res);
+	void* end = (d.msb | res);
 
 	return end;
 }

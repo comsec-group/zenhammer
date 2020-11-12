@@ -19,7 +19,7 @@
 
 
 
-
+size_t consec(unsigned char* buff);
 
 
 
@@ -38,14 +38,16 @@ int main(void) {
 		fprintf(stderr, "mmap failed\n");
 		exit(1);
 	}
+	
+
 
 #ifdef EXPORT_TIMES
 	export_times(buff);
 #elif EXPORT_FUNCTIONS
 	export_functions(buff);
 #elif SYNC
-	fprintf(stdout, "rnds: %ld\n", refresh_sync(buff));
-
+	//printf("%ld\n", refresh_sync(buff));
+	hammer(buff);
 #endif
 
 
