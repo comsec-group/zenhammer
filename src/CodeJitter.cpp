@@ -39,7 +39,7 @@ void CodeJitter::get_random_indices(size_t max, size_t num_indices, std::vector<
   indices.insert(indices.end(), nums.begin(), nums.end());
 }
 
-void CodeJitter::jit_hammering_code_fenced(size_t agg_rounds, uint64_t hammering_intervals,
+void CodeJitter::jit_hammering_code_fenced(size_t agg_rounds, uint64_t num_refresh_intervals,
                                            std::vector<volatile char*>& aggressor_pairs, FENCING_STRATEGY fencing_strategy,
                                            FLUSHING_STRATEGY flushing_strategy,
                                            std::vector<volatile char*>& dummy_pair) {
@@ -119,7 +119,7 @@ void CodeJitter::jit_hammering_code_fenced(size_t agg_rounds, uint64_t hammering
 
   // ------- part 2: perform hammering and then check for next ACTIVATE ---------------------------
 
-  a.mov(asmjit::x86::rsi, hammering_intervals);  // loop counter
+  a.mov(asmjit::x86::rsi, num_refresh_intervals);  // loop counter
   a.mov(asmjit::x86::edx, 0);                    // counter for number of accesses in sync at end of refresh interval
 
   a.bind(for1_begin);

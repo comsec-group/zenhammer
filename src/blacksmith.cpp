@@ -399,8 +399,8 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       volatile char* first_address;
       volatile char* last_address;
       pb.randomize_parameters();
-      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, bank_no,
-                                 &first_address, &last_address);
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                 bank_no, &first_address, &last_address);
       // access this pattern synchronously with the REFRESH command
       pb.hammer_pattern();
       // check if any bit flips occurred while hammering

@@ -37,7 +37,7 @@ class CodeJitter {
   /// hammering function that was generated at runtime
   JittedFunction fn;
 
-  void jit_hammering_code_fenced(size_t agg_rounds, uint64_t hammering_intervals,
+  void jit_hammering_code_fenced(size_t agg_rounds, uint64_t num_refresh_intervals,
                                  std::vector<volatile char*>& aggressor_pairs, FENCING_STRATEGY fencing_strategy,
                                  FLUSHING_STRATEGY flushing_strategy,
                                  std::vector<volatile char*>& dummy_pair);
