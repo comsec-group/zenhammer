@@ -66,9 +66,13 @@ class PatternBuilder {
 
   int agg_intra_distance;
 
-  int num_activations;
+  int num_activations_per_REF;
+
+  int num_activations_per_REF_measured;
 
   int agg_rounds;
+
+  int num_total_activations_hammering;
 
   int distance_to_dummy_pair;
 
@@ -97,6 +101,8 @@ class PatternBuilder {
   void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
 
   std::string get_row_string(std::vector<volatile char*> aggs, u_int64_t row_function);
+
+  std::string get_dist_string(std::unordered_map<int, int>& dist);
 
  public:
   /// default constructor that randomizes fuzzing parameters
