@@ -1,8 +1,8 @@
 #include "../include/DramAnalyzer.hpp"
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include <algorithm>
 #include <cmath>
@@ -118,12 +118,13 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
       }
     }
     num_tries++;
-  } while (num_tries < max_num_tries&& bank_rank_functions.size() != num_expected_fns);
+  } while (num_tries < max_num_tries && bank_rank_functions.size() != num_expected_fns);
 
   // we cannot continue if we couldn't determine valid bank/rank functions
-  if (num_tries == max_num_tries) {
+  if (bank_rank_functions.size() != num_expected_fns) {
     fprintf(stderr,
-            FRED "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
+            FRED
+            "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
             "Giving up after %d tries. Exiting.\n" NONE,
             bank_rank_functions.size(), NUM_BANKS, num_expected_fns, num_tries);
     exit(1);
