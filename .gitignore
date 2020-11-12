@@ -1,3 +1,5 @@
-blacksmith
+bin/*
+obj/*
+log/*
 .vscode/*
-*.o
+

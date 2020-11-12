@@ -1,13 +1,15 @@
-#include "DramAnalyzer.h"
+#include "../include/DramAnalyzer.hpp"
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
-#include "GlobalDefines.h"
-#include "utils.h"
+#include "../include/GlobalDefines.hpp"
+#include "../include/utils.hpp"
 
 volatile char* normalize_addr_to_bank(volatile char* cur_addr, std::vector<uint64_t>& cur_bank_rank,
                                       std::vector<uint64_t>& bank_rank_functions) {
@@ -76,41 +78,55 @@ uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
  */
 void find_functions(volatile char* target, std::vector<volatile char*>* banks, uint64_t& row_function,
                     std::vector<uint64_t>& bank_rank_functions) {
-  int max_bits;
-  row_function = 0;
-  max_bits = (USE_SUPERPAGE) ? 30 : 21;
+  size_t num_expected_fns = std::log2(NUM_BANKS);
+  int num_tries = 0;
+  const int max_num_tries = 5;
+  do {
+    bank_rank_functions.clear();
+    int max_bits = (USE_SUPERPAGE) ? 30 : 21;
+    row_function = 0;
 
-  for (int ba = 6; ba < NUM_BANKS; ba++) {
-    auto addr = banks[ba].at(0);
+    for (int ba = 6; ba < NUM_BANKS; ba++) {
+      auto addr = banks[ba].at(0);
 
-    for (int b = 6; b < max_bits; b++) {
-      // flip the bit at position b in the given address
-      auto test_addr = (volatile char*)((uint64_t)addr ^ BIT_SET(b));
-      auto time = test_addr_against_bank(test_addr, banks[ba]);
-
-      if (time > THRESH) {
-        if (b > 13) {
-          row_function = row_function | BIT_SET(b);
-        }
-      } else {
-        // it is possible that flipping this bit changes the function
-        for (int tb = 6; tb < b; tb++) {
-          auto test_addr2 = (volatile char*)((uint64_t)test_addr ^ BIT_SET(tb));
-          time = test_addr_against_bank(test_addr2, banks[ba]);
-          if (time > THRESH) {
-            if (b > 13) {
-              row_function = row_function | BIT_SET(b);
-            }
-            uint64_t new_function = 0;
-            new_function = BIT_SET(b) | BIT_SET(tb);
-            auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
-            if (iter == bank_rank_functions.end()) {
-              bank_rank_functions.push_back(new_function);
+      for (int b = 6; b < max_bits; b++) {
+        // flip the bit at position b in the given address
+        auto test_addr = (volatile char*)((uint64_t)addr ^ BIT_SET(b));
+        auto time = test_addr_against_bank(test_addr, banks[ba]);
+        if (time > THRESH) {
+          if (b > 13) {
+            row_function = row_function | BIT_SET(b);
+          }
+        } else {
+          // it is possible that flipping this bit changes the function
+          for (int tb = 6; tb < b; tb++) {
+            auto test_addr2 = (volatile char*)((uint64_t)test_addr ^ BIT_SET(tb));
+            time = test_addr_against_bank(test_addr2, banks[ba]);
+            if (time > THRESH) {
+              if (b > 13) {
+                row_function = row_function | BIT_SET(b);
+              }
+              uint64_t new_function = 0;
+              new_function = BIT_SET(b) | BIT_SET(tb);
+              auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
+              if (iter == bank_rank_functions.end()) {
+                bank_rank_functions.push_back(new_function);
+              }
             }
           }
         }
       }
     }
+    num_tries++;
+  } while (num_tries < max_num_tries&& bank_rank_functions.size() != num_expected_fns);
+
+  // we cannot continue if we couldn't determine valid bank/rank functions
+  if (num_tries == max_num_tries) {
+    fprintf(stderr,
+            FRED "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
+            "Giving up after %d tries. Exiting.\n" NONE,
+            bank_rank_functions.size(), NUM_BANKS, num_expected_fns, num_tries);
+    exit(1);
   }
 }
 
@@ -154,19 +170,14 @@ void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* ban
         }
       }
 
-      // stop if we already determined all bank functions
+      // stop if we already determined addresses for each bank
       if (all_banks_set) return;
 
-      // store bank functions
-      for (size_t i = 0; i < NUM_BANKS; i++) {
-        auto bank = &banks[i];
-        if (bank->empty()) {
-          bank->push_back(a1);
-          bank->push_back(a2);
-          nr_banks_cur++;
-          break;
-        }
-      }
+      // store addresses found for each bank
+      assert(banks[nr_banks_cur].size() == 0 && "Bank not empty");
+      banks[nr_banks_cur].push_back(a1);
+      banks[nr_banks_cur].push_back(a2);
+      nr_banks_cur++;
     }
   }
 }

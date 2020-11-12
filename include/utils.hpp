@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <time.h>
 
+#include <string>
+#include <unordered_map>
+
+#include "../include/GlobalDefines.hpp"
+
 #define BIT_SET(x) (1ULL << (x))
 #define BIT_VAL(b, val) (((val) >> (b)) & 1)
 #define KB(x) ((x) << 10ULL)

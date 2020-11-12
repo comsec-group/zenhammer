@@ -15,7 +15,7 @@
 #include "functions.h"
 #include "hammer.h"
 
-#define HUGE_FILE "/mnt/lab1/buff"
+#define HUGE_FILE "/mnt/huge/buff"
 
 
 

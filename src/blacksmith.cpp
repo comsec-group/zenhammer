@@ -13,17 +13,140 @@
 #include <atomic>
 #include <cstring>
 #include <numeric>
+#include <unordered_set>
 #include <vector>
 
-#include "DramAnalyzer.h"
-#include "GlobalDefines.h"
-#include "PatternBuilder.h"
-#include "utils.h"
+#include "../include/DramAnalyzer.hpp"
+#include "../include/GlobalDefines.hpp"
+#include "../include/PatternBuilder.hpp"
+#include "../include/utils.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
 static unsigned long long EXECUTION_ROUNDS = 0;
 static bool EXECUTION_ROUNDS_INFINITE = true;
+
+size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_accesses, size_t rounds) {
+  auto median = [](size_t* vals, size_t size) -> uint64_t {
+    auto gt = [](const void* a, const void* b) -> int {
+      return (*(int*)a - *(int*)b);
+    };
+    qsort(vals, size, sizeof(uint64_t), gt);
+    return ((size % 2) == 0) ? vals[size / 2] : (vals[(size_t)size / 2] + vals[((size_t)size / 2 + 1)]) / 2;
+  };
+  size_t* times = (size_t*)malloc(sizeof(size_t) * rounds);
+  for (size_t k = 0; k < 15; k++) {
+    sfence();
+    for (size_t l = 0; l < num_accesses; l++) {
+      *(volatile char*)patt[l];
+    }
+    for (size_t l = 0; l < num_accesses; l++) {
+      clflush(patt[l]);
+    }
+  }
+  for (size_t k = 0; k < rounds; k++) {
+    sfence();
+    size_t t0 = rdtscp();
+    for (size_t l = 0; l < num_accesses; l++) {
+      *(volatile char*)patt[l];
+    }
+    times[k] = rdtscp() - t0;
+    for (size_t l = 0; l < num_accesses; l++) {
+      clflush(patt[l]);
+    }
+  }
+  size_t median_sum_access_time = median(times, rounds);
+  // printf("Avg. cycles per access: %lu\n", median_sum_access_time / num_accesses);
+  free(times);
+  return median_sum_access_time / num_accesses;
+}
+
+void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
+                    std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
+  const int NUM_INTERVALS = 500;
+  std::vector<int> NOPS = {0, 1, 2, 5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 700, 1000};
+  for (const auto& NUM_NOPS : NOPS) {
+    printf("###### NUM_NOPS: %d ######\n", NUM_NOPS);
+    volatile char* address = start_address;
+    const int NUM_ADDRESSES = 200;
+    uint64_t before = 0;
+    uint64_t after = 0;
+    auto row_increment = get_row_increment(row_function);
+
+    // generate addresses to the same bank but different rows
+    // printf("rows in list_of_same_bank_addresses: ");
+    unsigned char* same_bank_addrs[NUM_ADDRESSES];
+    std::vector<volatile char*> conflict_address_set;
+    for (size_t i = 0; i < NUM_ADDRESSES; i++) {
+      address = normalize_addr_to_bank(address + row_increment, cur_bank_rank_masks, bank_rank_fns);
+      // printf("   (r %" PRIu64 ", addr %p)\n", get_row_index(address, row_function), address);
+      same_bank_addrs[i] = (unsigned char*)address;
+      conflict_address_set.push_back(address);
+    }
+    // printf("\n");
+    if ((long)address > (ADDR + (GB(1)))) {
+      fprintf(stderr, "[-] Crossed boundary of 1 GB superpage. Exiting!");
+      exit(1);
+    }
+
+    volatile char* last_addr = normalize_addr_to_bank(address + (rand() % 42) * row_increment, cur_bank_rank_masks, bank_rank_fns);
+
+    const int NUM_ACCESSES_PER_REFRESH_INTERVAL = count_activations_per_refresh_interval(same_bank_addrs, NUM_ADDRESSES, 25);
+    printf("NUM_ACCESSES_PER_REFRESH_INTERVAL: %d\n", NUM_ACCESSES_PER_REFRESH_INTERVAL);
+    // shrink set of addresses in conflict_address_set to 98%
+    while (conflict_address_set.size() > 0.95 * NUM_ACCESSES_PER_REFRESH_INTERVAL) conflict_address_set.pop_back();
+    printf("accessing %zu addresses\n", conflict_address_set.size());
+
+    // do some warmup..
+    for (size_t k = 0; k < 15; k++) {
+      sfence();
+      for (size_t l = 0; l < conflict_address_set.size(); l++) {
+        *conflict_address_set.at(l);
+      }
+      for (size_t l = 0; l < conflict_address_set.size(); l++) {
+        clflushopt(conflict_address_set.at(l));
+      }
+    }
+    clflushopt(last_addr);
+
+    int cnt = 0;
+    for (size_t i = 0; i < NUM_INTERVALS; i++) {
+      // now access all addresses, then a NUM_NOPS nops, and then time the access to an arbitrary address
+      int t = 0;
+      sfence();
+      // access all addresses sequentially
+      for (volatile char* addr : conflict_address_set) {
+        *addr;
+        clflushopt(addr);
+      }
+      for (int j = 0; j < NUM_NOPS / 2; ++j) {
+        asm("nop");
+      }
+      before = rdtscp();
+      *last_addr;
+      after = rdtscp();
+      for (int j = (NUM_NOPS / 2) + 1; j < NUM_NOPS; ++j) {
+        asm("nop");
+      }
+      t += (after - before);
+      // printf("#cycles per access: %d\n", (after - before) / (int)conflict_address_set.size());
+      // printf("#cycles for last access: %" PRIu64 "\n", (after - before));
+      if ((after - before) > 1000) cnt++;
+      clflushopt(last_addr);
+    }
+    printf("#intervals with #cycles > 1000: %d of %d\n", cnt, NUM_INTERVALS);
+    printf("\n");
+  }
+
+  // Findings of experiments conducted in run_experiment in this and previous commits:
+  // - using tREFI/tRC = 7800/46.750 ≈ 167 we can find out how many activates are theoretically possible within a
+  //   REFRESH interval
+  // - the theoretic value can be approximated by synchronizing with the start of the REFRESH interval and then
+  //   accessing N same-bank addresses (see method count_activations_per_refresh_interval)
+  // - if we choose 95% of the determined possible accesses as length for the hammering pattern, followed by M NOPs, we
+  //   can see that the REFRESH happens most of the time (approx. 95%) within the NOPs, this effectively allows us to
+  //   avoid using expensive fences and do a kind of soft-synchronization –- see the code in run_experiment
+}
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void hammer(std::vector<volatile char*>& aggressors) {
@@ -44,7 +167,12 @@ void hammer(std::vector<volatile char*>& aggressors) {
 
 /// Performs synchronized hammering on the given aggressor rows.
 void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
+  char d1_value = *d1;
+  char d2_value = *d2;
+
   int ref_rounds = acts / aggressors.size();
+  printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
+         acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
   int agg_rounds = ref_rounds;
   uint64_t before = 0;
   uint64_t after = 0;
@@ -66,6 +194,9 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     if ((after - before) > 1000) break;
   }
 
+  // int cnt_d = 0;
+  // int cnt_f = 0;
+
   // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
     for (int j = 0; j < agg_rounds; j++) {
@@ -80,20 +211,35 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
 
     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
     while (true) {
-      clflushopt(d1);
-      clflushopt(d2);
-      mfence();
-      lfence();
+      // two activations: flush from cache which triggers a write-back to the DRAM as cache line is dirty after write
       before = rdtscp();
       lfence();
-      *d1;
-      *d2;
+      clflush(d1);
+      clflush(d2);
+      sfence();
       after = rdtscp();
       lfence();
-      // stop if an REFRESH was issued
-      if ((after - before) > 1000) break;
+      if ((after - before) > 1000) {
+        // cnt_f++;
+        break;
+      }
+
+      // two activations: read and write the value to the cache
+      before = rdtscp();
+      lfence();
+      *d1 = *d1;
+      *d2 = *d2;
+      mfence();
+      after = rdtscp();
+      lfence();
+      if ((after - before) > 1000) {
+        // cnt_d++;
+        break;
+      }
     }
   }
+  // printf("[DEBUG] cnt_f: %d\n", cnt_f);
+  // printf("[DEBUG] cnt_d: %d\n", cnt_d);
 }
 
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
@@ -190,16 +336,23 @@ volatile char* allocate_memory() {
 
 /// Determine exactly 'size' target addresses in given bank.
 void find_targets(volatile char* target, std::vector<volatile char*>& target_bank, size_t size) {
+  // create an unordered set of the addresses in the target bank for a quick lookup
+  std::unordered_set<volatile char*> tmp(target_bank.begin(), target_bank.end());
+  target_bank.clear();
+  size_t num_repetitions = 5;
   srand(time(0));
-  while (target_bank.size() < size) {
+  while (tmp.size() < size) {
     auto a1 = target + (rand() % (MEM_SIZE / 64)) * 64;
-    auto look = std::find(target_bank.begin(), target_bank.end(), a1);
-    if (look != target_bank.end()) continue;
+    if (tmp.count(a1) > 0) continue;
     uint64_t cumulative_times = 0;
-    for (const auto& addr : target_bank) {
-      cumulative_times += measure_time(a1, addr);
+    for (size_t i = 0; i < num_repetitions; i++) {
+      for (const auto& addr : tmp) {
+        cumulative_times += measure_time(a1, addr);
+      }
     }
-    if ((cumulative_times / (target_bank.size())) > THRESH) {
+    cumulative_times /= num_repetitions;
+    if ((cumulative_times / tmp.size()) > THRESH) {
+      tmp.insert(a1);
       target_bank.push_back(a1);
     }
   }
@@ -225,34 +378,39 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
 }
 
 void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
-                             std::vector<uint64_t>& bank_rank_functions, std::vector<uint64_t>* bank_rank_masks, int acts) {
-  auto row_increment = get_row_increment(row_function);
-
+                             std::vector<uint64_t>& bank_rank_functions,
+                             std::vector<uint64_t>* bank_rank_masks,
+                             int acts) {
   if (!USE_SYNC) {
     fprintf(stderr, "Fuzzing only supported with synchronized hammering. Aborting.");
     exit(0);
   }
 
   PatternBuilder pb(acts, target);
-  int cur_round = 0;
 
+  int exec_round = 0;
+  auto row_increment = get_row_increment(row_function);
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-    cur_round++;
     // hammer the first four banks
     for (int bank_no = 0; bank_no < 4; bank_no++) {
+      // bool parameter_optimal = false;
       // generate a random pattern using fuzzing
-      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", cur_round, bank_no);
-      auto agg_addresses = pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function,
-                                                      row_increment, acts, bank_no);
+      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
+      volatile char* first_address;
+      volatile char* last_address;
+      pb.randomize_parameters();
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, bank_no,
+                                 &first_address, &last_address);
       // access this pattern synchronously with the REFRESH command
-      pb.access_pattern();
+      pb.hammer_pattern();
       // check if any bit flips occurred while hammering
       mem_values(target, false,
-                 agg_addresses.first - (row_increment * 100),
-                 agg_addresses.second + (row_increment * 120),
+                 first_address - (row_increment * 100),
+                 last_address + (row_increment * 120),
                  row_function);
       // clean up the code jitting runtime for reuse with the next pattern
-      pb.cleanup_and_rerandomize();
+      pb.cleanup();
+      printf("\n");
     }
   }
 }
@@ -303,6 +461,13 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
       }
       printf("\n");
 
+      if (RUN_EXPERIMENT) {
+        printf("█████████████████████  RUNNING EXPERIMENT MODE  ████████████████████\n");
+        run_experiment(cur_next_addr, acts, bank_rank_masks[ba], bank_rank_functions, row_function);
+        printf("█████████████████████  TERMINATING EXPERIMENT  ████████████████████\n");
+        exit(0);
+      }
+
       if (!USE_SYNC) {
         printf("[+] Hammering %d aggressors with v %d d %d on bank %d\n", aggressor_rows_size, v, d, ba);
         hammer(aggressors);
@@ -339,14 +504,25 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
 
 /// Determine the number of activations per refresh interval.
 int count_acts_per_ref(std::vector<volatile char*>* banks) {
+  size_t skip_first_N = 50;
   volatile char* a = banks[0].at(0);
   volatile char* b = banks[0].at(1);
   std::vector<uint64_t> acts;
+  uint64_t running_sum = 0;
   uint64_t before, after, count = 0, count_old = 0;
   *a;
   *b;
 
-  while (true) {
+  auto compute_std = [](std::vector<uint64_t>& values, uint64_t running_sum, int num_numbers) {
+    int mean = running_sum / num_numbers;
+    uint64_t var = 0;
+    for (const auto& num : values) {
+      var += std::pow(num - mean, 2);
+    }
+    return std::sqrt(var / num_numbers);
+  };
+
+  for (size_t i = 0;; i++) {
     clflushopt(a);
     clflushopt(b);
     mfence();
@@ -357,20 +533,18 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
     after = rdtscp();
     count++;
     if ((after - before) > 1000) {
-      if (count_old != 0) {
-        acts.push_back((count - count_old) * 2);
-        // stop if we collected 50 data points
-        if (acts.size() > 50) break;
+      if (i > skip_first_N && count_old != 0) {
+        uint64_t value = (count - count_old) * 2;
+        acts.push_back(value);
+        running_sum += value;
+        // check after each 200 data points if our standard deviation reached 0 -> then stop collecting measurements
+        if ((acts.size() % 200) == 0 && compute_std(acts, running_sum, acts.size()) == 0) break;
       }
       count_old = count;
     }
   }
 
-  count = 0;
-  for (size_t i = 10; i < acts.size(); i++) {
-    count += acts[i];
-  }
-  return (count / (acts.size() - 10));
+  return (running_sum / acts.size());
 }
 
 /// Prints metadata about this evaluation run.
@@ -382,7 +556,7 @@ void print_metadata() {
   fflush(stdout);
   system("echo Git_Status: `if [ \"$(git diff --stat)\" != \"\" ]; then echo dirty; else echo clean; fi`");
   fflush(stdout);
-  printf("------ Program Arguments ------\n");
+  printf("------ Run Configuration ------\n");
   printf("ADDR: 0x%lx\n", ADDR);
   printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
   printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
@@ -400,10 +574,14 @@ void print_metadata() {
 }
 
 int main(int argc, char** argv) {
-  // prints the current git commit and the metadata
+  // seed srand with the current time
+  srand(time(NULL));
+
+  // prints the current git commit and some metadata
   print_metadata();
 
-  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison
+  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
+  // each DIMM to find patterns and for hammering)
   if (argc == 2) {
     char* p;
     errno = 0;
@@ -417,8 +595,6 @@ int main(int argc, char** argv) {
     EXECUTION_ROUNDS_INFINITE = false;
   }
 
-  // TODO: Add help info on how to run this tool (sudo) and supported args
-
   volatile char* target;
   // create an array of size NUM_BANKS in which each element is a
   // vector<volatile char*>
@@ -431,52 +607,42 @@ int main(int argc, char** argv) {
   ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
-  // allocate a bulk of memory
+  // allocate a large bulk of contigous memory
   target = allocate_memory();
 
   // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
-  printf("[+] Found bank conflicts\n");
-
+  printf("[+] Found bank conflicts.\n");
   for (size_t i = 0; i < NUM_BANKS; i++) {
     find_targets(target, banks[i], NUM_TARGETS);
+    printf("[+] Populated addresses from different banks.\n");
+
+    // determine the row and bank/rank functions
+    find_functions(target, banks, row_function, bank_rank_functions);
+    printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
+           row_function, get_row_increment(row_function), bank_rank_functions.size());
+    for (size_t i = 0; i < bank_rank_functions.size(); i++) {
+      printf("0x%" PRIx64 " ", bank_rank_functions[i]);
+      if (i == (bank_rank_functions.size() - 1)) printf("\n");
+    }
+
+    // count the number of possible activations per refresh interval
+    act = count_acts_per_ref(banks);
+    printf("[+] %d activations per refresh interval\n", act);
+
+    // determine bank/rank masks
+    std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
+    for (size_t i = 0; i < NUM_BANKS; i++) {
+      bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
+    }
+
+    // perform the hammering and check the flipped bits after each round
+    if (USE_FUZZING) {
+      n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
+    } else {
+      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, (rand() % 25) + 80);
+    }
+
+    return 0;
   }
-  printf("[+] Populated addresses from different banks\n");
-
-  // determine the row and bank/rank functions
-  find_functions(target, banks, row_function, bank_rank_functions);
-
-  // print row and bank/rank functions
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function,
-         get_row_increment(row_function),
-         bank_rank_functions.size());
-  if (bank_rank_functions.size() > 10) {
-    fprintf(stderr, FRED "[-] More than 10 bank/rank functions detected – that looks wrong. Please restart program." NONE "\n");
-    exit(1);
-  }
-
-  for (size_t i = 0; i < bank_rank_functions.size(); i++) {
-    printf("0x%" PRIx64 " ", bank_rank_functions[i]);
-    if (i == (bank_rank_functions.size() - 1)) printf("\n");
-  }
-
-  // count the number of possible activations per refresh interval
-  act = count_acts_per_ref(banks);
-  printf("[+] %d activations for each refresh interval\n", act);
-
-  // determine bank/rank masks
-  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-  for (size_t i = 0; i < NUM_BANKS; i++) {
-    bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
-  }
-
-  // perform the hammering and check the flipped bits after each round
-  if (USE_FUZZING) {
-    n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
-  } else {
-    n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
-  }
-
-  return 0;
 }
