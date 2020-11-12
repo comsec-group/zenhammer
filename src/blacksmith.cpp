@@ -283,9 +283,10 @@ void mem_values(volatile char* target, bool init, volatile char* start, volatile
         if (*((int*)(target + offset)) != rand_val) {
           for (unsigned long c = 0; c < sizeof(int); c++) {
             if (*((char*)(target + offset + c)) != ((char*)&rand_val)[c]) {
-              printf(FRED "[!] Flip %p, row %lu, from %x to %x" NONE "\n", target + offset + c,
-                     get_row_index(target + offset + c, row_function), ((unsigned char*)&rand_val)[c],
-                     *(unsigned char*)(target + offset + c));
+              printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
+                     target + offset + c,
+                     get_row_index(target + offset + c, row_function), offset % PAGE_SIZE, ((unsigned char*)&rand_val)[c],
+                     *(unsigned char*)(target + offset + c), (unsigned long)time(NULL));
             }
           }
           *((int*)(target + offset)) = rand_val;
@@ -551,6 +552,7 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
 void print_metadata() {
   printf("=== Evaluation Run Metadata ==========\n");
   // TODO: Include our internal DRAM ID (not sure yet where to encode it; environment variable, dialog, parameter?)
+  printf("Start_ts: %lu\n", (unsigned long)time(NULL));
   printf("Internal_DIMM_ID: %d\n", -1);
   system("echo \"Git_SHA: `git rev-parse --short HEAD`\"\n");
   fflush(stdout);
