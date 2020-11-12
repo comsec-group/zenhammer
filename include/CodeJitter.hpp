@@ -29,18 +29,22 @@ class CodeJitter {
   asmjit::JitRuntime rt;
 
   /// a logger that keeps track of the generated ASM instructions - useful for debugging
-  asmjit::StringLogger* logger;
+  // asmjit::StringLogger* logger = nullptr;
 
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
  public:
   /// hammering function that was generated at runtime
-  JittedFunction fn;
+  JittedFunction fn = nullptr;
 
-  void jit_hammering_code_fenced(size_t agg_rounds, uint64_t num_refresh_intervals,
-                                 std::vector<volatile char*>& aggressor_pairs, FENCING_STRATEGY fencing_strategy,
-                                 FLUSHING_STRATEGY flushing_strategy,
-                                 std::vector<volatile char*>& dummy_pair);
+  void jit_original(size_t agg_rounds, uint64_t num_refresh_intervals,
+                    std::vector<volatile char*>& aggressor_pairs, FENCING_STRATEGY fencing_strategy,
+                    FLUSHING_STRATEGY flushing_strategy,
+                    std::vector<volatile char*>& dummy_pair);
+
+  void jit_strict(size_t agg_rounds, uint64_t num_refresh_intervals,
+                  std::vector<volatile char*>& aggressor_pairs,
+                  std::vector<volatile char*>& dummy_pair);
 
   void cleanup();
 };

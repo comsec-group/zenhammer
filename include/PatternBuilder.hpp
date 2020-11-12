@@ -76,6 +76,10 @@ class PatternBuilder {
 
   int distance_to_dummy_pair;
 
+  int hammering_strategy;
+
+  size_t total_acts_pattern;
+
   Range<int> amplitude;
 
   Range<int> N_sided;
@@ -94,6 +98,8 @@ class PatternBuilder {
 
   std::vector<volatile char*> aggressor_pairs;
 
+  std::vector<volatile char*> dummy_pair;
+
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
   void jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals);
@@ -109,7 +115,7 @@ class PatternBuilder {
   PatternBuilder(int num_activations, volatile char* target_address);
 
   // access the pattern that was previously created by calling generate_random_pattern
-  void hammer_pattern();
+  int hammer_pattern();
 
   void cleanup();
 
@@ -118,6 +124,12 @@ class PatternBuilder {
   void generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
                                std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
                                u_int64_t row_increment, int ba, volatile char** first_address, volatile char** last_address);
+
+  int remove_aggs(int N);
+
+  void jit_code();
+
+  size_t count_aggs();
 };
 
 #endif /* PATTERNBUILDER */
