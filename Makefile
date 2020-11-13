@@ -5,8 +5,8 @@ BIN_DIR := bin
 LOG_DIR := log
 
 CXX = g++
-CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR)
-INCLUDE_ASMJIT = -I /usr/local/include -L /usr/local/lib -lasmjit
+CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR) -I /usr/local/include -L /usr/local/lib
+LIB_ASMJIT = -lasmjit
 
 BIN_NAME := blacksmith
 EXE := $(BIN_DIR)/$(BIN_NAME)
@@ -18,13 +18,13 @@ all: $(EXE)
 .PHONY: all
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@ $(LIB_ASMJIT)
 
 $(BIN_DIR) $(OBJ_DIR) $(LOG_DIR):
 	mkdir -p $@
 
 $(BIN_DIR)/$(BIN_NAME): $(OBJ) | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDE_ASMJIT) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIB_ASMJIT)
 
 run: $(EXE)
 	sudo $(EXE) 100
@@ -40,3 +40,7 @@ clean:
 
 debug: $(EXE)
 	sudo gdb -ex="set confirm off" $(EXE)
+
+install_deps:
+	# check if asmjit is installed: sudo ldconfig -p | grep asmjit
+	git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig
