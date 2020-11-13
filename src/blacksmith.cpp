@@ -283,9 +283,10 @@ void mem_values(volatile char* target, bool init, volatile char* start, volatile
         if (*((int*)(target + offset)) != rand_val) {
           for (unsigned long c = 0; c < sizeof(int); c++) {
             if (*((char*)(target + offset + c)) != ((char*)&rand_val)[c]) {
-              printf(FRED "[!] Flip %p, row %lu, from %x to %x" NONE "\n", target + offset + c,
-                     get_row_index(target + offset + c, row_function), ((unsigned char*)&rand_val)[c],
-                     *(unsigned char*)(target + offset + c));
+              printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
+                     target + offset + c,
+                     get_row_index(target + offset + c, row_function), offset % PAGE_SIZE, ((unsigned char*)&rand_val)[c],
+                     *(unsigned char*)(target + offset + c), (unsigned long)time(NULL));
             }
           }
           *((int*)(target + offset)) = rand_val;
@@ -389,6 +390,8 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
   PatternBuilder pb(acts, target);
 
   int exec_round = 0;
+  int num_optimization_rounds = 0;
+  const int limit_optimization_rounds = 5;
   auto row_increment = get_row_increment(row_function);
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     // hammer the first four banks
@@ -399,17 +402,42 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       volatile char* first_address;
       volatile char* last_address;
       pb.randomize_parameters();
-      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, acts, bank_no,
-                                 &first_address, &last_address);
-      // access this pattern synchronously with the REFRESH command
-      pb.hammer_pattern();
-      // check if any bit flips occurred while hammering
-      mem_values(target, false,
-                 first_address - (row_increment * 100),
-                 last_address + (row_increment * 120),
-                 row_function);
+
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                 bank_no, &first_address, &last_address);
+
+      // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
+      // synchronization at each REFRESH
+      do {
+        // access this pattern synchronously with the REFRESH command
+        auto trailing_acts = pb.hammer_pattern();
+        auto overflow_acts = acts - trailing_acts;
+
+        // check if any bit flips occurred while hammering
+        mem_values(target, false,
+                   first_address - (row_increment * 100),
+                   last_address + (row_increment * 120),
+                   row_function);
+
+        // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
+        // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
+        // check that we did not pass the optimization rounds limit yet
+        if (trailing_acts > 40 && trailing_acts < acts && num_optimization_rounds < limit_optimization_rounds) {
+          int aggs_to_be_removed = overflow_acts / 2;
+          if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
+          printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
+          int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
+          if (num_aggs_now == 0) break;
+          num_optimization_rounds++;
+          // do again the code jitting
+          pb.cleanup();
+          pb.jit_code();
+        } else {
+          break;
+        }
+      } while (true);
+
       // clean up the code jitting runtime for reuse with the next pattern
-      pb.cleanup();
       printf("\n");
     }
   }
@@ -551,6 +579,7 @@ int count_acts_per_ref(std::vector<volatile char*>* banks) {
 void print_metadata() {
   printf("=== Evaluation Run Metadata ==========\n");
   // TODO: Include our internal DRAM ID (not sure yet where to encode it; environment variable, dialog, parameter?)
+  printf("Start_ts: %lu\n", (unsigned long)time(NULL));
   printf("Internal_DIMM_ID: %d\n", -1);
   system("echo \"Git_SHA: `git rev-parse --short HEAD`\"\n");
   fflush(stdout);
@@ -640,7 +669,7 @@ int main(int argc, char** argv) {
     if (USE_FUZZING) {
       n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
     } else {
-      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, (rand() % 25) + 80);
+      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
     }
 
     return 0;

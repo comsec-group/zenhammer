@@ -16,7 +16,19 @@
 #include "../include/utils.hpp"
 
 PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
-    : num_activations(num_activations), target_addr(target_address) {
+    : num_activations_per_REF_measured(num_activations), target_addr(target_address) {
+}
+
+size_t PatternBuilder::count_aggs() {
+  return aggressor_pairs.size();
+}
+
+int PatternBuilder::remove_aggs(int N) {
+  while (N > 1 && aggressor_pairs.size() > 0) {
+    aggressor_pairs.pop_back();
+    N--;
+  }
+  return aggressor_pairs.size();
 }
 
 std::discrete_distribution<int> build_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities) {
@@ -25,38 +37,50 @@ std::discrete_distribution<int> build_distribution(Range<int> range_N_sided, std
   return std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
+std::string PatternBuilder::get_dist_string(std::unordered_map<int, int>& dist) {
+  std::stringstream ss;
+  int N = 0;
+  for (const auto& d : dist) N += d.second;
+  for (const auto& d : dist) {
+    ss << d.first << "-sided: " << d.second << "/" << N << ", ";
+  }
+  return ss.str();
+}
+
 void PatternBuilder::randomize_parameters() {
   printf(FCYAN "[+] Randomizing fuzzing parameters:\n");
 
-  // DYNAMIC FUZZING PARAMETERS
-  // these parameters specify ranges of valid values that are then randomly determined while generating the pattern
-  amplitude = Range<int>(1, 3);
+  // DYNAMIC FUZZING PARAMETERS: specify ranges of valid values that are used to randomize during pattern generation
+  amplitude = Range<int>(1, 7);
   N_sided = Range<int>(1, 2);
 
-  // STATIC FUZZING PARAMETERS
-  // those static parameters must be configured before running this program and are not randomized
+  // SEMI-DYNAMIC FUZZING PARAMETERS: are only randomized once when calling this function
+  num_aggressors = Range<int>(8, 22).get_random_number();
+  agg_inter_distance = Range<int>(1, 4).get_random_number();
+  agg_intra_distance = Range<int>(2, 2).get_random_number();
+  // make pattern a bit longer so that we can shorten it to determine optimal length
+  num_activations_per_REF = num_activations_per_REF_measured * 1.2;
+  agg_rounds = Range<int>(3, 12).get_random_number();
+  num_refresh_intervals = Range<int>(1, 4).get_random_number();
+  random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
+  distance_to_dummy_pair = Range<int>(80, 120).get_random_number();
+  use_sequential_aggressors = (bool)(Range<int>(0, 1).get_random_number());
+  // e.g., (1,4) means each aggressor is accessed at least once (1,-) and at most 4 times (-, 4) in a sequence
+  agg_frequency = Range<int>(1, 20);
+  hammering_strategy = Range<int>(0, 1).get_random_number();
+  // STATIC FUZZING PARAMETERS: fix values/formulas that must be configured before running this program
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
   use_fixed_amplitude_per_aggressor = false;
   use_unused_pair_as_dummies = true;
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then it translates to: pick a 1-sided pair with 20% probability and a
   // 2-sided pair with 80% probability
-  N_sided_probabilities = build_distribution(N_sided, {{1, 2}, {2, 8}});
+  std::unordered_map<int, int> distribution = {{1, 2}, {2, 8}};
+  N_sided_probabilities = build_distribution(N_sided, distribution);
+  num_total_activations_hammering = 3000000;
+  total_acts_pattern = num_activations_per_REF * num_refresh_intervals;
 
-  // SEMI-DYNAMIC FUZZING PARAMETERS
-  // those parameters are only randomly selected once, i.e., when calling this function
-  num_aggressors = Range<int>(16, 24).get_random_number();
-  agg_inter_distance = Range<int>(3, 4).get_random_number();
-  agg_intra_distance = Range<int>(2, 2).get_random_number();
-  agg_rounds = Range<int>(1, 5).get_random_number();
-  hammer_rounds = agg_rounds;
-  num_refresh_intervals = Range<int>(100000, 400000).get_random_number();
-  random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
-  distance_to_dummy_pair = Range<int>(80, 120).get_random_number();
-  use_sequential_aggressors = (bool)(Range<int>(0, 1).get_random_number());
-  // (1,-): each aggressor is accessed at least once and at most 4 times (-, 4)
-  agg_frequency = Range<int>(1, 4).get_random_number();
-
+  printf("    agg_frequency: (%d,%d)\n", agg_frequency.min, agg_frequency.max);
   printf("    agg_inter_distance: %d\n", agg_inter_distance);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
   printf("    agg_rounds: %d\n", agg_rounds);
@@ -64,28 +88,29 @@ void PatternBuilder::randomize_parameters() {
   printf("    distance_to_dummy_pair: %d\n", distance_to_dummy_pair);
   printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
   printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
-  printf("    hammer_rounds: %d\n", hammer_rounds);
+  printf("    hammering_strategy: %s\n", (hammering_strategy == 0 ? "original" : "strict"));
+  printf("    N_sided dist.: %s\n", get_dist_string(distribution).c_str());
   printf("    N_sided: (%d, %d)\n", N_sided.min, N_sided.max);
-  printf("    num_activations: %d\n", num_activations);
+  printf("    num_activations_per_REF: %d\n", num_activations_per_REF);
   printf("    num_aggressors: %d\n", num_aggressors);
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
+  printf("    num_total_activations_hammering: %d\n", num_total_activations_hammering);
   printf("    random_start_address: %p\n", random_start_address);
-  printf("    agg_frequency: %d\n", agg_frequency);
+  printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    use_fixed_amplitude_per_aggressor: %s\n", (use_fixed_amplitude_per_aggressor ? "true" : "false"));
-  printf("    use_unused_pair_as_dummies: %s\n", (use_unused_pair_as_dummies ? "true" : "false"));
   printf("    use_sequential_aggressors: %s\n", (use_sequential_aggressors ? "true" : "false"));
+  printf("    use_unused_pair_as_dummies: %s\n", (use_unused_pair_as_dummies ? "true" : "false"));
+
   printf(NONE);
 }
 
-void PatternBuilder::hammer_pattern() {
+int PatternBuilder::hammer_pattern() {
   printf("[+] Hammering using jitted code...\n");
-  jitter.fn();
+  return jitter.fn() / (num_total_activations_hammering / total_acts_pattern);
 }
 
 void PatternBuilder::cleanup() {
-  // rt.release(fn);
   jitter.cleanup();
-  aggressor_pairs.clear();
 }
 
 void PatternBuilder::get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices) {
@@ -183,17 +208,24 @@ void PatternBuilder::encode_double_ptr_chasing(std::vector<volatile char*>& aggr
   printf("finished!\n");
 }
 
+std::string PatternBuilder::get_row_string(std::vector<volatile char*> aggs, u_int64_t row_function) {
+  std::stringstream ss;
+  ss << "|";
+  for (const auto& agg : aggs) ss << get_row_index(agg, row_function) << "|";
+  return ss.str();
+}
+
 void PatternBuilder::generate_random_pattern(
     std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
-    u_int64_t row_function, u_int64_t row_increment, int num_activations, int bank_no,
+    u_int64_t row_function, u_int64_t row_increment, int bank_no,
     volatile char** first_address, volatile char** last_address) {
+  aggressor_pairs.clear();
+  dummy_pair.clear();
+
   // a dictionary with the different sizes of N_sided (key) and the sets of hammering pairs (values); this map is used
   // to store aggressor candidates and to determine whether there are still candidates remaining that fit into the
   // remaining allowed activations
   std::map<int, std::vector<std::vector<volatile char*>>> agg_candidates_by_size;
-
-  // TODO: Use count_activations_per_refresh_interval instead of hard-coded machine-specific value (177)
-  const size_t total_allowed_accesses = num_aggressors;
 
   // === utility functions ===========
 
@@ -220,7 +252,7 @@ void PatternBuilder::generate_random_pattern(
   };
 
   auto valid_aggressors_exist = [&]() -> bool {
-    int remaining_accesses = total_allowed_accesses - aggressor_pairs.size();
+    int remaining_accesses = total_acts_pattern - aggressor_pairs.size();
     for (const auto& size_aggs : agg_candidates_by_size) {
       if (size_aggs.first < remaining_accesses && !size_aggs.second.empty()) return true;
     }
@@ -243,25 +275,25 @@ void PatternBuilder::generate_random_pattern(
   // refresh interval; in case of use_unused_pair_as_dummies==true we generate a dedicated dummy pair to ensure that it
   // is not hammered before
   int dummy_pair_accesses = INT_MAX;
-  std::vector<volatile char*> dummy_pair;
 
   // generate the candidate hammering aggressors
   std::default_random_engine generator;
   volatile char* cur_next_addr = normalize_address(random_start_address);
   *first_address = cur_next_addr;
   printf("[+] Candidate aggressor rows: \n");
-  for (int added_aggressors = 0; added_aggressors < num_aggressors;) {
+  int num_aggressor_candidates = 0;
+  while (num_aggressor_candidates < num_aggressors) {
     int N = N_sided_probabilities(generator);
-    if (added_aggressors + N > num_aggressors) {
+    if (num_aggressor_candidates + N > num_aggressors) {
       // there's no way to fill up the gap -> stop here
-      if (added_aggressors + N_sided.min > num_aggressors) break;
+      if (num_aggressor_candidates + N_sided.min > num_aggressors) break;
       // there are still suitable Ns to fill up remaining aggressors -> try finding suitable N
       continue;
     }
     printf("    %d-sided: ", N);
     cur_next_addr = add_aggressors(&cur_next_addr, N, agg_inter_distance, agg_intra_distance, agg_candidates_by_size[N]);
     printf("\n");
-    added_aggressors += N;
+    num_aggressor_candidates += N;
   }
   *last_address = cur_next_addr;
 
@@ -279,7 +311,7 @@ void PatternBuilder::generate_random_pattern(
     // second in a lower row than the third, et cetera.
     size_t N = N_sided.min;
     size_t set_idx = 0;
-    while (aggressor_pairs.size() < total_allowed_accesses && valid_aggressors_exist()) {
+    while (aggressor_pairs.size() < total_acts_pattern && valid_aggressors_exist()) {
       auto curr_agg_set = agg_candidates_by_size.at(N).at(set_idx);
       aggressor_pairs.insert(aggressor_pairs.end(), curr_agg_set.begin(), curr_agg_set.end());
       // update the N and/or set_idx according to the data present in agg_candidates_by_size
@@ -295,21 +327,27 @@ void PatternBuilder::generate_random_pattern(
       }
     }
   } else {
-    // if the total_allowed_accesses does not allow us to respect the constraint of agg_frequency then lose it 
-    // accordingly; for example, if there are 10 aggressors and agg_frequency is 3, we would need 
-    // total_allowed_accesses >= 30 but if it is X, here we would lose it to become X/aggressors (:= new agg_frequency)
-    // TODO: this must not be a static number but a function were num_aggressors are the ones that we did not consider
-    //  yet (i.e., we must keep track of how often we accessed each one yet)
-    int min_number_remaining_accesses = std::min((size_t)agg_frequency*num_aggressors, total_allowed_accesses);
-    
-    // TODO: in the while-loop, do repeatedly
-    //    MAX := total_allowed_accesses / min_number_remaining_accesses
-    //    pick amplitude in [min, std::min(MAX, amplitude.max)]
+    // a copy of the agg_candidates_by_size as we will remove elements from there but later must restore them
+    std::map<int, std::vector<std::vector<volatile char*>>>
+        backup_candidates(agg_candidates_by_size.begin(), agg_candidates_by_size.end());
+
+    // a map that keeps track how often a specific aggressor pair was picked, uses a string built out of the aggressor's
+    // row as key; note that a value of X means that the aggressor pair was picked X times whereas each time it can
+    // appear in the pattern for a certain amplitude (i.e., number of repeated accesses)
+    std::unordered_map<std::string, int> frequency_counts;
+
+    int num_accesses_req_until_min_freq = num_aggressor_candidates * agg_frequency.min;
+    // do not try to fulfill the agg_frequency.min in case that it is not feasible anyway
+    // idea here: if (...) is true, then we set minimum_frequency_reached to False to intelligently pick the amplitude
+    // of the aggressors; otherwise it won't work anyway and we thus set it directly to True
+    bool minimum_frequency_reached =
+        !(total_acts_pattern >= (size_t)num_accesses_req_until_min_freq) || (agg_frequency.min == 0);
+    int num_times_each_agg_accessed = 0;
 
     // generate the hammering pattern using random N-sided aggressors picked from an arbitrary location within the
     // allocated superpage
-    while (aggressor_pairs.size() < total_allowed_accesses && valid_aggressors_exist() && failed_tries < max_tries) {
-      int remaining_accesses = total_allowed_accesses - aggressor_pairs.size();
+    while (aggressor_pairs.size() < total_acts_pattern && valid_aggressors_exist() && failed_tries < max_tries) {
+      int remaining_accesses = total_acts_pattern - aggressor_pairs.size();
 
       // determine N of N-sided pair such that N still fits into the remaining accesses (otherwise we wouldn't be able to
       // access all aggressors of the pair once)
@@ -322,7 +360,9 @@ void PatternBuilder::generate_random_pattern(
 
       // determine a random N-sided hammering pair
       int idx_set = rand() % number_of_sets;
-      auto aggressor_set = agg_candidates_by_size.at(idx_size).at(idx_set);
+      auto& suitable_candidates = agg_candidates_by_size.at(idx_size);
+      auto& aggressor_set = suitable_candidates.at(idx_set);
+      frequency_counts[get_row_string(aggressor_set, row_function)]++;
       size_t num_elements_in_aggressor_set = aggressor_set.size();
 
       // determine the hammering amplitude, i.e., the number of sequential accesses of the aggressors in the pattern
@@ -331,13 +371,26 @@ void PatternBuilder::generate_random_pattern(
         // an amplitude has been defined for this aggressor pair before -> use same amplitude again
         M = amplitudes_per_agg_pair[aggressor_set];
       } else {
-        // no amplitude is defined for this aggressor pair -> choose new amplitude that fits into remaining accesses
-        size_t max_amplitude = (size_t)remaining_accesses / num_elements_in_aggressor_set;
-        if (max_amplitude < 1 || (unsigned long)amplitude.min > max_amplitude) {
+        // limit amplitude by considering how many aggressors still fit into the remaining accesses (if) or how many
+        // we still need to access to fulfill agg_frequency.min (else)
+        int M_max;
+        if (minimum_frequency_reached) {
+          // trivial case: we just need to make sure that M won't become too large to fit into remaining accesses
+          M_max = std::min(remaining_accesses, amplitude.max);
+        } else {
+          // choose M in a way that we can access all aggressors at least agg_frequency.min times
+          // M_max = std::min(remaining_accesses-num_accesses_req_until_min_freq, amplitude.max);
+          M_max = std::min(remaining_accesses / num_accesses_req_until_min_freq, amplitude.max);
+        }
+
+        // no amplitude is defined for this aggressor pair yet -> choose new amplitude that fits into remaining accesses
+        M = amplitude.get_random_number(M_max);
+        if (M < 1 || amplitude.min > M) {
           failed_tries++;
           continue;
         }
-        M = amplitude.get_random_number(max_amplitude);
+
+        // check if we need to store this amplitude for the next use of this aggressor
         if (use_fixed_amplitude_per_aggressor) {
           amplitudes_per_agg_pair[aggressor_set] = M;
         }
@@ -354,17 +407,39 @@ void PatternBuilder::generate_random_pattern(
         dummy_pair_accesses = M;
       }
 
-      // if the flag 'use_agg_only_once' is set, then delete the aggressor pair from the map of candidates
-      // TODO: Use agg_frequency and take number of aggressors into account
-      // if (use_agg_only_once) {
-      //   auto it = agg_candidates_by_size.at(idx_size).begin();
-      //   std::advance(it, idx_set);
-      //   agg_candidates_by_size.at(idx_size).erase(it);
-      // }
+      if (!minimum_frequency_reached || frequency_counts[get_row_string(aggressor_set, row_function)] == agg_frequency.max) {
+        num_accesses_req_until_min_freq -= aggressor_set.size();
+        suitable_candidates.erase(suitable_candidates.begin() + idx_set);
+
+        if (!minimum_frequency_reached) {
+          // printf("[DEBUG] agg_frequency not reached yet\n");
+          // if all are empty -> restore backup and increase "num_all_accessed" counter
+          // (all are empty if the aggressor_pairs is a multiple of the total candidates)
+          bool all_empty = false;
+          size_t total_size = 0;
+          for (const auto& pair : agg_candidates_by_size) {
+            for (const auto& vec : pair.second) {
+              all_empty |= vec.empty();
+              total_size += vec.size();
+            }
+          }
+
+          if (all_empty || !valid_aggressors_exist()) {
+            num_times_each_agg_accessed++;
+            // if num_all_accessed counter equals the number of minimum accesses per agg -> set minimum_frequency_reached
+            minimum_frequency_reached = (num_times_each_agg_accessed == agg_frequency.min) ? true : false;
+            agg_candidates_by_size.clear();
+            agg_candidates_by_size.insert(backup_candidates.begin(), backup_candidates.end());
+          }
+        }
+      }
 
       // reset the number-of-tries counter
       failed_tries = 0;
     }
+
+    // now trigger the code jitting
+    jit_code();
   }
 
   if (use_unused_pair_as_dummies) {
@@ -380,11 +455,24 @@ void PatternBuilder::generate_random_pattern(
   printf("[+] Dummy pair: ");
   for (const auto& a : dummy_pair) printf("%" PRIu64 " ", get_row_index(a, row_function));
   printf("\n");
+}
 
-  // TODO: Take list of aggressors and do double pointer chasing
-  // volatile char* first_start = nullptr, second_start = nullptr;
-  // encode_double_ptr_chasing(aggressor_pairs, &first_start, &second_start);
-
+void PatternBuilder::jit_code() {
   // generate jitted hammering code that hammers these selected addresses
-  jitter.jit_hammering_code_fenced(agg_rounds, num_refresh_intervals, aggressor_pairs, fencing_strategy, flushing_strategy, dummy_pair);
+  if (hammering_strategy == 0) {
+    jitter.jit_original(agg_rounds,
+                        num_total_activations_hammering / total_acts_pattern,
+                        aggressor_pairs,
+                        fencing_strategy,
+                        flushing_strategy,
+                        dummy_pair);
+  } else if (hammering_strategy == 1) {
+    jitter.jit_strict(agg_rounds,
+                      num_total_activations_hammering / total_acts_pattern,
+                      aggressor_pairs,
+                      dummy_pair);
+  } else {
+    printf("[-] Chosen hammering_strategy does not exist! Exiting.\n");
+    exit(1);
+  }
 }

@@ -48,15 +48,12 @@ class PatternBuilder {
   /// The number of consecutive segments an aggressor can appear in the pattern.
   /// For example, if agg_frequency = 1, then an aggressor pair (A1,A2) can only be repeated once N-times within an
   /// interval where N is the randomly chosen amplitude.
-  int agg_frequency;
+  Range<int> agg_frequency;
 
-  ///
   bool use_fixed_amplitude_per_aggressor;
 
-  ///
   bool use_unused_pair_as_dummies;
 
-  ///
   bool use_sequential_aggressors;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
@@ -65,49 +62,43 @@ class PatternBuilder {
   /// The numbers of aggressors to be picked from during random pattern generation.
   int num_aggressors;
 
-  ///
   int agg_inter_distance;
 
-  ///
   int agg_intra_distance;
 
-  ///
-  int num_activations;
+  int num_activations_per_REF;
 
-  ///
+  int num_activations_per_REF_measured;
+
   int agg_rounds;
 
-  ///
-  int hammer_rounds;
+  int num_total_activations_hammering;
 
-  ///
   int distance_to_dummy_pair;
 
-  ///
+  int hammering_strategy;
+
+  size_t total_acts_pattern;
+
   Range<int> amplitude;
 
-  ///
   Range<int> N_sided;
 
   std::discrete_distribution<int> N_sided_probabilities;
 
-  ///
   FLUSHING_STRATEGY flushing_strategy;
 
-  ///
   FENCING_STRATEGY fencing_strategy;
 
-  ///
   volatile char* target_addr;
 
-  ///
   volatile char* random_start_address;
 
   asmjit::StringLogger* logger;
 
-
   std::vector<volatile char*> aggressor_pairs;
 
+  std::vector<volatile char*> dummy_pair;
 
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
@@ -115,12 +106,16 @@ class PatternBuilder {
 
   void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
 
+  std::string get_row_string(std::vector<volatile char*> aggs, u_int64_t row_function);
+
+  std::string get_dist_string(std::unordered_map<int, int>& dist);
+
  public:
   /// default constructor that randomizes fuzzing parameters
   PatternBuilder(int num_activations, volatile char* target_address);
 
   // access the pattern that was previously created by calling generate_random_pattern
-  void hammer_pattern();
+  int hammer_pattern();
 
   void cleanup();
 
@@ -128,8 +123,13 @@ class PatternBuilder {
 
   void generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
                                std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
-                               u_int64_t row_increment, int num_activations, int ba,
-                               volatile char** first_address, volatile char** last_address);
+                               u_int64_t row_increment, int ba, volatile char** first_address, volatile char** last_address);
+
+  int remove_aggs(int N);
+
+  void jit_code();
+
+  size_t count_aggs();
 };
 
 #endif /* PATTERNBUILDER */
