@@ -16,7 +16,7 @@
 #include "../include/utils.hpp"
 
 PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
-    : num_activations_per_REF_measured(num_activations), target_addr(target_address) {
+    : num_activations_per_tREFI_measured(num_activations), target_addr(target_address) {
 }
 
 size_t PatternBuilder::count_aggs() {
@@ -33,7 +33,9 @@ int PatternBuilder::remove_aggs(int N) {
 
 std::discrete_distribution<int> build_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
-  for (int i = 0; i <= range_N_sided.max; i++) dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : 0);
+  for (int i = 0; i <= range_N_sided.max; i++) {
+    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : 0);
+  }
   return std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
@@ -41,57 +43,66 @@ std::string PatternBuilder::get_dist_string(std::unordered_map<int, int>& dist) 
   std::stringstream ss;
   int N = 0;
   for (const auto& d : dist) N += d.second;
-  for (const auto& d : dist) {
-    ss << d.first << "-sided: " << d.second << "/" << N << ", ";
-  }
+  for (const auto& d : dist) ss << d.first << "-sided: " << d.second << "/" << N << ", ";
   return ss.str();
 }
 
 void PatternBuilder::randomize_parameters() {
   printf(FCYAN "[+] Randomizing fuzzing parameters:\n");
 
-  // DYNAMIC FUZZING PARAMETERS: specify ranges of valid values that are used to randomize during pattern generation
+  // === DYNAMIC FUZZING PARAMETERS ====================================================
+  // specify ranges of valid values that are used to randomize during pattern generation
+
   amplitude = Range<int>(1, 7);
   N_sided = Range<int>(1, 2);
 
-  // SEMI-DYNAMIC FUZZING PARAMETERS: are only randomized once when calling this function
+  // === SEMI-DYNAMIC FUZZING PARAMETERS ====================================================
+  // are only randomized once when calling this function
+
   num_aggressors = Range<int>(8, 22).get_random_number();
-  agg_inter_distance = Range<int>(1, 4).get_random_number();
+  agg_inter_distance = Range<int>(2, 4).get_random_number();
   agg_intra_distance = Range<int>(2, 2).get_random_number();
-  // make pattern a bit longer so that we can shorten it to determine optimal length
-  num_activations_per_REF = num_activations_per_REF_measured * 1.2;
-  agg_rounds = Range<int>(3, 12).get_random_number();
-  num_refresh_intervals = Range<int>(1, 4).get_random_number();
   random_start_address = target_addr + MB(100) + (((rand() % (MEM_SIZE - MB(200)))) / PAGE_SIZE) * PAGE_SIZE;
-  distance_to_dummy_pair = Range<int>(80, 120).get_random_number();
   use_sequential_aggressors = (bool)(Range<int>(0, 1).get_random_number());
+  agg_frequency = Range<int>(1, 10);
+
+  // make pattern a bit longer so that we can shorten it to determine optimal length
+  num_refresh_intervals = Range<int>(1, 8).get_random_number();
+
   // e.g., (1,4) means each aggressor is accessed at least once (1,-) and at most 4 times (-, 4) in a sequence
-  agg_frequency = Range<int>(1, 20);
-  hammering_strategy = Range<int>(0, 1).get_random_number();
-  // STATIC FUZZING PARAMETERS: fix values/formulas that must be configured before running this program
+  num_activations_per_tREFI = num_activations_per_tREFI_measured * 1.15;
+
+  // === STATIC FUZZING PARAMETERS ====================================================
+  // fix values/formulas that must be configured before running this program
+
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
-  fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
+  fencing_strategy = FENCING_STRATEGY::EARLIEST_POSSIBLE;
   use_fixed_amplitude_per_aggressor = false;
-  use_unused_pair_as_dummies = true;
+
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then it translates to: pick a 1-sided pair with 20% probability and a
   // 2-sided pair with 80% probability
   std::unordered_map<int, int> distribution = {{1, 2}, {2, 8}};
   N_sided_probabilities = build_distribution(N_sided, distribution);
+  total_acts_pattern = num_activations_per_tREFI * num_refresh_intervals;
+
+  // num_total_activations_hammering is derived as follow:
+  //  refresh interval: 7.8 μs (tREFI), retention period: 64 ms
+  //    => 8,000 - 10,000 REFs per interval
+  //  num_activations_per_tREFI: ≈100
+  //    => 10,000 * 100 = 1,000,000 activations * 3 = 3,000,000 activations
   num_total_activations_hammering = 3000000;
-  total_acts_pattern = num_activations_per_REF * num_refresh_intervals;
+
+  // ========================================================================================================
 
   printf("    agg_frequency: (%d,%d)\n", agg_frequency.min, agg_frequency.max);
   printf("    agg_inter_distance: %d\n", agg_inter_distance);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
-  printf("    agg_rounds: %d\n", agg_rounds);
   printf("    amplitude: (%d, %d)\n", amplitude.min, amplitude.max);
-  printf("    distance_to_dummy_pair: %d\n", distance_to_dummy_pair);
   printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
   printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
-  printf("    hammering_strategy: %s\n", (hammering_strategy == 0 ? "original" : "strict"));
   printf("    N_sided dist.: %s\n", get_dist_string(distribution).c_str());
   printf("    N_sided: (%d, %d)\n", N_sided.min, N_sided.max);
-  printf("    num_activations_per_REF: %d\n", num_activations_per_REF);
+  printf("    num_activations_per_tREFI: %d\n", num_activations_per_tREFI);
   printf("    num_aggressors: %d\n", num_aggressors);
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    num_total_activations_hammering: %d\n", num_total_activations_hammering);
@@ -99,14 +110,17 @@ void PatternBuilder::randomize_parameters() {
   printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    use_fixed_amplitude_per_aggressor: %s\n", (use_fixed_amplitude_per_aggressor ? "true" : "false"));
   printf("    use_sequential_aggressors: %s\n", (use_sequential_aggressors ? "true" : "false"));
-  printf("    use_unused_pair_as_dummies: %s\n", (use_unused_pair_as_dummies ? "true" : "false"));
-
-  printf(NONE);
+  printf(NONE);  // revert back color
 }
 
 int PatternBuilder::hammer_pattern() {
-  printf("[+] Hammering using jitted code...\n");
-  return jitter.fn() / (num_total_activations_hammering / total_acts_pattern);
+  auto return_value = jitter.hammer_pattern();
+  if (return_value > 0) {
+    // hammering was successful, return_value indicates the number of activations before the final refresh
+    return return_value / (num_total_activations_hammering / total_acts_pattern);
+  }
+  // this indicates that no hammering happened
+  return return_value;
 }
 
 void PatternBuilder::cleanup() {
@@ -220,7 +234,6 @@ void PatternBuilder::generate_random_pattern(
     u_int64_t row_function, u_int64_t row_increment, int bank_no,
     volatile char** first_address, volatile char** last_address) {
   aggressor_pairs.clear();
-  dummy_pair.clear();
 
   // a dictionary with the different sizes of N_sided (key) and the sets of hammering pairs (values); this map is used
   // to store aggressor candidates and to determine whether there are still candidates remaining that fit into the
@@ -234,7 +247,7 @@ void PatternBuilder::generate_random_pattern(
     return normalize_addr_to_bank(address, bank_rank_masks[bank_no], bank_rank_functions);
   };
 
-  // a wrapper for the logic required to get an address to hammer (or dummy)
+  // a wrapper for the logic required to get an address to hammer
   auto add_aggressors = [&](volatile char** cur_next_addr, int N_sided, int agg_inter_distance, int agg_intra_distance,
                             std::vector<std::vector<volatile char*>>& addresses, bool print_agg = true) -> volatile char* {
     // generate a vector like {agg_inter_distance, agg_intra_distance, agg_intra_distance, ... , agg_intra_distance}
@@ -270,11 +283,6 @@ void PatternBuilder::generate_random_pattern(
             "Invoke cleanup_and_rerandomize before requesting a new pattern.\n");
     exit(1);
   }
-
-  // stores the pair with the lowest number of activations - this is the one that is hammered again at the end of the
-  // refresh interval; in case of use_unused_pair_as_dummies==true we generate a dedicated dummy pair to ensure that it
-  // is not hammered before
-  int dummy_pair_accesses = INT_MAX;
 
   // generate the candidate hammering aggressors
   std::default_random_engine generator;
@@ -399,14 +407,6 @@ void PatternBuilder::generate_random_pattern(
       // fill up the aggressor_pairs vector by repeating the aggressor pair M times
       while (M--) aggressor_pairs.insert(aggressor_pairs.end(), aggressor_set.begin(), aggressor_set.end());
 
-      // if use_unused_pair_as_dummies==true, this set contains at least 2 aggressors, and the amplitude of this agg
-      // is lower than the "best" one we found so far, then this is our new "best" dummy pair
-      if (!use_unused_pair_as_dummies && num_elements_in_aggressor_set >= 2 && M < dummy_pair_accesses) {
-        dummy_pair.clear();
-        dummy_pair.insert(dummy_pair.end(), aggressor_set.begin(), aggressor_set.end());
-        dummy_pair_accesses = M;
-      }
-
       if (!minimum_frequency_reached || frequency_counts[get_row_string(aggressor_set, row_function)] == agg_frequency.max) {
         num_accesses_req_until_min_freq -= aggressor_set.size();
         suitable_candidates.erase(suitable_candidates.begin() + idx_set);
@@ -437,42 +437,21 @@ void PatternBuilder::generate_random_pattern(
       // reset the number-of-tries counter
       failed_tries = 0;
     }
-
-    // now trigger the code jitting
-    jit_code();
   }
 
-  if (use_unused_pair_as_dummies) {
-    std::vector<std::vector<volatile char*>> tmp;
-    cur_next_addr = add_aggressors(&cur_next_addr, 2, distance_to_dummy_pair, agg_intra_distance, tmp, false);
-    dummy_pair = std::move(tmp.front());
-  }
+  // now trigger the code jitting
+  jit_code();
 
   // print generated pattern
   printf("[+] Generated hammering pattern: ");
   for (const auto& a : aggressor_pairs) printf("%" PRIu64 " ", get_row_index(a, row_function));
   printf("\n");
-  printf("[+] Dummy pair: ");
-  for (const auto& a : dummy_pair) printf("%" PRIu64 " ", get_row_index(a, row_function));
-  printf("\n");
 }
 
 void PatternBuilder::jit_code() {
-  // generate jitted hammering code that hammers these selected addresses
-  if (hammering_strategy == 0) {
-    jitter.jit_original(agg_rounds,
-                        num_total_activations_hammering / total_acts_pattern,
-                        aggressor_pairs,
-                        fencing_strategy,
-                        flushing_strategy,
-                        dummy_pair);
-  } else if (hammering_strategy == 1) {
-    jitter.jit_strict(agg_rounds,
-                      num_total_activations_hammering / total_acts_pattern,
-                      aggressor_pairs,
-                      dummy_pair);
-  } else {
-    printf("[-] Chosen hammering_strategy does not exist! Exiting.\n");
-    exit(1);
-  }
+  // generate jitted hammering code that hammers chosen addresses (but does not run it yet)
+  jitter.jit_strict(num_total_activations_hammering,
+                    flushing_strategy,
+                    fencing_strategy,
+                    aggressor_pairs);
 }

@@ -194,6 +194,7 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     if ((after - before) > 1000) break;
   }
 
+
   // int cnt_d = 0;
   // int cnt_f = 0;
 
@@ -419,10 +420,13 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
                    last_address + (row_increment * 120),
                    row_function);
 
+        // printf("trailing acts: %d\n", trailing_acts);
+        // printf("overflow acts: %d\n", overflow_acts);
+
         // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
         // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
         // check that we did not pass the optimization rounds limit yet
-        if (trailing_acts > 40 && trailing_acts < acts && num_optimization_rounds < limit_optimization_rounds) {
+        if (trailing_acts%acts > 10 && num_optimization_rounds < limit_optimization_rounds) {
           int aggs_to_be_removed = overflow_acts / 2;
           if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
           printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
@@ -438,6 +442,8 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       } while (true);
 
       // clean up the code jitting runtime for reuse with the next pattern
+      pb.cleanup();
+
       printf("\n");
     }
   }

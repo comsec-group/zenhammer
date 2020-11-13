@@ -52,8 +52,6 @@ class PatternBuilder {
 
   bool use_fixed_amplitude_per_aggressor;
 
-  bool use_unused_pair_as_dummies;
-
   bool use_sequential_aggressors;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
@@ -66,15 +64,11 @@ class PatternBuilder {
 
   int agg_intra_distance;
 
-  int num_activations_per_REF;
+  int num_activations_per_tREFI;
 
-  int num_activations_per_REF_measured;
-
-  int agg_rounds;
+  int num_activations_per_tREFI_measured;
 
   int num_total_activations_hammering;
-
-  int distance_to_dummy_pair;
 
   int hammering_strategy;
 
@@ -98,11 +92,7 @@ class PatternBuilder {
 
   std::vector<volatile char*> aggressor_pairs;
 
-  std::vector<volatile char*> dummy_pair;
-
   void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
-
-  void jit_hammering_code(size_t agg_rounds, uint64_t hammering_intervals);
 
   void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
 

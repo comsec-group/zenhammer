@@ -15,37 +15,40 @@ std::string get_string(FLUSHING_STRATEGY strategy);
 
 enum class FENCING_STRATEGY {
   // add the fence right before the next access of the aggressor if it has been flushed before
-  LATEST_POSSIBLE
+  EARLIEST_POSSIBLE
 };
 
 std::string get_string(FENCING_STRATEGY strategy);
 
-// Signature of the generated function.
-typedef int (*JittedFunction)(void);
-
 class CodeJitter {
  private:
-  /// runtime for JIT code execution
-  asmjit::JitRuntime rt;
+  /// runtime for JIT code execution, can be reused by cleaning the function ptr (see cleanup method)
+  asmjit::JitRuntime runtime;
 
   /// a logger that keeps track of the generated ASM instructions - useful for debugging
-  // asmjit::StringLogger* logger = nullptr;
+  asmjit::StringLogger* logger = nullptr;
 
-  void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
+  /// a function pointer to a function that takes no input (void) and returns an integer
+  int (*fn)(void) = nullptr;
 
  public:
-  /// hammering function that was generated at runtime
-  JittedFunction fn = nullptr;
+  /// constructor
+  CodeJitter();
 
-  void jit_original(size_t agg_rounds, uint64_t num_refresh_intervals,
-                    std::vector<volatile char*>& aggressor_pairs, FENCING_STRATEGY fencing_strategy,
-                    FLUSHING_STRATEGY flushing_strategy,
-                    std::vector<volatile char*>& dummy_pair);
+  /// destructor
+  ~CodeJitter();
 
-  void jit_strict(size_t agg_rounds, uint64_t num_refresh_intervals,
-                  std::vector<volatile char*>& aggressor_pairs,
-                  std::vector<volatile char*>& dummy_pair);
+  /// generates the jitted function and assigns the function pointer fn to it
+  void jit_strict(size_t pattern_hammering_reps,
+                  FLUSHING_STRATEGY flushing_strategy,
+                  FENCING_STRATEGY fencing_strategy,
+                  std::vector<volatile char*>& aggressor_pairs);
 
+  /// does the hammering if the function was previously created successfully, otherwise does nothing
+  int hammer_pattern();
+
+  /// cleans this instance associated function pointer that points to the function that was jitted at runtime;
+  /// cleaning up is required to release memory before jit_strict can be called again
   void cleanup();
 };
 
