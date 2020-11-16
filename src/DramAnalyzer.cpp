@@ -79,8 +79,12 @@ uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
 void find_functions(volatile char* target, std::vector<volatile char*>* banks, uint64_t& row_function,
                     std::vector<uint64_t>& bank_rank_functions) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
+
+  // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003), 
+  // because of that we need to choose a rather large maximum number of tries
+  const int max_num_tries = 100;
   int num_tries = 0;
-  const int max_num_tries = 5;
+
   do {
     bank_rank_functions.clear();
     int max_bits = (USE_SUPERPAGE) ? 30 : 21;

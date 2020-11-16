@@ -11,44 +11,39 @@
 
 #include "../include/CodeJitter.hpp"
 
-// Signature of the generated function.
-typedef int (*JittedFunction)(void);
-
 /// A range is equivalent to the mathematical notation [i,j] where i,j ∈ ℕ.
-template <typename T>
 struct Range {
- public:
-  T min;
-  T max;
+  int min;
+  int max;
+  std::uniform_int_distribution<> dist;
 
   Range() = default;
 
-  Range(T min, T max) : min(min), max(max) {}
+  Range(int min, int max) : min(min), max(max), dist(std::uniform_int_distribution<>(min, max)) {}
 
-  T get_random_number() {
-    if (min > max)
-      return -1;
-    else if (min == max)
-      return min;
-    else
-      return rand() % (max + 1 - min) + min;
+  int get_random_number(std::mt19937& gen) {
+    return dist(gen);
   }
 
-  T get_random_number(T max_limit) {
-    T new_max = (max > max_limit) ? max_limit : max;
-    return Range(min, new_max).get_random_number();
+  int get_random_number(int upper_bound, std::mt19937& gen) {
+    if (max > upper_bound) dist = std::uniform_int_distribution<>(min, upper_bound);
+    return dist(gen);
   }
 };
 
 class PatternBuilder {
  private:
+  std::random_device rd;
+
+  std::mt19937 gen;
+
   /// A instance of the CodeJitter that is used to generate the ASM code for the produced hammering pattern.
   CodeJitter jitter;
 
   /// The number of consecutive segments an aggressor can appear in the pattern.
   /// For example, if agg_frequency = 1, then an aggressor pair (A1,A2) can only be repeated once N-times within an
   /// interval where N is the randomly chosen amplitude.
-  Range<int> agg_frequency;
+  Range agg_frequency;
 
   bool use_fixed_amplitude_per_aggressor;
 
@@ -60,7 +55,9 @@ class PatternBuilder {
   /// The numbers of aggressors to be picked from during random pattern generation.
   int num_aggressors;
 
-  int agg_inter_distance;
+  // int agg_inter_distance;
+
+  Range agg_inter_distance;
 
   int agg_intra_distance;
 
@@ -68,15 +65,19 @@ class PatternBuilder {
 
   int num_activations_per_tREFI_measured;
 
-  int num_total_activations_hammering;
+  int hammering_total_num_activations;
 
   int hammering_strategy;
 
+  int hammering_reps_before_sync;
+
+  int sync_after_every_nth_hammering_rep;
+
   size_t total_acts_pattern;
 
-  Range<int> amplitude;
+  Range amplitude;
 
-  Range<int> N_sided;
+  Range N_sided;
 
   std::discrete_distribution<int> N_sided_probabilities;
 
@@ -91,8 +92,6 @@ class PatternBuilder {
   asmjit::StringLogger* logger;
 
   std::vector<volatile char*> aggressor_pairs;
-
-  void get_random_indices(size_t max, size_t num_indices, std::vector<size_t>& indices);
 
   void encode_double_ptr_chasing(std::vector<volatile char*>& aggressors, volatile char** firstChase, volatile char** secondChase);
 

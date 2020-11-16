@@ -15,6 +15,7 @@
 // ########################################################
 
 /// the starting address of the allocated memory area
+/// this is a fixed value as the assumption is that all memory cells are equally vulnerable
 #define ADDR 0x2000000000
 
 /// the number of rounds to be used to measure cache hit/miss latency
@@ -29,6 +30,7 @@
 /// threshold to distinguish between cache miss (t > THRESH) and cache hit (t < THRESH)
 #define THRESH 430
 
+// the number of conflicting addresses to be determined for each bank
 #define NUM_TARGETS 10
 
 /// the maximum number of aggressor rows

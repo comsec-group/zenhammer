@@ -1,12 +1,12 @@
+CXX = g++
+CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR) -I /usr/local/include -L /usr/local/lib
+LIB_ASMJIT = -lasmjit
+
 SRC_DIR := src
 INC_DIR := include
 OBJ_DIR := obj
 BIN_DIR := bin
-LOG_DIR := log
-
-CXX = g++
-CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR) -I /usr/local/include -L /usr/local/lib
-LIB_ASMJIT = -lasmjit
+LOG_DIR := log/$(shell cat /proc/sys/kernel/hostname)
 
 BIN_NAME := blacksmith
 EXE := $(BIN_DIR)/$(BIN_NAME)

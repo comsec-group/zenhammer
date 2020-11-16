@@ -166,13 +166,9 @@ void hammer(std::vector<volatile char*>& aggressors) {
 }
 
 /// Performs synchronized hammering on the given aggressor rows.
-void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
-  char d1_value = *d1;
-  char d2_value = *d2;
-
+void hammer_sync(std::vector<volatile char*>& aggressors, int acts,
+                 volatile char* d1, volatile char* d2) {
   int ref_rounds = acts / aggressors.size();
-  printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
-         acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
   int agg_rounds = ref_rounds;
   uint64_t before = 0;
   uint64_t after = 0;
@@ -190,58 +186,116 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile cha
     *d1;
     *d2;
     after = rdtscp();
-    // stop if an REFRESH was issued
-    if ((after - before) > 1000) break;
+    // check if an ACTIVATE was issued
+    if ((after - before) > 1000) {
+      break;
+    }
   }
 
-
-  // int cnt_d = 0;
-  // int cnt_f = 0;
-
-  // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
+  // perform hammering for HAMMER_ROUNDS/ref_rounds times
   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
     for (int j = 0; j < agg_rounds; j++) {
-      for (auto& a : aggressors) {
-        *a;
-      }
-      for (auto& a : aggressors) {
-        clflushopt(a);
+      for (size_t k = 0; k < aggressors.size() - 2; k++) {
+        *aggressors[k];
+        clflushopt(aggressors[k]);
       }
       mfence();
     }
 
-    // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
+    // after HAMMER_ROUNDS/ref_rounds times hammering, check for next ACTIVATE
     while (true) {
-      // two activations: flush from cache which triggers a write-back to the DRAM as cache line is dirty after write
-      before = rdtscp();
-      lfence();
-      clflush(d1);
-      clflush(d2);
-      sfence();
-      after = rdtscp();
-      lfence();
-      if ((after - before) > 1000) {
-        // cnt_f++;
-        break;
-      }
-
-      // two activations: read and write the value to the cache
-      before = rdtscp();
-      lfence();
-      *d1 = *d1;
-      *d2 = *d2;
       mfence();
+      lfence();
+      before = rdtscp();
+      lfence();
+      clflushopt(d1);
+      *d1;
+      clflushopt(d2);
+      *d2;
       after = rdtscp();
       lfence();
-      if ((after - before) > 1000) {
-        // cnt_d++;
-        break;
-      }
+      // stop if an ACTIVATE was issued
+      if ((after - before) > 1000) break;
     }
   }
-  // printf("[DEBUG] cnt_f: %d\n", cnt_f);
-  // printf("[DEBUG] cnt_d: %d\n", cnt_d);
 }
+
+// /// Performs synchronized hammering on the given aggressor rows.
+// void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
+//   char d1_value = *d1;
+//   char d2_value = *d2;
+
+//   int ref_rounds = acts / aggressors.size();
+//   printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
+//          acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
+//   int agg_rounds = ref_rounds;
+//   uint64_t before = 0;
+//   uint64_t after = 0;
+
+//   *d1;
+//   *d2;
+
+//   // synchronize with the beginning of an interval
+//   while (true) {
+//     clflushopt(d1);
+//     clflushopt(d2);
+//     mfence();
+//     before = rdtscp();
+//     lfence();
+//     *d1;
+//     *d2;
+//     after = rdtscp();
+//     // stop if an REFRESH was issued
+//     if ((after - before) > 1000) break;
+//   }
+
+//   // int cnt_d = 0;
+//   // int cnt_f = 0;
+
+//   // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
+//   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
+//     for (int j = 0; j < agg_rounds; j++) {
+//       for (auto& a : aggressors) {
+//         *a;
+//       }
+//       for (auto& a : aggressors) {
+//         clflushopt(a);
+//       }
+//       mfence();
+//     }
+
+//     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
+//     while (true) {
+//       // two activations: flush from cache which triggers a write-back to the DRAM as cache line is dirty after write
+//       before = rdtscp();
+//       lfence();
+//       clflush(d1);
+//       clflush(d2);
+//       sfence();
+//       after = rdtscp();
+//       lfence();
+//       if ((after - before) > 1000) {
+//         // cnt_f++;
+//         break;
+//       }
+
+//       // two activations: read and write the value to the cache
+//       before = rdtscp();
+//       lfence();
+//       *d1 = *d1;
+//       *d2 = *d2;
+//       mfence();
+//       after = rdtscp();
+//       lfence();
+//       if ((after - before) > 1000) {
+//         // cnt_d++;
+//         break;
+//       }
+//     }
+//   }
+//   // printf("[DEBUG] cnt_f: %d\n", cnt_f);
+//   // printf("[DEBUG] cnt_d: %d\n", cnt_d);
+// }
 
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
 /// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
@@ -409,37 +463,37 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
 
       // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
       // synchronization at each REFRESH
-      do {
-        // access this pattern synchronously with the REFRESH command
-        auto trailing_acts = pb.hammer_pattern();
-        auto overflow_acts = acts - trailing_acts;
+      // do {
+      // access this pattern synchronously with the REFRESH command
+      auto trailing_acts = pb.hammer_pattern();
+      auto overflow_acts = acts - trailing_acts;
 
-        // check if any bit flips occurred while hammering
-        mem_values(target, false,
-                   first_address - (row_increment * 100),
-                   last_address + (row_increment * 120),
-                   row_function);
+      // check if any bit flips occurred while hammering
+      mem_values(target, false,
+                 first_address - (row_increment * 100),
+                 last_address + (row_increment * 120),
+                 row_function);
 
-        // printf("trailing acts: %d\n", trailing_acts);
-        // printf("overflow acts: %d\n", overflow_acts);
+      // printf("trailing acts: %d\n", trailing_acts);
+      // printf("overflow acts: %d\n", overflow_acts);
 
-        // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
-        // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
-        // check that we did not pass the optimization rounds limit yet
-        if (trailing_acts%acts > 10 && num_optimization_rounds < limit_optimization_rounds) {
-          int aggs_to_be_removed = overflow_acts / 2;
-          if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
-          printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
-          int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
-          if (num_aggs_now == 0) break;
-          num_optimization_rounds++;
-          // do again the code jitting
-          pb.cleanup();
-          pb.jit_code();
-        } else {
-          break;
-        }
-      } while (true);
+      // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
+      // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
+      // check that we did not pass the optimization rounds limit yet
+      //   if (trailing_acts % acts > 10 && num_optimization_rounds < limit_optimization_rounds) {
+      //     int aggs_to_be_removed = overflow_acts / 2;
+      //     if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
+      //     printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
+      //     int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
+      //     if (num_aggs_now == 0) break;
+      //     num_optimization_rounds++;
+      //     // do again the code jitting
+      //     pb.cleanup();
+      //     pb.jit_code();
+      //   } else {
+      //     break;
+      //   }
+      // } while (true);
 
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup();
@@ -586,6 +640,9 @@ void print_metadata() {
   printf("=== Evaluation Run Metadata ==========\n");
   // TODO: Include our internal DRAM ID (not sure yet where to encode it; environment variable, dialog, parameter?)
   printf("Start_ts: %lu\n", (unsigned long)time(NULL));
+  char name [1024] = "";
+  gethostname( name, sizeof name );
+  printf("Hostname: %s\n", name);
   printf("Internal_DIMM_ID: %d\n", -1);
   system("echo \"Git_SHA: `git rev-parse --short HEAD`\"\n");
   fflush(stdout);
