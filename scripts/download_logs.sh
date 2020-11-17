@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd ../log
+
 HOST_NAMES=("ee-tik-cn003" "pc-10835")
 HOST_PATHS=("/local/home/pjattke/blacksmith/log" "/home/patrick/blacksmith/log")
 HOST_USERNAMES=("pjattke" "patrick")
