@@ -37,7 +37,7 @@
 #define MAX_ROWS 30
 
 /// the number of banks in the system
-#define NUM_BANKS 16
+#define NUM_BANKS 32 
 
 /// the number of bytes to be allocated
 #define MEM_SIZE (GB(1))

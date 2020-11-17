@@ -38,7 +38,7 @@ class DRAMAddr {
 		size_t bank;
 		size_t row;
 		size_t col;
-
+		
 		// class methods
 		static void set_base(void* buff);
 

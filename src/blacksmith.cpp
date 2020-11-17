@@ -728,6 +728,7 @@ int main(int argc, char** argv) {
   	DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
     }
     DRAMAddr::set_base((void*)target);
+
     // count the number of possible activations per refresh interval
     act = count_acts_per_ref(banks);
     printf("[+] %d activations per refresh interval\n", act);

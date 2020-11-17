@@ -17,9 +17,9 @@ void DRAMAddr::load_mem_config(mem_config_t cfg) {
 
 
 DRAMAddr::DRAMAddr(size_t bk, size_t r, size_t c) {
-	bank = bk;
-	row = r;
-	col = c;
+	bank = bk & MemConfig.BK_MASK;
+	row = r & MemConfig.ROW_MASK;
+	col = c & MemConfig.COL_MASK;
 }		
 
 DRAMAddr::DRAMAddr(void* addr) {
