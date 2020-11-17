@@ -23,20 +23,20 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 $(BIN_DIR) $(OBJ_DIR) $(LOG_DIR):
 	mkdir -p $@
 
-$(BIN_DIR)/$(BIN_NAME): $(OBJ) | $(BIN_DIR)
+$(EXE): $(OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIB_ASMJIT)
 
 run: $(EXE)
 	sudo $(EXE) 100
 
-benchmark: $(EXE)
+benchmark: $(EXE) $(LOG_DIR)
 	@ts=$(shell date +"%Y%M%d_%H%M%S.log"); \
 	echo "Writing log into $(shell pwd)/$(LOG_DIR)/$$ts"; \
-	# sudo $(EXE) 100000 | tee $(LOG_DIR)/`date +"%Y%m%d_%H%M%S.log"`
+	# limit number of program rounds to 100K: sudo $(EXE) 100000 | tee ...
 	sudo $(EXE) | tee $(LOG_DIR)/`date +"%Y%m%d_%H%M%S.log"`
 
 clean:
-	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)
+	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR) core
 
 debug: $(EXE)
 	sudo gdb -ex="set confirm off" $(EXE)
