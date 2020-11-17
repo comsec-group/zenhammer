@@ -1,6 +1,7 @@
 
 #include <map> 
 #include <vector>
+#include <string>
 
 #define CHANS(x) ((x)<<(8*3))
 #define DIMMS(x) ((x)<<(8*2))
@@ -28,12 +29,12 @@ class DRAMAddr {
 	// Class attributes	
 		static std::map<size_t, MemConfiguration> Configs;
 	      	static MemConfiguration MemConfig;	
-		
 		static size_t base_msb;
-
+		
 		size_t linearize(); 
 	
 	public:
+
 		size_t bank;
 		size_t row;
 		size_t col;
@@ -50,6 +51,8 @@ class DRAMAddr {
 		DRAMAddr(void* addr); 
 		
 		void* to_virt();
+
+		std::string to_string();
 
 
 };

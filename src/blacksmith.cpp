@@ -20,7 +20,7 @@
 #include "../include/GlobalDefines.hpp"
 #include "../include/PatternBuilder.hpp"
 #include "../include/utils.hpp"
-
+#include "DRAMAddr.hpp"
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
 static unsigned long long EXECUTION_ROUNDS = 0;
@@ -367,7 +367,7 @@ volatile char* allocate_memory() {
       exit(-1);
     }
     target = (volatile char*)mmap((void*)ADDR, MEM_SIZE, PROT_READ | PROT_WRITE,
-                                  MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB, fileno(fp), 0);
+                                  MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB|(30<<MAP_HUGE_SHIFT), fileno(fp), 0);
     if (target == MAP_FAILED) {
       perror("mmap");
       exit(-1);
@@ -672,6 +672,7 @@ int main(int argc, char** argv) {
   // prints the current git commit and some metadata
   print_metadata();
 
+
   // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
   // each DIMM to find patterns and for hammering)
   if (argc == 2) {
@@ -701,7 +702,6 @@ int main(int argc, char** argv) {
 
   // allocate a large bulk of contigous memory
   target = allocate_memory();
-
   // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
   printf("[+] Found bank conflicts.\n");
@@ -718,6 +718,16 @@ int main(int argc, char** argv) {
       if (i == (bank_rank_functions.size() - 1)) printf("\n");
     }
 
+    // @TODO this is a shortcut to check if it's a single rank dimm or dual rank in orer to load the right memory configuration. 
+    // We should get these infos from dmidecode to do it properly. but for now it's easier
+    if (bank_rank_functions.size() == 5) {
+  	DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
+    }
+
+    if (bank_rank_functions.size() == 4) {
+  	DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
+    }
+    DRAMAddr::set_base((void*)target);
     // count the number of possible activations per refresh interval
     act = count_acts_per_ref(banks);
     printf("[+] %d activations per refresh interval\n", act);
