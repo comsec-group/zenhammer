@@ -12,15 +12,17 @@
 #include <vector>
 
 #include "../include/Aggressor.hpp"
+#include "../include/AggressorAccessPattern.hpp"
 #include "../include/DRAMAddr.hpp"
 #include "../include/DramAnalyzer.hpp"
 #include "../include/GlobalDefines.hpp"
+#include "../include/HammeringPattern.hpp"
 #include "../include/utils.hpp"
 
 PatternBuilder::PatternBuilder(int num_activations, volatile char* target_address)
     : num_activations_per_tREFI_measured(num_activations), target_addr(target_address) {
-  // standard mersenne_twister_engine seeded with rd()
-  gen = std::mt19937(rd());
+  std::random_device rd;
+  gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded some random data
 }
 
 size_t PatternBuilder::count_aggs() {
@@ -488,12 +490,12 @@ void PatternBuilder::generate_frequency_based_pattern(
   std::vector<Aggressor> pattern(pattern_length, Aggressor());
 
   auto empty_slots_exist = [](size_t offset, int base_period, int& next_offset, std::vector<Aggressor>& pattern) -> bool {
-    printf("IDs: ");
+    printf("[DEBUG] IDs: ");
     for (size_t i = 0; i < pattern.size(); i++) printf("\t%zu: %d\n", i, pattern[i].id);
     printf("\n");
 
     for (size_t i = offset; i < pattern.size(); i += base_period) {
-      printf("Checking index %zu: %d\n", i, pattern[i]);
+      printf("[DEBUG] Checking index %zu: %s\n", i, pattern[i].to_string().c_str());
       if (pattern[i].id == ID_PLACEHOLDER_AGG) {
         next_offset = i;
         printf("[DEBUG] Empty slot found at idx: %zu\n", i);
@@ -530,6 +532,8 @@ void PatternBuilder::generate_frequency_based_pattern(
 
   const int expected_acts = pattern_length / base_period;
 
+  std::vector<AggressorAccessPattern> aggressor_accesses;
+
   // generate the pattern
   // iterate over all slots in the base period
   for (size_t i = 0; i < base_period; ++i) {
@@ -552,7 +556,7 @@ void PatternBuilder::generate_frequency_based_pattern(
       int max_times_base_period = expected_acts - collected_acts;
       cur_period = cur_period * Range(1, expected_acts, true).get_random_number(gen);
       collected_acts += (pattern_length / cur_period);
-      printf("[DEBUG] cur_period: %d\n", cur_period);
+      printf("[DEBUG] cur_period: %zu\n", cur_period);
 
       // agg can be a single agg or a N-sided pair
       auto agg = get_N_sided_agg(cur_N);
@@ -560,9 +564,14 @@ void PatternBuilder::generate_frequency_based_pattern(
       for (auto& a : agg) std::cout << a.to_string() << " ";
       std::cout << std::endl;
 
+      // if there's only one aggressor then successively accessing it multiple times does not trigger any activations
       if (agg.size() == 1) amp = 1;
 
-      // TODO: generate an AggressorAccess for each added aggressor pair
+      // generates an AggressorAccess for each added aggressor set
+      std::unordered_map<int, Aggressor> off_agg_map;
+      for (size_t i = 0; i < agg.size(); i++) off_agg_map[i] = agg[i];
+      AggressorAccessPattern agg_access(cur_period, amp, std::move(off_agg_map));
+      aggressor_accesses.push_back(agg_access);
 
       // fill the pattern with the given aggressors
       // - period
@@ -571,7 +580,6 @@ void PatternBuilder::generate_frequency_based_pattern(
         for (size_t m = 0; m < (size_t)amp; m++) {
           // - aggressors
           for (size_t k = 0; k < agg.size(); k++) {
-            // TODO: j now starting at 1 ...that's probably wrong
             auto idx = (j * cur_period) + next_offset + (m * agg.size()) + k;
             printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
             if (idx >= pattern.size()) goto exit_loops;
@@ -591,8 +599,10 @@ void PatternBuilder::generate_frequency_based_pattern(
     std::cout << pattern[i].to_string() << " ";
     if (i % base_period == 0) std::cout << std::endl;
   }
-
   std::cout << std::endl;
+
+  HammeringPattern hp(base_period, std::move(pattern), std::move(aggressor_accesses));
+  return hp;  // TODO: Add this as return type and make function's signature lighter
 }
 
 void PatternBuilder::jit_code() {

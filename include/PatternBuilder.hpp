@@ -47,8 +47,6 @@ struct Range {
 
 class PatternBuilder {
  private:
-  std::random_device rd;
-
   std::mt19937 gen;
 
   /// A instance of the CodeJitter that is used to generate the ASM code for the produced hammering pattern.
