@@ -16,11 +16,11 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../include/DRAMAddr.hpp"
 #include "../include/DramAnalyzer.hpp"
 #include "../include/GlobalDefines.hpp"
 #include "../include/PatternBuilder.hpp"
 #include "../include/utils.hpp"
-#include "../include/DRAMAddr.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -357,15 +357,23 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
   return addr;
 }
 
+void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_function,
+                                       std::vector<uint64_t>& bank_rank_functions,
+                                       std::vector<uint64_t>* bank_rank_masks,
+                                       int acts) {
+  PatternBuilder pb(acts, target);
+
+  for (int bank_no = 0; bank_no < 4; bank_no++) {
+    pb.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                        bank_no, &first_address, &last_address);
+  }
+}
+
 void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
                              std::vector<uint64_t>& bank_rank_functions,
                              std::vector<uint64_t>* bank_rank_masks,
                              int acts) {
-  if (!USE_SYNC) {
-    fprintf(stderr, "Fuzzing only supported with synchronized hammering. Aborting.");
-    exit(0);
-  }
-
+  //
   PatternBuilder pb(acts, target);
 
   int exec_round = 0;
@@ -382,51 +390,42 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       volatile char* last_address;
       pb.randomize_parameters();
 
-      // pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-      //                            bank_no, &first_address, &last_address);
-
-      pb.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-                                          bank_no, &first_address, &last_address);
-
-      exit(0);
+      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                 bank_no, &first_address, &last_address);
 
       // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
       // synchronization at each REFRESH
-      // do {
-      // access this pattern synchronously with the REFRESH command
-      auto trailing_acts = pb.hammer_pattern();
-      auto overflow_acts = acts - trailing_acts;
+      bool needs_optimization = true;
+      do {
+        // access this pattern synchronously with the REFRESH command
+        auto trailing_acts = pb.hammer_pattern();
+        auto overflow_acts = acts - trailing_acts;
 
-      // check if any bit flips occurred while hammering
-      mem_values(target, false,
-                 first_address - (row_increment * 100),
-                 last_address + (row_increment * 120),
-                 row_function);
+        // check if any bit flips occurred while hammering
+        mem_values(target, false, first_address - (row_increment * 100), last_address + (row_increment * 120), row_function);
 
-      // printf("trailing acts: %d\n", trailing_acts);
-      // printf("overflow acts: %d\n", overflow_acts);
+        // printf("trailing acts: %d\n", trailing_acts);
+        // printf("overflow acts: %d\n", overflow_acts);
 
-      // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
-      // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
-      // check that we did not pass the optimization rounds limit yet
-      //   if (trailing_acts % acts > 10 && num_optimization_rounds < limit_optimization_rounds) {
-      //     int aggs_to_be_removed = overflow_acts / 2;
-      //     if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
-      //     printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
-      //     int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
-      //     if (num_aggs_now == 0) break;
-      //     num_optimization_rounds++;
-      //     // do again the code jitting
-      //     pb.cleanup();
-      //     pb.jit_code();
-      //   } else {
-      //     break;
-      //   }
-      // } while (true);
+        // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
+        // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
+        // check that we did not pass the optimization rounds limit yet
+        needs_optimization = trailing_acts % acts > 10 && num_optimization_rounds < limit_optimization_rounds;
+        if (needs_optimization) {
+          int aggs_to_be_removed = overflow_acts / 2;
+          if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
+          printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
+          int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
+          if (num_aggs_now == 0) break;
+          num_optimization_rounds++;
+          // do again the code jitting
+          pb.cleanup();
+          pb.jit_code();
+        }
+      } while (needs_optimization);
 
       // clean up the code jitting runtime for reuse with the next pattern
       pb.cleanup();
-
       printf("\n");
     }
   }
@@ -507,7 +506,6 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
                  acts / aggressors.size(),
                  acts - ((acts / aggressors.size()) * aggressors.size()));
         }
-
         printf("[+] Hammering sync %d aggressors from addr %p on bank %d\n", aggressor_rows_size, cur_start_addr, ba);
         hammer_sync(aggressors, acts, d1, d2);
       }
@@ -601,8 +599,7 @@ int main(int argc, char** argv) {
   // prints the current git commit and some metadata
   print_metadata();
 
-  // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
-  // each DIMM to find patterns and for hammering)
+  // parameter 1 is the number of execution rounds
   if (argc == 2) {
     char* p;
     errno = 0;
@@ -671,10 +668,17 @@ int main(int argc, char** argv) {
     }
 
     // perform the hammering and check the flipped bits after each round
-    if (USE_FUZZING) {
+    if (USE_FUZZING && USE_SYNC) {
       n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
-    } else {
+    } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+      n_sided_frequency_based_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
+    } else if (!USE_FUZZING && !USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
       n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
+    } else {
+      fprintf(stderr,
+              "Invalid combination of program control-flow arguments given. "
+              "Note that fuzzing is only supported with synchronized hammering.");
+      exit(1);
     }
 
     return 0;

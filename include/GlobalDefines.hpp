@@ -45,6 +45,8 @@
 /// allocate a super page
 #define USE_SUPERPAGE 1
 
+// calls the setpriority libc function to give this process the highest priority
+// note: requires elevated privileges
 #define SETPRIORITY 1
 
 // #########################################################
@@ -54,8 +56,11 @@
 /// do synchronized hammering
 #define USE_SYNC 1
 
-/// whether to generate random patterns using fuzzing
-#define USE_FUZZING 1
+/// generate random patterns using fuzzing
+#define USE_FUZZING 0
+
+// generate frequency-based patterns using fuzzing
+#define USE_FREQUENCY_BASED_FUZZING 1
 
 /// whether to run an experiment rather than do hammering
 #define RUN_EXPERIMENT 0
