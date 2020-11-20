@@ -37,13 +37,15 @@
 #define MAX_ROWS 30
 
 /// the number of banks in the system
-#define NUM_BANKS 32 
+#define NUM_BANKS 16
 
 /// the number of bytes to be allocated
 #define MEM_SIZE (GB(1))
 
 /// allocate a super page
 #define USE_SUPERPAGE 1
+
+#define SETPRIORITY 1
 
 // #########################################################
 // ################ PROGRAM FLOW PARAMETERS ################

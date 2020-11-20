@@ -26,7 +26,8 @@ void CodeJitter::cleanup() {
 
 std::string get_string(FENCING_STRATEGY strategy) {
   std::unordered_map<FENCING_STRATEGY, std::string> map =
-      {{FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"}};
+      {{FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"},
+       {FENCING_STRATEGY::OMIT_FENCING, "OMIT_FENCING"}};
   return map.at(strategy);
 }
 

@@ -20,7 +20,8 @@
 #include "../include/GlobalDefines.hpp"
 #include "../include/PatternBuilder.hpp"
 #include "../include/utils.hpp"
-#include "DRAMAddr.hpp"
+#include "../include/DRAMAddr.hpp"
+
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
 static unsigned long long EXECUTION_ROUNDS = 0;
@@ -220,83 +221,6 @@ void hammer_sync(std::vector<volatile char*>& aggressors, int acts,
   }
 }
 
-// /// Performs synchronized hammering on the given aggressor rows.
-// void hammer_sync(std::vector<volatile char*>& aggressors, int acts, volatile char* d1, volatile char* d2) {
-//   char d1_value = *d1;
-//   char d2_value = *d2;
-
-//   int ref_rounds = acts / aggressors.size();
-//   printf("acts: %d, aggressors.size(): %zu, HAMMER_ROUNDS/ref_rounds: %d\n",
-//          acts, aggressors.size(), HAMMER_ROUNDS / ref_rounds);
-//   int agg_rounds = ref_rounds;
-//   uint64_t before = 0;
-//   uint64_t after = 0;
-
-//   *d1;
-//   *d2;
-
-//   // synchronize with the beginning of an interval
-//   while (true) {
-//     clflushopt(d1);
-//     clflushopt(d2);
-//     mfence();
-//     before = rdtscp();
-//     lfence();
-//     *d1;
-//     *d2;
-//     after = rdtscp();
-//     // stop if an REFRESH was issued
-//     if ((after - before) > 1000) break;
-//   }
-
-//   // int cnt_d = 0;
-//   // int cnt_f = 0;
-
-//   // perform hammering for HAMMER_ROUNDS/ref_rounds intervals
-//   for (int i = 0; i < HAMMER_ROUNDS / ref_rounds; i++) {
-//     for (int j = 0; j < agg_rounds; j++) {
-//       for (auto& a : aggressors) {
-//         *a;
-//       }
-//       for (auto& a : aggressors) {
-//         clflushopt(a);
-//       }
-//       mfence();
-//     }
-
-//     // after HAMMER_ROUNDS/ref_rounds times hammering, check for next REFRESH
-//     while (true) {
-//       // two activations: flush from cache which triggers a write-back to the DRAM as cache line is dirty after write
-//       before = rdtscp();
-//       lfence();
-//       clflush(d1);
-//       clflush(d2);
-//       sfence();
-//       after = rdtscp();
-//       lfence();
-//       if ((after - before) > 1000) {
-//         // cnt_f++;
-//         break;
-//       }
-
-//       // two activations: read and write the value to the cache
-//       before = rdtscp();
-//       lfence();
-//       *d1 = *d1;
-//       *d2 = *d2;
-//       mfence();
-//       after = rdtscp();
-//       lfence();
-//       if ((after - before) > 1000) {
-//         // cnt_d++;
-//         break;
-//       }
-//     }
-//   }
-//   // printf("[DEBUG] cnt_f: %d\n", cnt_f);
-//   // printf("[DEBUG] cnt_d: %d\n", cnt_d);
-// }
-
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
 /// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
 void mem_values(volatile char* target, bool init, volatile char* start, volatile char* end, uint64_t row_function) {
@@ -367,7 +291,7 @@ volatile char* allocate_memory() {
       exit(-1);
     }
     target = (volatile char*)mmap((void*)ADDR, MEM_SIZE, PROT_READ | PROT_WRITE,
-                                  MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB|(30<<MAP_HUGE_SHIFT), fileno(fp), 0);
+                                  MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30 << MAP_HUGE_SHIFT), fileno(fp), 0);
     if (target == MAP_FAILED) {
       perror("mmap");
       exit(-1);
@@ -458,8 +382,13 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
       volatile char* last_address;
       pb.randomize_parameters();
 
-      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-                                 bank_no, &first_address, &last_address);
+      // pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+      //                            bank_no, &first_address, &last_address);
+
+      pb.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                          bank_no, &first_address, &last_address);
+
+      exit(0);
 
       // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
       // synchronization at each REFRESH
@@ -640,8 +569,8 @@ void print_metadata() {
   printf("=== Evaluation Run Metadata ==========\n");
   // TODO: Include our internal DRAM ID (not sure yet where to encode it; environment variable, dialog, parameter?)
   printf("Start_ts: %lu\n", (unsigned long)time(NULL));
-  char name [1024] = "";
-  gethostname( name, sizeof name );
+  char name[1024] = "";
+  gethostname(name, sizeof name);
   printf("Hostname: %s\n", name);
   printf("Internal_DIMM_ID: %d\n", -1);
   system("echo \"Git_SHA: `git rev-parse --short HEAD`\"\n");
@@ -672,7 +601,6 @@ int main(int argc, char** argv) {
   // prints the current git commit and some metadata
   print_metadata();
 
-
   // paramter 1 is the number of execution rounds: this is important as we need a fair comparison (same run time for
   // each DIMM to find patterns and for hammering)
   if (argc == 2) {
@@ -696,9 +624,11 @@ int main(int argc, char** argv) {
   uint64_t row_function;
   int act, ret;
 
-  // give this process the highest CPU priority
-  ret = setpriority(PRIO_PROCESS, 0, -20);
-  if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
+  if (SETPRIORITY) {
+    // give this process the highest CPU priority
+    ret = setpriority(PRIO_PROCESS, 0, -20);
+    if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
+  }
 
   // allocate a large bulk of contigous memory
   target = allocate_memory();
@@ -718,14 +648,15 @@ int main(int argc, char** argv) {
       if (i == (bank_rank_functions.size() - 1)) printf("\n");
     }
 
-    // @TODO this is a shortcut to check if it's a single rank dimm or dual rank in orer to load the right memory configuration. 
-    // We should get these infos from dmidecode to do it properly. but for now it's easier
+    // @TODO this is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory configuration.
+    // We should get these infos from dmidecode to do it properly, but for now this is easier.
     if (bank_rank_functions.size() == 5) {
-  	DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
-    }
-
-    if (bank_rank_functions.size() == 4) {
-  	DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
+      DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
+    } else if (bank_rank_functions.size() == 4) {
+      DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
+    } else {
+      fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+      exit(0);
     }
     DRAMAddr::set_base((void*)target);
 

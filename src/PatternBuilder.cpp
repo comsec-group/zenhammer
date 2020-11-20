@@ -11,6 +11,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../include/Aggressor.hpp"
+#include "../include/DRAMAddr.hpp"
 #include "../include/DramAnalyzer.hpp"
 #include "../include/GlobalDefines.hpp"
 #include "../include/utils.hpp"
@@ -67,7 +69,7 @@ void PatternBuilder::randomize_parameters() {
   num_aggressors = Range(23, 35).get_random_number(gen);
   agg_intra_distance = 2;
   random_start_address = target_addr + (Range(MB(100), MEM_SIZE - MB(100)).get_random_number(gen) / PAGE_SIZE) * PAGE_SIZE;
-  use_sequential_aggressors = true; // (bool)(Range(0, 1).get_random_number(gen));  // TODO: Make this random again
+  use_sequential_aggressors = true;                            // (bool)(Range(0, 1).get_random_number(gen));  // TODO: Make this random again
   agg_frequency = Range(1, 2);                                 // TODO: Set back to (1,10)
   num_refresh_intervals = Range(1, 3).get_random_number(gen);  // TODO: Set back to (1,8)
   sync_after_every_nth_hammering_rep = Range(1, num_refresh_intervals).get_random_number(gen);
@@ -77,10 +79,10 @@ void PatternBuilder::randomize_parameters() {
   // hammering_reps_before_sync = num_refresh_intervals;
 
   // e.g., (1,4) means each aggressor is accessed at least once (1,-) and at most 4 times (-, 4) in a sequence
-  // num_activations_per_tREFI = num_activations_per_tREFI_measured * 1.15;
+  num_activations_per_tREFI = num_activations_per_tREFI_measured;
   // std::vector<int> options = {20, 30, 40, 75, 85, 90, 100, 110, 115, 160, 175, 180};
   // num_activations_per_tREFI = options.at(Range(0, options.size()).get_random_number());
-  num_activations_per_tREFI = num_aggressors;
+  // num_activations_per_tREFI = num_aggressors;
 
   // === STATIC FUZZING PARAMETERS ====================================================
   // fix values/formulas that must be configured before running this program
@@ -94,17 +96,17 @@ void PatternBuilder::randomize_parameters() {
   std::unordered_map<int, int> distribution = {{1, 2}, {2, 8}};
   N_sided_probabilities = build_distribution(N_sided, distribution);
 
-  // total_acts_pattern = num_activations_per_tREFI * num_refresh_intervals;
+  total_acts_pattern = num_activations_per_tREFI * num_refresh_intervals;
   // total_acts_pattern = num_aggressors* Range(1,4).get_random_number(gen);
-  total_acts_pattern = num_aggressors;
+  // total_acts_pattern = num_aggressors;
 
   // hammering_total_num_activations is derived as follow:
   //  REF interval: 7.8 μs (tREFI), retention time: 64 ms => 8,000 - 10,000 REFs per interval
-  //  num_activations_per_tREFI: ≈100                     => 10,000 * 100 = 1M activations * 3 = 3M ACTs
+  //  num_activations_per_tREFI: ≈100                     => 10,000 * 100 = 1M activations * 3 = 3M ACTfs
   // hammering_total_num_activations = 3000000; // TODO uncomment me
   // hammering_total_num_activations = Range({21000, 350000}).get_random_number();
   // hammering_total_num_activations = num_activations_per_tREFI * num_refresh_intervals;
-  hammering_total_num_activations = HAMMER_ROUNDS / (num_activations_per_tREFI_measured / total_acts_pattern);
+  hammering_total_num_activations = HAMMER_ROUNDS / std::max((size_t)1, (num_activations_per_tREFI_measured / total_acts_pattern));
   // hammering_total_num_activations = Range({20000000, 28000000}).get_random_number(gen);
 
   // ========================================================================================================
@@ -284,13 +286,12 @@ void PatternBuilder::generate_random_pattern(
   }
 
   // generate the candidate hammering aggressors
-  std::default_random_engine generator;
   volatile char* cur_next_addr = normalize_address(random_start_address);
   *first_address = cur_next_addr;
   printf("[+] Candidate aggressor rows: \n");
   int num_aggressor_candidates = 0;
   while (num_aggressor_candidates < num_aggressors) {
-    int N = N_sided_probabilities(generator);
+    int N = N_sided_probabilities(gen);  // needs std::default_random_engine generator instead?
     if (num_aggressor_candidates + N > num_aggressors) {
       // there's no way to fill up the gap -> stop here
       if (num_aggressor_candidates + N_sided.min > num_aggressors) break;
@@ -402,7 +403,7 @@ void PatternBuilder::generate_random_pattern(
 
         if (aggressor_set.size() == 1) {
           // if this is a single-sided aggressor then accessing it multiple times does not make any sense as repeated
-          // accessed would be served by row buffer instead of generating new activation 
+          // accessed would be served by row buffer instead of generating new activation
           M = 1;
         } else {
           // no amplitude is defined for this aggressor pair yet -> choose new amplitude that fits into rem. accesses
@@ -466,6 +467,132 @@ void PatternBuilder::generate_random_pattern(
 
   // now trigger the code jitting
   jit_code();
+}
+
+void PatternBuilder::generate_frequency_based_pattern(
+    std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
+    u_int64_t row_function, u_int64_t row_increment, int bank_no,
+    volatile char** first_address, volatile char** last_address) {
+  // initialize vars required for pattern generation
+  // - periods
+  // make sure num_activations_per_tREFI is even so that base_period and pattern_length are even too
+  num_activations_per_tREFI = (num_activations_per_tREFI / 2) * 2;  // TODO: uncomment
+  // num_activations_per_tREFI = 40;
+  // const size_t pattern_length = num_activations_per_tREFI * Range(1,8).get_random_number(gen);  // TODO: uncomment
+  const size_t pattern_length = num_activations_per_tREFI * 5;
+  printf("[DEBUG] pattern_length: %zu\n", pattern_length);
+  const size_t base_period = num_activations_per_tREFI;
+  size_t cur_period = base_period;
+  printf("[DEBUG] base_period: %zu\n", base_period);
+  // - pattern
+  std::vector<Aggressor> pattern(pattern_length, Aggressor());
+
+  auto empty_slots_exist = [](size_t offset, int base_period, int& next_offset, std::vector<Aggressor>& pattern) -> bool {
+    printf("IDs: ");
+    for (size_t i = 0; i < pattern.size(); i++) printf("\t%zu: %d\n", i, pattern[i].id);
+    printf("\n");
+
+    for (size_t i = offset; i < pattern.size(); i += base_period) {
+      printf("Checking index %zu: %d\n", i, pattern[i]);
+      if (pattern[i].id == ID_PLACEHOLDER_AGG) {
+        next_offset = i;
+        printf("[DEBUG] Empty slot found at idx: %zu\n", i);
+        return true;
+      }
+    }
+    printf("[DEBUG] No empty slot found\n");
+    return false;
+  };
+
+  // generate sets of aggressor sets
+  // we do not need to consider there that an aggressor could be part of an aggressor pair and at the same time be
+  // accessed as a single aggressor only; this will be handled later by mapping multiple Aggressor objects to the same
+  // address
+  std::vector<std::vector<Aggressor>> pairs;
+  for (size_t i = 0; i < (size_t)num_aggressors;) {
+    const int N = N_sided_probabilities(gen);
+    std::vector<Aggressor> data;
+    for (int j = 0; j < N; j++) {
+      data.push_back(Aggressor(i + j));
+    }
+    pairs.push_back(data);
+    i += N;
+  }
+
+  auto get_N_sided_agg = [&](size_t N) -> std::vector<Aggressor> {
+    std::shuffle(pairs.begin(), pairs.end(), gen);
+    for (auto& agg_set : pairs) {
+      if (agg_set.size() == N) return agg_set;
+    }
+    fprintf(stderr, "[-] Couldn't get a N-sided aggressor pair but this shouldn't have happened.\n");
+    exit(1);
+  };
+
+  const int expected_acts = pattern_length / base_period;
+
+  // generate the pattern
+  // iterate over all slots in the base period
+  for (size_t i = 0; i < base_period; ++i) {
+    // check if this slot was already filled up by (an) amplified aggressor(s)
+    if (pattern[i].id != ID_PLACEHOLDER_AGG) continue;
+
+    // choose a random aplitude
+    auto amp = amplitude.get_random_number(gen);
+    printf("[DEBUG] amp: %d\n", amp);
+
+    // repeat until the current time slot k is filled up in each k+i*base_period
+    int next_offset = i;
+    int collected_acts = 0;
+    int cur_N = N_sided.get_random_number(gen);
+    cur_period = base_period;
+
+    do {
+      // define the period to use for the next agg(s)*
+      // note: 8 is a randomly chosen value to not make frequencies ever-growing high
+      int max_times_base_period = expected_acts - collected_acts;
+      cur_period = cur_period * Range(1, expected_acts, true).get_random_number(gen);
+      collected_acts += (pattern_length / cur_period);
+      printf("[DEBUG] cur_period: %d\n", cur_period);
+
+      // agg can be a single agg or a N-sided pair
+      auto agg = get_N_sided_agg(cur_N);
+      std::cout << "aggressors: ";
+      for (auto& a : agg) std::cout << a.to_string() << " ";
+      std::cout << std::endl;
+
+      if (agg.size() == 1) amp = 1;
+
+      // TODO: generate an AggressorAccess for each added aggressor pair
+
+      // fill the pattern with the given aggressors
+      // - period
+      for (size_t j = 0; j * cur_period < pattern.size(); j++) {
+        // - amplitude
+        for (size_t m = 0; m < (size_t)amp; m++) {
+          // - aggressors
+          for (size_t k = 0; k < agg.size(); k++) {
+            // TODO: j now starting at 1 ...that's probably wrong
+            auto idx = (j * cur_period) + next_offset + (m * agg.size()) + k;
+            printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
+            if (idx >= pattern.size()) goto exit_loops;
+            pattern[idx] = agg[k];
+          }
+        }
+      }
+    exit_loops:
+      static_cast<void>(0);  // no-op required for goto
+    } while (empty_slots_exist(i, base_period, next_offset, pattern));
+  }
+
+  // print pattern to stdout
+  printf("[DEBUG] pattern.size: %zu\n", pattern.size());
+  printf("[DEBUG] pattern: ");
+  for (size_t i = 0; i < pattern.size(); i++) {
+    std::cout << pattern[i].to_string() << " ";
+    if (i % base_period == 0) std::cout << std::endl;
+  }
+
+  std::cout << std::endl;
 }
 
 void PatternBuilder::jit_code() {
