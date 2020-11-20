@@ -80,7 +80,7 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
                     std::vector<uint64_t>& bank_rank_functions) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
 
-  // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003), 
+  // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
   // because of that we need to choose a rather large maximum number of tries
   const int max_num_tries = 100;
   int num_tries = 0;
@@ -151,6 +151,7 @@ uint64_t test_addr_against_bank(volatile char* addr, std::vector<volatile char*>
 void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* banks) {
   srand(time(0));
   int nr_banks_cur = 0;
+  int remaining_tries = NUM_BANKS * 128;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS) {
   reset:
     auto a1 = target + (rand() % (MEM_SIZE / 64)) * 64;
@@ -184,5 +185,12 @@ void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* ban
       banks[nr_banks_cur].push_back(a2);
       nr_banks_cur++;
     }
+    if (remaining_tries == 0) {
+      fprintf(stderr,
+              "[-] Could not find all bank/rank functions. Is the number of banks (%d) defined correctly?\n",
+              (int)NUM_BANKS);
+      exit(1);
+    }
+    remaining_tries--;
   }
 }
