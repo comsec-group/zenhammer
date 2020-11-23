@@ -19,6 +19,7 @@
 #include "../include/DRAMAddr.hpp"
 #include "../include/DramAnalyzer.hpp"
 #include "../include/GlobalDefines.hpp"
+#include "../include/HammeringPattern.hpp"
 #include "../include/PatternBuilder.hpp"
 #include "../include/utils.hpp"
 
@@ -361,11 +362,26 @@ void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_funct
                                        std::vector<uint64_t>& bank_rank_functions,
                                        std::vector<uint64_t>* bank_rank_masks,
                                        int acts) {
-  PatternBuilder pb(acts, target);
+  PatternBuilder pattern_builder(acts, target);
+  int trials_per_pattern = 5;
 
   for (int bank_no = 0; bank_no < 4; bank_no++) {
-    pb.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-                                        bank_no, &first_address, &last_address);
+    // generate a hammering pattern: this is like a general access pattern template without concrete addresses
+    HammeringPattern hammering_pattern = pattern_builder.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, bank_no, &first_address, &last_address);
+
+    // then test this pattern with 5 different address sets
+    while (trials_per_pattern--) {
+      // TODO choose random address set
+
+      // TODO generate jitted hammering function
+      // TODO future improvement: do jitting for each pattern once only and pass vector of addresses as array
+      CodeJitter code_jitter;
+      // code_jitter.jit_strict()
+
+      // TODO do hammering
+
+      // TODO check whether any bit flips occurred
+    }
   }
 }
 
@@ -373,59 +389,55 @@ void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
                              std::vector<uint64_t>& bank_rank_functions,
                              std::vector<uint64_t>* bank_rank_masks,
                              int acts) {
-  //
-  PatternBuilder pb(acts, target);
-
+  PatternBuilder pattern_builder(acts, target);
   int exec_round = 0;
   int num_optimization_rounds = 0;
   const int limit_optimization_rounds = 5;
-  auto row_increment = get_row_increment(row_function);
+  uint64_t row_increment = get_row_increment(row_function);
+
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     // hammer the first four banks
     for (int bank_no = 0; bank_no < 4; bank_no++) {
-      // bool parameter_optimal = false;
-      // generate a random pattern using fuzzing
       printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
+
+      // generate a new set of random parameters
+      pattern_builder.randomize_parameters();
+
+      // generate a random pattern using fuzzing
       volatile char* first_address;
       volatile char* last_address;
-      pb.randomize_parameters();
-
-      pb.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-                                 bank_no, &first_address, &last_address);
+      pattern_builder.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
+                                              bank_no, &first_address, &last_address);
 
       // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
       // synchronization at each REFRESH
-      bool needs_optimization = true;
+      bool optimize_pattern = true;
       do {
         // access this pattern synchronously with the REFRESH command
-        auto trailing_acts = pb.hammer_pattern();
-        auto overflow_acts = acts - trailing_acts;
+        int trailing_acts = pattern_builder.hammer_pattern();
+        int overflow_acts = acts - trailing_acts;
 
         // check if any bit flips occurred while hammering
         mem_values(target, false, first_address - (row_increment * 100), last_address + (row_increment * 120), row_function);
 
-        // printf("trailing acts: %d\n", trailing_acts);
-        // printf("overflow acts: %d\n", overflow_acts);
-
         // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
         // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
         // check that we did not pass the optimization rounds limit yet
-        needs_optimization = trailing_acts % acts > 10 && num_optimization_rounds < limit_optimization_rounds;
-        if (needs_optimization) {
+        optimize_pattern = (trailing_acts % acts > 10) && (num_optimization_rounds < limit_optimization_rounds);
+        if (optimize_pattern) {
           int aggs_to_be_removed = overflow_acts / 2;
-          if ((size_t)aggs_to_be_removed >= pb.count_aggs() || aggs_to_be_removed == 0) break;
+          if ((size_t)aggs_to_be_removed >= pattern_builder.count_aggs() || aggs_to_be_removed == 0)
+            break;
           printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
-          int num_aggs_now = pb.remove_aggs(aggs_to_be_removed);
-          if (num_aggs_now == 0) break;
           num_optimization_rounds++;
-          // do again the code jitting
-          pb.cleanup();
-          pb.jit_code();
+          pattern_builder.cleanup();
+          // do again the code jitting but now with the reduced number of aggressors
+          pattern_builder.jit_code();
         }
-      } while (needs_optimization);
+      } while (optimize_pattern);
 
       // clean up the code jitting runtime for reuse with the next pattern
-      pb.cleanup();
+      pattern_builder.cleanup();
       printf("\n");
     }
   }
