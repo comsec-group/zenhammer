@@ -471,10 +471,7 @@ void PatternBuilder::generate_random_pattern(
   jit_code();
 }
 
-void PatternBuilder::generate_frequency_based_pattern(
-    std::vector<uint64_t> bank_rank_masks[], std::vector<uint64_t>& bank_rank_functions,
-    u_int64_t row_function, u_int64_t row_increment, int bank_no,
-    volatile char** first_address, volatile char** last_address) {
+HammeringPattern PatternBuilder::generate_frequency_based_pattern() {
   // initialize vars required for pattern generation
   // - periods
   // make sure num_activations_per_tREFI is even so that base_period and pattern_length are even too
@@ -602,7 +599,7 @@ void PatternBuilder::generate_frequency_based_pattern(
   std::cout << std::endl;
 
   HammeringPattern hp(base_period, std::move(pattern), std::move(aggressor_accesses));
-  return hp;  // TODO: Add this as return type and make function's signature lighter
+  return hp;
 }
 
 void PatternBuilder::jit_code() {
