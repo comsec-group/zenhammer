@@ -1,6 +1,9 @@
 #ifndef AGGRESSOR
 #define AGGRESSOR
 
+#include <sstream>
+#include <iomanip>
+
 #include "DRAMAddr.hpp"
 
 const int ID_PLACEHOLDER_AGG = -1;

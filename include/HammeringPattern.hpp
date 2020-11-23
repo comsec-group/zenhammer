@@ -3,8 +3,10 @@
 
 #include <unordered_map>
 #include <vector>
+#include <random>
 
 #include "AggressorAccessPattern.hpp"
+#include "Range.hpp"
 
 class HammeringPattern {
  public:
@@ -80,6 +82,7 @@ class PatternAddressMapper {
   // exports this pattern in a format that can be used by the CodeJitter
   std::vector<volatile char *> export_pattern_for_jitting() {
     // TODO: Implement me!
+    return {};
   }
 };
 
