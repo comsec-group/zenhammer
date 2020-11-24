@@ -11,7 +11,7 @@ size_t consec(unsigned char* buff) {
 	//size_t* times = (size_t*) malloc(sizeof(size_t)*rounds);
 	size_t count  = 0;	
 
-#define	ADDR_CNT 64 
+#define ADDR_CNT 1 
 #define PATT_LEN 64 
 
 	DRAMAddr dAddr[ADDR_CNT];
@@ -23,8 +23,9 @@ size_t consec(unsigned char* buff) {
 	for (size_t k = 1; k < ADDR_CNT; k++) {
 		size_t col = ((k * 167) + 13) & 0x7f;
 		dAddr[k] = dAddr[k-1];
-		dAddr[k].row += 1;
+		//dAddr[k].row += 1;
 		//dAddr[k].col = col*64;
+		dAddr[k].col += 256;
 		//printf("{bk: %ld, row:%ld, col:%ld}\n", dAddr[k].bank, dAddr[k].row, dAddr[k].col);
 	}
 	
@@ -33,7 +34,7 @@ size_t consec(unsigned char* buff) {
 		size_t col = ((i * 167) + 13) & 0x7f;
 		for (size_t k =0; k < ADDR_CNT; k++) {
 			patt[i+k] = to_phys(dAddr[k]);
-			dAddr[k].row += 1;
+//			dAddr[k].row += 1;
 		//	dAddr[k].col = col*64;
 			DRAMAddr v = to_dram(patt[i+k]);
 		fprintf(stderr, "[%ld] - {bk: %ld, row:%ld, col:%ld} = %p\n",i+k, v.bank, v.row, v.col, patt[i+k]);
@@ -43,10 +44,10 @@ size_t consec(unsigned char* buff) {
 //		d0.row += 1;
 //		d1.row += 1;
 	}
-	for (size_t i =0; i < PATT_LEN-1; i++) {
-		*(unsigned char**) patt[i] = patt[i+1];
-		printf("%p\n", *(unsigned char**)patt[i] );
-	}
+//	for (size_t i =0; i < PATT_LEN-1; i++) {
+//		*(unsigned char**) patt[i] = patt[i+1];
+//		printf("%p\n", *(unsigned char**)patt[i] );
+//	}
 
 	uint64_t sum = 0;
 	size_t results[ITERS];
@@ -83,8 +84,6 @@ size_t consec(unsigned char* buff) {
 				sfence();
 				for (size_t l = 0; l < PATT_LEN; l++) {
 					*(volatile char*) patt[l];
-				}
-				for (size_t l = 0; l < PATT_LEN; l++) {
 					clflushopt(patt[l]);
 				}
 				// for (size_t i = 0; i < PATT_LEN; i++) {
@@ -107,8 +106,8 @@ size_t consec(unsigned char* buff) {
 			//		x = *(volatile char**)x;
 
 					*(volatile char*) patt[l];
-					lfence();
 					clflushopt((void*)((size_t)patt[l]));
+					rdtscp();
 					//mfence();
 					//lfence();
 				}
