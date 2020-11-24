@@ -76,13 +76,12 @@ uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
  *  2) single DIMM system (only bank/rank bits)
  *  3) Bank/Rank functions use at most 2 bits
  */
-void find_functions(volatile char* target, std::vector<volatile char*>* banks, uint64_t& row_function,
-                    std::vector<uint64_t>& bank_rank_functions) {
+void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, std::vector<uint64_t>& bank_rank_functions) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
   // because of that we need to choose a rather large maximum number of tries
-  const int max_num_tries = 100;
+  const int max_num_tries = 30;
   int num_tries = 0;
 
   do {
@@ -126,12 +125,10 @@ void find_functions(volatile char* target, std::vector<volatile char*>* banks, u
 
   // we cannot continue if we couldn't determine valid bank/rank functions
   if (bank_rank_functions.size() != num_expected_fns) {
-    fprintf(stderr,
-            FRED
-            "[-] Found %zu bank/rank functions for %d banks but there should be only %zu functions. "
-            "Giving up after %d tries. Exiting.\n" NONE,
-            bank_rank_functions.size(), NUM_BANKS, num_expected_fns, num_tries);
-    exit(1);
+    printf(
+        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. "
+        "Ignoring and continuing execution.",
+        bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
   }
 }
 
