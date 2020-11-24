@@ -63,7 +63,7 @@ size_t count_activations_per_refresh_interval(unsigned char** patt, size_t num_a
   return median_sum_access_time / num_accesses;
 }
 
-void run_experiment(volatile char* start_address, int acts, std::vector<uint64_t>& cur_bank_rank_masks,
+void run_experiment(volatile char* start_address, std::vector<uint64_t>& cur_bank_rank_masks,
                     std::vector<uint64_t>& bank_rank_fns, uint64_t row_function) {
   const int NUM_INTERVALS = 500;
   std::vector<int> NOPS = {0, 1, 2, 5, 10, 15, 20, 25, 50, 75, 100, 250, 500, 700, 1000};
@@ -318,6 +318,7 @@ volatile char* allocate_memory() {
 /// Determine exactly 'size' target addresses in given bank.
 void find_targets(volatile char* target, std::vector<volatile char*>& target_bank, size_t size) {
   // create an unordered set of the addresses in the target bank for a quick lookup
+  // std::unordered_set<volatile char*> tmp; tmp.insert(target_bank.begin(), target_bank.end());
   std::unordered_set<volatile char*> tmp(target_bank.begin(), target_bank.end());
   target_bank.clear();
   size_t num_repetitions = 5;
@@ -359,28 +360,48 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
 }
 
 void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_function,
-                                       std::vector<uint64_t>& bank_rank_functions,
-                                       std::vector<uint64_t>* bank_rank_masks,
+                                       //std::vector<uint64_t>& bank_rank_functions,
+                                       //std::vector<uint64_t>* bank_rank_masks,
                                        int acts) {
   PatternBuilder pattern_builder(acts, target);
-  int trials_per_pattern = 5;
+  CodeJitter code_jitter;
+  const uint64_t row_increment = get_row_increment(row_function);
 
-  for (int bank_no = 0; bank_no < 4; bank_no++) {
-    // generate a hammering pattern: this is like a general access pattern template without concrete addresses
-    HammeringPattern hammering_pattern = pattern_builder.generate_frequency_based_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment, bank_no, &first_address, &last_address);
+  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+    for (int bank_no = 0; bank_no < 4; bank_no++) {
+      // generate a hammering pattern: this is like a general access pattern template without concrete addresses
+      pattern_builder.randomize_parameters();
+      HammeringPattern hammering_pattern;
+      pattern_builder.generate_frequency_based_pattern(hammering_pattern);
 
-    // then test this pattern with 5 different address sets
-    while (trials_per_pattern--) {
-      // TODO choose random address set
+      // pass pattern to address generator/randomizer
+      PatternAddressMapper address_mapper(hammering_pattern);
 
-      // TODO generate jitted hammering function
-      // TODO future improvement: do jitting for each pattern once only and pass vector of addresses as array
-      CodeJitter code_jitter;
-      // code_jitter.jit_strict()
+      // then test this pattern with 5 different address sets
+      int trials_per_pattern = 5;
+      while (trials_per_pattern--) {
+        // choose random addresses for pattern
+        address_mapper.randomize_addresses(bank_no);
 
-      // TODO do hammering
+        // generate jitted hammering function
+        // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
+        code_jitter.jit_strict(pattern_builder.total_acts_pattern,
+                               pattern_builder.hammering_reps_before_sync,
+                               pattern_builder.sync_after_every_nth_hammering_rep,
+                               FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
+                               FENCING_STRATEGY::LATEST_POSSIBLE,
+                               address_mapper.export_pattern_for_jitting());
 
-      // TODO check whether any bit flips occurred
+        // do hammering
+        code_jitter.hammer_pattern();
+
+        // check whether any bit flips occurred
+        mem_values(target, false, address_mapper.get_lowest_address() - (row_increment * 15),
+                   address_mapper.get_highest_address() + (row_increment * 15), row_function);
+
+        // cleanup the jitter for its next use
+        code_jitter.cleanup();
+      }
     }
   }
 }
@@ -491,7 +512,7 @@ void n_sided_hammer(volatile char* target, uint64_t row_function,
 
       if (RUN_EXPERIMENT) {
         printf("█████████████████████  RUNNING EXPERIMENT MODE  ████████████████████\n");
-        run_experiment(cur_next_addr, acts, bank_rank_masks[ba], bank_rank_functions, row_function);
+        run_experiment(cur_next_addr, bank_rank_masks[ba], bank_rank_functions, row_function);
         printf("█████████████████████  TERMINATING EXPERIMENT  ████████████████████\n");
         exit(0);
       }
@@ -649,7 +670,7 @@ int main(int argc, char** argv) {
     printf("[+] Populated addresses from different banks.\n");
 
     // determine the row and bank/rank functions
-    find_functions(target, banks, row_function, bank_rank_functions);
+    find_functions(banks, row_function, bank_rank_functions);
     printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
            row_function, get_row_increment(row_function), bank_rank_functions.size());
     for (size_t i = 0; i < bank_rank_functions.size(); i++) {
@@ -659,14 +680,14 @@ int main(int argc, char** argv) {
 
     // @TODO this is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory configuration.
     // We should get these infos from dmidecode to do it properly, but for now this is easier.
-    if (bank_rank_functions.size() == 5) {
-      DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
-    } else if (bank_rank_functions.size() == 4) {
-      DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
-    } else {
-      fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-      exit(0);
-    }
+    // if (bank_rank_functions.size() == 5) {
+    DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
+    // } else if (bank_rank_functions.size() == 4) {
+    //   DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
+    // } else {
+    //   fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+    //   exit(0);
+    // }
     DRAMAddr::set_base((void*)target);
 
     // count the number of possible activations per refresh interval
@@ -683,7 +704,12 @@ int main(int argc, char** argv) {
     if (USE_FUZZING && USE_SYNC) {
       n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
     } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-      n_sided_frequency_based_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
+      printf("Test test test\n");
+      fflush(stdout);
+      n_sided_frequency_based_hammering(target, row_function,
+                                        //bank_rank_functions, bank_rank_masks,
+                                        act);
+
     } else if (!USE_FUZZING && !USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
       n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
     } else {

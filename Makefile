@@ -1,12 +1,12 @@
-CXX = g++
-CXXFLAGS = -Wall -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR) -I /usr/local/include -L /usr/local/lib
-LIB_ASMJIT = -lasmjit
-
 SRC_DIR := src
 INC_DIR := include
 OBJ_DIR := obj
 BIN_DIR := bin
 LOG_DIR := log/$(shell cat /proc/sys/kernel/hostname)
+
+CXX = g++
+CXXFLAGS = -Wall -Wextra -std=c++11 -O0 -g -Wno-unused-variable -I$(INC_DIR) -I /usr/local/include -L /usr/local/lib
+INCLUDES = -lasmjit -lstdc++ -lm
 
 BIN_NAME := blacksmith
 EXE := $(BIN_DIR)/$(BIN_NAME)
@@ -18,13 +18,13 @@ all: $(EXE)
 .PHONY: all
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(LIB_ASMJIT)
+	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDES)
 
 $(BIN_DIR) $(OBJ_DIR) $(LOG_DIR):
 	mkdir -p $@
 
 $(EXE): $(OBJ) | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIB_ASMJIT)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDES)
 
 run: $(EXE)
 	sudo $(EXE) 100

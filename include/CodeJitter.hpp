@@ -46,7 +46,7 @@ class CodeJitter {
                   size_t sync_after_every_nth_hammering_rep,
                   FLUSHING_STRATEGY flushing_strategy,
                   FENCING_STRATEGY fencing_strategy,
-                  std::vector<volatile char*>& aggressor_pairs);
+                  const std::vector<volatile char*>& aggressor_pairs);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
   int hammer_pattern();

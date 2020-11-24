@@ -3,17 +3,28 @@
 
 #include <asmjit/asmjit.h>
 
+#include <algorithm>
+// #include <climits>
+// #include <iomanip>
 #include <iostream>
-#include <iterator>
-#include <random>
-#include <unordered_map>
-#include <utility>
+// #include <ostream>
+// #include <iterator>
+// #include <map>
+// #include <random>
+// #include <set>
+// #include <sstream>
+// #include <string>
+// #include <unordered_map>
+// #include <unordered_set>
+// #include <utility>
+// #include <vector>
 
 #include "../include/CodeJitter.hpp"
+#include "../include/HammeringPattern.hpp"
 #include "../include/Range.hpp"
 
 class PatternBuilder {
- private:
+ public:
   std::mt19937 gen;
 
   /// A instance of the CodeJitter that is used to generate the ASM code for the produced hammering pattern.
@@ -78,7 +89,6 @@ class PatternBuilder {
 
   std::string get_dist_string(std::unordered_map<int, int>& dist);
 
- public:
   /// default constructor that randomizes fuzzing parameters
   PatternBuilder(int num_activations, volatile char* target_address);
 
@@ -99,7 +109,7 @@ class PatternBuilder {
 
   size_t count_aggs();
 
-  HammeringPattern generate_frequency_based_pattern();
+  void generate_frequency_based_pattern(HammeringPattern &hammering_pattern);
 };
 
 #endif /* PATTERNBUILDER */

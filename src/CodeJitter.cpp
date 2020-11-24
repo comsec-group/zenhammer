@@ -55,7 +55,7 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
                             size_t sync_after_every_nth_hammering_rep, /* UNUSED PARAMETER */
                             FLUSHING_STRATEGY flushing_strategy,
                             FENCING_STRATEGY fencing_strategy,
-                            std::vector<volatile char*>& aggressor_pairs) {
+                            const std::vector<volatile char*>& aggressor_pairs) {
   // decides the number of aggressors of the beginning/end to be used for detecting the refresh interval
   // e.g., 10 means use the first 10 aggs in aggressor_pairs (repeatedly, if necessary) to detect the start refresh
   // (i.e., at the beginning) and the last 10 aggs in aggressor_pairs to detect the last refresh (at the end)
@@ -137,47 +137,48 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   // ------- part 2: perform hammering and then check for next ACTIVATE after finishing hammering --------
 
   // initialize variables
-  a.mov(asmjit::x86::rsi, hammering_total_num_activations);  // loop counter
-  a.mov(asmjit::x86::edx, 0);                                // num activations counter
+  a.mov(asmjit::x86::rsi, hammering_total_num_activations);
+  a.mov(asmjit::x86::edx, 0);  // num activations counter
 
   a.bind(for_begin);
   a.cmp(asmjit::x86::rsi, 0);
   a.jle(for_end);
 
-  a.dec(asmjit::x86::rsi);
+  // a.dec(asmjit::x86::rsi);
 
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
   std::unordered_map<uint64_t, bool> accessed_before;
 
-  // TODO synchronize with each REF
-  for (size_t k = 1; k <= hammering_reps_before_sync; k++) {  // TODO do this loop in asm
-    // hammer each aggressor once
-    for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
-      uint64_t cur_addr = (uint64_t)aggressor_pairs[i];
+  // TODO synchronize with each REF?
+  // TODO do this loop in asm?
+  // for (size_t k = 1; k <= hammering_reps_before_sync; k++) {
+  // hammer each aggressor once
+  for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
+    uint64_t cur_addr = (uint64_t)aggressor_pairs[i];
 
-      // fence to ensure flushing finshed and defined order of accesses
-      if (fencing_strategy == FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr] == true) {
-        a.mfence();
-        accessed_before[cur_addr] = false;
-      }
-
-      // hammer
-      a.mov(asmjit::x86::rax, cur_addr);
-      a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
-      // a.dec(asmjit::x86::rsi);
-
-      // flush
-      if (flushing_strategy == FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-        // flush
-        a.mov(asmjit::x86::rax, cur_addr);
-        a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
-        accessed_before[cur_addr] = true;
-      }
+    // fence to ensure flushing finshed and defined order of accesses
+    if (fencing_strategy == FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr] == true) {
+      a.mfence();
+      accessed_before[cur_addr] = false;
     }
 
-    // fences -> ensure that accesses are not interleaved, i.e., we acccess aggressors always in same order
-    a.mfence();
+    // hammer
+    a.mov(asmjit::x86::rax, cur_addr);
+    a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+    a.dec(asmjit::x86::rsi);
+
+    // flush
+    if (flushing_strategy == FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
+      // flush
+      a.mov(asmjit::x86::rax, cur_addr);
+      a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+      accessed_before[cur_addr] = true;
+    }
   }
+
+  // fences -> ensure that accesses are not interleaved, i.e., we acccess aggressors always in same order
+  a.mfence();
+  // }
 
   // synchronize with the end of the refresh interval: while (true) { ... }
   a.bind(while2_begin);
