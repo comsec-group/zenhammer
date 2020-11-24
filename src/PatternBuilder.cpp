@@ -505,8 +505,10 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern& hammerin
     for (auto& agg_set : pairs) {
       if (agg_set.size() == N) return agg_set;
     }
-    fprintf(stderr, "[-] Couldn't get a N-sided aggressor pair but this shouldn't have happened.\n");
-    exit(1);
+    return {};
+    // TODO extend "generate sets of aggressor sets" to generate at least one aggressor pair for each N in N-sided
+    // fprintf(stderr, "[-] Couldn't get a N-sided aggressor pair but this shouldn't have happened.\n");
+    // exit(1);
   };
 
   const int expected_acts = pattern_length / base_period;
@@ -519,7 +521,7 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern& hammerin
 
     // choose a random aplitude
     auto amp = amplitude.get_random_number(gen);
-    printf("[DEBUG] amp: %d\n", amp);
+    // printf("[DEBUG] amp: %d\n", amp);
 
     // repeat until the current time slot k is filled up in each k+i*base_period
     int next_offset = i;
@@ -531,9 +533,11 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern& hammerin
       // define the period to use for the next agg(s)*
       // note: 8 is a randomly chosen value to not make frequencies ever-growing high
       int max_times_base_period = expected_acts - collected_acts;
-      cur_period = cur_period * Range(1, expected_acts, true).get_random_number(gen);
+      cur_period = cur_period * Range(1, max_times_base_period, true).get_random_number(gen);
+      printf("[DEBUG] pattern_length: %zu\n", pattern_length); 
+      printf("[DEBUG] cur_period: %zu\n", cur_period); 
       collected_acts += (pattern_length / cur_period);
-      printf("[DEBUG] cur_period: %zu\n", cur_period);
+      
 
       // agg can be a single agg or a N-sided pair
       auto agg = get_N_sided_agg(cur_N);

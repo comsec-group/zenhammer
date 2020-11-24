@@ -396,8 +396,8 @@ void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_funct
         code_jitter.hammer_pattern();
 
         // check whether any bit flips occurred
-        mem_values(target, false, address_mapper.get_lowest_address() - (row_increment * 15),
-                   address_mapper.get_highest_address() + (row_increment * 15), row_function);
+        mem_values(target, false, address_mapper.get_lowest_address() - (row_increment * 100),
+                   address_mapper.get_highest_address() + (row_increment * 100), row_function);
 
         // cleanup the jitter for its next use
         code_jitter.cleanup();
