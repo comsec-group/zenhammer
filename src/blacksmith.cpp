@@ -359,10 +359,7 @@ volatile char* remap_row(volatile char* addr, uint64_t row_function) {
   return addr;
 }
 
-void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_function,
-                                       //std::vector<uint64_t>& bank_rank_functions,
-                                       //std::vector<uint64_t>* bank_rank_masks,
-                                       int acts) {
+void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_function, int acts) {
   PatternBuilder pattern_builder(acts, target);
   CodeJitter code_jitter;
   const uint64_t row_increment = get_row_increment(row_function);
@@ -373,6 +370,7 @@ void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_funct
       pattern_builder.randomize_parameters();
       HammeringPattern hammering_pattern;
       pattern_builder.generate_frequency_based_pattern(hammering_pattern);
+      printf("Pattern length: %zu\n", hammering_pattern.accesses.size());
 
       // pass pattern to address generator/randomizer
       PatternAddressMapper address_mapper(hammering_pattern);
@@ -385,81 +383,23 @@ void n_sided_frequency_based_hammering(volatile char* target, uint64_t row_funct
 
         // generate jitted hammering function
         // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
-        code_jitter.jit_strict(pattern_builder.total_acts_pattern,
+        code_jitter.jit_strict(pattern_builder.hammering_total_num_activations,
                                pattern_builder.hammering_reps_before_sync,
                                pattern_builder.sync_after_every_nth_hammering_rep,
                                FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
-                               FENCING_STRATEGY::LATEST_POSSIBLE,
+                               FENCING_STRATEGY::OMIT_FENCING,
                                address_mapper.export_pattern_for_jitting());
 
         // do hammering
         code_jitter.hammer_pattern();
 
         // check whether any bit flips occurred
-        mem_values(target, false, address_mapper.get_lowest_address() - (row_increment * 100),
-                   address_mapper.get_highest_address() + (row_increment * 100), row_function);
+        mem_values(target, false, address_mapper.get_lowest_address() - (row_increment * 25),
+                   address_mapper.get_highest_address() + (row_increment * 25), row_function);
 
         // cleanup the jitter for its next use
         code_jitter.cleanup();
       }
-    }
-  }
-}
-
-void n_sided_fuzzy_hammering(volatile char* target, uint64_t row_function,
-                             std::vector<uint64_t>& bank_rank_functions,
-                             std::vector<uint64_t>* bank_rank_masks,
-                             int acts) {
-  PatternBuilder pattern_builder(acts, target);
-  int exec_round = 0;
-  int num_optimization_rounds = 0;
-  const int limit_optimization_rounds = 5;
-  uint64_t row_increment = get_row_increment(row_function);
-
-  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-    // hammer the first four banks
-    for (int bank_no = 0; bank_no < 4; bank_no++) {
-      printf(FGREEN "[+] Running round %d on bank %d" NONE "\n", ++exec_round, bank_no);
-
-      // generate a new set of random parameters
-      pattern_builder.randomize_parameters();
-
-      // generate a random pattern using fuzzing
-      volatile char* first_address;
-      volatile char* last_address;
-      pattern_builder.generate_random_pattern(bank_rank_masks, bank_rank_functions, row_function, row_increment,
-                                              bank_no, &first_address, &last_address);
-
-      // this loop optimizes the number of aggressors by looking at the number of activations that happen in the
-      // synchronization at each REFRESH
-      bool optimize_pattern = true;
-      do {
-        // access this pattern synchronously with the REFRESH command
-        int trailing_acts = pattern_builder.hammer_pattern();
-        int overflow_acts = acts - trailing_acts;
-
-        // check if any bit flips occurred while hammering
-        mem_values(target, false, first_address - (row_increment * 100), last_address + (row_increment * 120), row_function);
-
-        // only optimize the pattern (remove aggressors) if the number of trailing activations is larger than 40
-        // (we tested, 20-40 looks like to work) and is not larger than the activations in a REFRESH interval; also
-        // check that we did not pass the optimization rounds limit yet
-        optimize_pattern = (trailing_acts % acts > 10) && (num_optimization_rounds < limit_optimization_rounds);
-        if (optimize_pattern) {
-          int aggs_to_be_removed = overflow_acts / 2;
-          if ((size_t)aggs_to_be_removed >= pattern_builder.count_aggs() || aggs_to_be_removed == 0)
-            break;
-          printf("[+] Optimizing pattern's length by removing %d aggs.\n", aggs_to_be_removed);
-          num_optimization_rounds++;
-          pattern_builder.cleanup();
-          // do again the code jitting but now with the reduced number of aggressors
-          pattern_builder.jit_code();
-        }
-      } while (optimize_pattern);
-
-      // clean up the code jitting runtime for reuse with the next pattern
-      pattern_builder.cleanup();
-      printf("\n");
     }
   }
 }
@@ -618,7 +558,6 @@ void print_metadata() {
   printf("MEM_SIZE: %d\n", MEM_SIZE);
   printf("NUM_BANKS: %d\n", NUM_BANKS);
   printf("NUM_TARGETS: %d\n", NUM_TARGETS);
-  printf("USE_FUZZING: %s\n", USE_FUZZING ? "true" : "false");
   printf("USE_SUPERPAGE: %s\n", USE_SUPERPAGE ? "true" : "false");
   printf("USE_SYNC: %s\n", USE_SYNC ? "true" : "false");
   printf("======================================\n");
@@ -626,18 +565,14 @@ void print_metadata() {
 }
 
 int main(int argc, char** argv) {
-  // seed srand with the current time
-  srand(time(NULL));
-
   // prints the current git commit and some metadata
   print_metadata();
 
-  // parameter 1 is the number of execution rounds
+  // the optional parameter 1 is the number of execution rounds
   if (argc == 2) {
     char* p;
     errno = 0;
     unsigned long long conv = strtoull(argv[1], &p, 10);
-    // check for errors
     if (errno != 0 || *p != '\0' || conv > ULONG_LONG_MAX) {
       printf(FRED "[-] Given program parameter (EXECUTION_ROUNDS) is invalid! Aborting." NONE "\n");
       return -1;
@@ -646,29 +581,24 @@ int main(int argc, char** argv) {
     EXECUTION_ROUNDS_INFINITE = false;
   }
 
-  volatile char* target;
-  // create an array of size NUM_BANKS in which each element is a
-  // vector<volatile char*>
+  // create an array of size NUM_BANKS in which each element is a vector<volatile char*>
   std::vector<volatile char*> banks[NUM_BANKS];
   std::vector<uint64_t> bank_rank_functions;
   uint64_t row_function;
   int act, ret;
 
-  if (SETPRIORITY) {
-    // give this process the highest CPU priority
-    ret = setpriority(PRIO_PROCESS, 0, -20);
-    if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
-  }
+  // give this process the highest CPU priority
+  ret = setpriority(PRIO_PROCESS, 0, -20);
+  if (ret != 0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
   // allocate a large bulk of contigous memory
-  target = allocate_memory();
+  volatile char* target = allocate_memory();
   // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
   printf("[+] Found bank conflicts.\n");
   for (size_t i = 0; i < NUM_BANKS; i++) {
     find_targets(target, banks[i], NUM_TARGETS);
     printf("[+] Populated addresses from different banks.\n");
-
     // determine the row and bank/rank functions
     find_functions(banks, row_function, bank_rank_functions);
     printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
@@ -678,16 +608,17 @@ int main(int argc, char** argv) {
       if (i == (bank_rank_functions.size() - 1)) printf("\n");
     }
 
-    // @TODO this is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory configuration.
-    // We should get these infos from dmidecode to do it properly, but for now this is easier.
-    // if (bank_rank_functions.size() == 5) {
-    DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(2) | BANKS(16)));
-    // } else if (bank_rank_functions.size() == 4) {
-    //   DRAMAddr::load_mem_config((CHANS(1) | DIMMS(1) | RANKS(1) | BANKS(16)));
-    // } else {
-    //   fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-    //   exit(0);
-    // }
+    // TODO: This is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory configuration. We should get these infos from dmidecode to do it properly, but for now this is easier.
+    size_t num_ranks;
+    if (bank_rank_functions.size() == 5) {
+      num_ranks = RANKS(2);
+    } else if (bank_rank_functions.size() == 4) {
+      num_ranks = RANKS(1);
+    } else {
+      fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+      exit(0);
+    }
+    DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
     DRAMAddr::set_base((void*)target);
 
     // count the number of possible activations per refresh interval
@@ -696,21 +627,12 @@ int main(int argc, char** argv) {
 
     // determine bank/rank masks
     std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-    for (size_t i = 0; i < NUM_BANKS; i++) {
-      bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
-    }
+    for (size_t i = 0; i < NUM_BANKS; i++) bank_rank_masks[i] = get_bank_rank(banks[i], bank_rank_functions);
 
     // perform the hammering and check the flipped bits after each round
-    if (USE_FUZZING && USE_SYNC) {
-      n_sided_fuzzy_hammering(target, row_function, bank_rank_functions, bank_rank_masks, act);
-    } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-      printf("Test test test\n");
-      fflush(stdout);
-      n_sided_frequency_based_hammering(target, row_function,
-                                        //bank_rank_functions, bank_rank_masks,
-                                        act);
-
-    } else if (!USE_FUZZING && !USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+    if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+      n_sided_frequency_based_hammering(target, row_function, act);
+    } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
       n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
     } else {
       fprintf(stderr,
@@ -718,7 +640,6 @@ int main(int argc, char** argv) {
               "Note that fuzzing is only supported with synchronized hammering.");
       exit(1);
     }
-
     return 0;
   }
 }

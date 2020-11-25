@@ -99,10 +99,6 @@ class PatternBuilder {
 
   void randomize_parameters();
 
-  void generate_random_pattern(std::vector<uint64_t> bank_rank_masks[],
-                               std::vector<uint64_t>& bank_rank_functions, u_int64_t row_function,
-                               u_int64_t row_increment, int ba, volatile char** first_address, volatile char** last_address);
-
   int remove_aggs(int N);
 
   void jit_code();

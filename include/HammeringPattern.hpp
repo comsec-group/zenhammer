@@ -9,6 +9,40 @@
 #include "AggressorAccessPattern.hpp"
 #include "Range.hpp"
 
+namespace uuid {
+static std::random_device rd;
+static std::mt19937 gen(rd());
+static std::uniform_int_distribution<> dis(0, 15);
+static std::uniform_int_distribution<> dis2(8, 11);
+
+std::string generate_uuid_v4() {
+  std::stringstream ss;
+  int i;
+  ss << std::hex;
+  for (i = 0; i < 8; i++) {
+    ss << dis(gen);
+  }
+  ss << "-";
+  for (i = 0; i < 4; i++) {
+    ss << dis(gen);
+  }
+  ss << "-4";
+  for (i = 0; i < 3; i++) {
+    ss << dis(gen);
+  }
+  ss << "-";
+  ss << dis2(gen);
+  for (i = 0; i < 3; i++) {
+    ss << dis(gen);
+  }
+  ss << "-";
+  for (i = 0; i < 12; i++) {
+    ss << dis(gen);
+  };
+  return ss.str();
+}
+}  // namespace uuid
+
 class HammeringPattern {
  public:
   // the base period this hammering pattern was generated for
@@ -24,6 +58,8 @@ class HammeringPattern {
 };
 
 class PatternAddressMapper {
+  const std::string instance_uuid;
+
   // data about the pattern
   HammeringPattern &hammering_pattern;
 
@@ -38,7 +74,8 @@ class PatternAddressMapper {
   volatile char *highest_address;
 
  public:
-  PatternAddressMapper(HammeringPattern &hp) : hammering_pattern(hp) {
+  PatternAddressMapper(HammeringPattern &hp)
+      : hammering_pattern(hp), instance_uuid(uuid::generate_uuid_v4()) {
     // standard mersenne_twister_engine seeded with rd()
     std::random_device rd;
     gen = std::mt19937(rd());
@@ -53,6 +90,9 @@ class PatternAddressMapper {
   void randomize_addresses(size_t bank) {
     aggressor_to_addr.clear();
     const int agg_intra_distance = 2;
+
+    bool use_seq_addresses = true;
+    int cur_row = 1;
 
     // we can make use here of the fact that each aggressor (identified by its ID) has a fixed N, that means, is
     // either accessed individually (N=1) or in a group of multiple aggressors (N>1; e.g., N=2 for double sided)
@@ -78,11 +118,15 @@ class PatternAddressMapper {
           // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
           Aggressor &last_agg = acc_pattern.offset_aggressor_map.at(i - 1);
           auto last_addr = aggressor_to_addr.at(last_agg.id);
-          aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, last_addr.row + (size_t)agg_intra_distance, last_addr.col)});
+          cur_row = cur_row + (size_t)agg_intra_distance;
+          size_t row = use_seq_addresses ? cur_row : last_addr.row + (size_t)agg_intra_distance;
+          aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, row, last_addr.col)});
         } else {
+          cur_row = cur_row + (size_t)agg_intra_distance;
+          size_t row = use_seq_addresses ? cur_row : Range(0, 511).get_random_number(gen);
           // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
           // and hammering across multiple subarrays doesn't work
-          aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, (size_t)Range(0, 511).get_random_number(gen), 0)});
+          aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, row, 0)});
         }
         auto cur_addr = (volatile char *)aggressor_to_addr.at(current_agg.id).to_virt();
         if (cur_addr < lowest_address) lowest_address = cur_addr;

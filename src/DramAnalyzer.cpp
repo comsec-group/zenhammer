@@ -126,9 +126,9 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
   // we cannot continue if we couldn't determine valid bank/rank functions
   if (bank_rank_functions.size() != num_expected_fns) {
     printf(
-        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. "
-        "Ignoring and continuing execution.",
+        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. ",
         bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
+    exit(1);
   }
 }
 

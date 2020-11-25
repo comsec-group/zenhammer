@@ -39,15 +39,17 @@
 /// the number of banks in the system
 #define NUM_BANKS 16
 
+/// the number of active DIMMs in the system
+#define DIMM 1
+
+/// the number of active channels in the system
+#define CHANNEL 1
+
 /// the number of bytes to be allocated
 #define MEM_SIZE (GB(1))
 
 /// allocate a super page
 #define USE_SUPERPAGE 1
-
-// calls the setpriority libc function to give this process the highest priority
-// note: requires elevated privileges
-#define SETPRIORITY 1
 
 // #########################################################
 // ################ PROGRAM FLOW PARAMETERS ################
@@ -55,9 +57,6 @@
 
 /// do synchronized hammering
 #define USE_SYNC 1
-
-/// generate random patterns using fuzzing
-#define USE_FUZZING 0
 
 // generate frequency-based patterns using fuzzing
 #define USE_FREQUENCY_BASED_FUZZING 1
