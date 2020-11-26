@@ -17,6 +17,10 @@ all: $(EXE)
 
 .PHONY: all
 
+##################################################################################################
+## ATTENTION: Building using this Makefile does not work anymore, please use the CMakeLists instead.
+##################################################################################################
+
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDES)
 
@@ -44,3 +48,4 @@ debug: $(EXE)
 install_deps:
 	# check if asmjit is installed: sudo ldconfig -p | grep asmjit
 	git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig
+

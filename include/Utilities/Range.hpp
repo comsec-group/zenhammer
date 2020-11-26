@@ -27,11 +27,11 @@ struct Range {
     dist = std::uniform_int_distribution<>(new_min, new_max);
   }
 
-  int get_random_number(std::mt19937& gen) {
+  int get_random_number(std::mt19937 &gen) {
     return dist(gen);
   }
 
-  int get_random_number(int upper_bound, std::mt19937& gen) {
+  int get_random_number(int upper_bound, std::mt19937 &gen) {
     if (max > upper_bound) dist = std::uniform_int_distribution<>(min, upper_bound);
     return dist(gen);
   }

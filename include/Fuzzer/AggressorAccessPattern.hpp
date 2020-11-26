@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include "Aggressor.hpp"
+#include "Fuzzer/Aggressor.hpp"
 
 class AggressorAccessPattern {
  public:

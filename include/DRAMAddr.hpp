@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#define CHANS(x) ((x) << (8 * 3))
-#define DIMMS(x) ((x) << (8 * 2))
-#define RANKS(x) ((x) << (8 * 1))
-#define BANKS(x) ((x) << (8 * 0))
+#define CHANS(x) ((x) << (8UL * 3UL))
+#define DIMMS(x) ((x) << (8UL * 2UL))
+#define RANKS(x) ((x) << (8UL * 1UL))
+#define BANKS(x) ((x) << (8UL * 0UL))
 #define MEM_CONFIG(ch, d, r, b) (CHANS(ch) | DIMMS(d) | RANKS(r) | BANKS(b))
 
 #define MTX_SIZE (30)
@@ -33,7 +33,7 @@ class DRAMAddr {
   static MemConfiguration MemConfig;
   static size_t base_msb;
 
-  size_t linearize();
+  size_t linearize() const;
 
  public:
   size_t bank;
@@ -41,16 +41,16 @@ class DRAMAddr {
   size_t col;
 
   // class methods
-  static void set_base(void* buff);
+  static void set_base(void *buff);
 
   static void load_mem_config(mem_config_t cfg);
 
   // instance methods
   DRAMAddr(size_t bk, size_t r, size_t c);
 
-  DRAMAddr(void* addr);
+  DRAMAddr(void *addr);
 
-  void* to_virt();
+  void *to_virt();
 
   std::string to_string();
 };

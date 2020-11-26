@@ -1,25 +1,24 @@
-#include "../include/DramAnalyzer.hpp"
+#include "DramAnalyzer.hpp"
 
-#include <assert.h>
-#include <inttypes.h>
-#include <stdlib.h>
-
+#include <cassert>
+#include <cinttypes>
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-#include "../include/GlobalDefines.hpp"
-#include "../include/utils.hpp"
+#include "GlobalDefines.hpp"
+#include "Utilities/AsmPrimitives.hpp"
 
-volatile char* normalize_addr_to_bank(volatile char* cur_addr, std::vector<uint64_t>& cur_bank_rank,
-                                      std::vector<uint64_t>& bank_rank_functions) {
-  volatile char* normalized_addr = cur_addr;
+volatile char *normalize_addr_to_bank(volatile char *cur_addr, std::vector<uint64_t> &cur_bank_rank,
+                                      std::vector<uint64_t> &bank_rank_functions) {
+  volatile char *normalized_addr = cur_addr;
   for (size_t i = 0; i < cur_bank_rank.size(); i++) {
     // apply the bank/rank function on the given address
-    uint64_t mask = ((uint64_t)normalized_addr) & bank_rank_functions[i];
+    uint64_t mask = ((uint64_t) normalized_addr) & bank_rank_functions[i];
 
     // check whether we need to normalize the address
-    bool normalize = (cur_bank_rank[i] == ((mask == 0) || (mask == bank_rank_functions[i])));
+    bool normalize = (cur_bank_rank[i]==((mask==0) || (mask==bank_rank_functions[i])));
 
     // continue with next iteration if no normalization is required
     if (!normalize) continue;
@@ -27,7 +26,7 @@ volatile char* normalize_addr_to_bank(volatile char* cur_addr, std::vector<uint6
     // normalize address
     for (int b = 0; b < 64; b++) {
       if (bank_rank_functions[i] & BIT_SET(b)) {
-        normalized_addr = (volatile char*)(((uint64_t)normalized_addr) ^ BIT_SET(b));
+        normalized_addr = (volatile char *) (((uint64_t) normalized_addr) ^ BIT_SET(b));
         break;
       }
     }
@@ -44,26 +43,23 @@ uint64_t get_row_increment(uint64_t row_function) {
   return 0;
 }
 
-std::vector<uint64_t> get_bank_rank(std::vector<volatile char*>& target_bank,
-                                    std::vector<uint64_t>& bank_rank_functions) {
+std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank,
+                                    std::vector<uint64_t> &bank_rank_functions) {
   std::vector<uint64_t> bank_rank;
   auto addr = target_bank.at(0);
-  for (size_t i = 0; i < bank_rank_functions.size(); i++) {
-    uint64_t mask = ((uint64_t)addr) & bank_rank_functions[i];
-    if ((mask == bank_rank_functions[i]) || (mask == 0)) {
-      bank_rank.push_back(0);
-    } else {
-      bank_rank.push_back(1);
-    }
+  for (unsigned long fn : bank_rank_functions) {
+    uint64_t mask = ((uint64_t) addr) & fn;
+    auto value = ((mask==fn) || (mask==0)) ? 0 : 1;
+    bank_rank.push_back(value);
   }
   return bank_rank;
 }
 
 // Gets the row index for a given address by considering the given row function.
-uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
-  uint64_t cur_row = (uint64_t)addr & row_function;
+uint64_t get_row_index(const volatile char *addr, uint64_t row_function) {
+  uint64_t cur_row = (uint64_t) addr & row_function;
   for (size_t i = 0; i < 64; i++) {
-    if (row_function & (1 << i)) {
+    if (row_function & (1UL << i)) {
       return (cur_row >> i);
     }
   }
@@ -76,7 +72,9 @@ uint64_t get_row_index(volatile char* addr, uint64_t row_function) {
  *  2) single DIMM system (only bank/rank bits)
  *  3) Bank/Rank functions use at most 2 bits
  */
-void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, std::vector<uint64_t>& bank_rank_functions) {
+void find_functions(std::vector<volatile char *> *banks,
+                    uint64_t &row_function,
+                    std::vector<uint64_t> &bank_rank_functions) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
@@ -94,7 +92,7 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
 
       for (int b = 6; b < max_bits; b++) {
         // flip the bit at position b in the given address
-        auto test_addr = (volatile char*)((uint64_t)addr ^ BIT_SET(b));
+        auto test_addr = (volatile char *) ((uint64_t) addr ^ BIT_SET(b));
         auto time = test_addr_against_bank(test_addr, banks[ba]);
         if (time > THRESH) {
           if (b > 13) {
@@ -103,7 +101,7 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
         } else {
           // it is possible that flipping this bit changes the function
           for (int tb = 6; tb < b; tb++) {
-            auto test_addr2 = (volatile char*)((uint64_t)test_addr ^ BIT_SET(tb));
+            auto test_addr2 = (volatile char *) ((uint64_t) test_addr ^ BIT_SET(tb));
             time = test_addr_against_bank(test_addr2, banks[ba]);
             if (time > THRESH) {
               if (b > 13) {
@@ -112,7 +110,7 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
               uint64_t new_function = 0;
               new_function = BIT_SET(b) | BIT_SET(tb);
               auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
-              if (iter == bank_rank_functions.end()) {
+              if (iter==bank_rank_functions.end()) {
                 bank_rank_functions.push_back(new_function);
               }
             }
@@ -121,10 +119,10 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
       }
     }
     num_tries++;
-  } while (num_tries < max_num_tries && bank_rank_functions.size() != num_expected_fns);
+  } while (num_tries < max_num_tries && bank_rank_functions.size()!=num_expected_fns);
 
   // we cannot continue if we couldn't determine valid bank/rank functions
-  if (bank_rank_functions.size() != num_expected_fns) {
+  if (bank_rank_functions.size()!=num_expected_fns) {
     printf(
         "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. ",
         bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
@@ -132,27 +130,27 @@ void find_functions(std::vector<volatile char*>* banks, uint64_t& row_function, 
   }
 }
 
-uint64_t test_addr_against_bank(volatile char* addr, std::vector<volatile char*>& bank) {
+uint64_t test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank) {
   uint64_t cumulative_times = 0;
   int times = 0;
-  for (auto const& other_addr : bank) {
-    if (addr != other_addr) {
+  for (auto const &other_addr : bank) {
+    if (addr!=other_addr) {
       times++;
       auto ret = measure_time(addr, other_addr);
       cumulative_times += ret;
     }
   }
-  return (times == 0) ? 0 : cumulative_times / times;
+  return (times==0) ? 0 : cumulative_times/times;
 }
 
-void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* banks) {
+void find_bank_conflicts(volatile char *target, std::vector<volatile char *> *banks) {
   srand(time(0));
   int nr_banks_cur = 0;
-  int remaining_tries = NUM_BANKS * 128;  // experimentally determined, may be unprecise
+  int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS) {
-  reset:
-    auto a1 = target + (rand() % (MEM_SIZE / 64)) * 64;
-    auto a2 = target + (rand() % (MEM_SIZE / 64)) * 64;
+    reset:
+    auto a1 = target + (rand()%(MEM_SIZE/64))*64;
+    auto a2 = target + (rand()%(MEM_SIZE/64))*64;
     auto ret1 = measure_time(a1, a2);
     auto ret2 = measure_time(a1, a2);
 
@@ -177,17 +175,18 @@ void find_bank_conflicts(volatile char* target, std::vector<volatile char*>* ban
       if (all_banks_set) return;
 
       // store addresses found for each bank
-      assert(banks[nr_banks_cur].size() == 0 && "Bank not empty");
+      assert(banks[nr_banks_cur].empty() && "Bank not empty");
       banks[nr_banks_cur].push_back(a1);
       banks[nr_banks_cur].push_back(a2);
       nr_banks_cur++;
     }
-    if (remaining_tries == 0) {
+    if (remaining_tries==0) {
       fprintf(stderr,
               "[-] Could not find all bank/rank functions. Is the number of banks (%d) defined correctly?\n",
-              (int)NUM_BANKS);
+              (int) NUM_BANKS);
       exit(1);
     }
     remaining_tries--;
   }
 }
+

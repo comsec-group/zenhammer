@@ -16,7 +16,7 @@
 
 /// the starting address of the allocated memory area
 /// this is a fixed value as the assumption is that all memory cells are equally vulnerable
-#define ADDR 0x2000000000
+#define MMAP_START_ADDRESS 0x2000000000
 
 /// the number of rounds to be used to measure cache hit/miss latency
 #define DRAMA_ROUNDS 1000
@@ -51,6 +51,8 @@
 /// allocate a super page
 #define USE_SUPERPAGE 1
 
+#define PAGE_SIZE 4096
+
 // #########################################################
 // ################ PROGRAM FLOW PARAMETERS ################
 // #########################################################
@@ -60,8 +62,5 @@
 
 // generate frequency-based patterns using fuzzing
 #define USE_FREQUENCY_BASED_FUZZING 1
-
-/// whether to run an experiment rather than do hammering
-#define RUN_EXPERIMENT 0
 
 #endif /* GLOBAL_DEFINES */

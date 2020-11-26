@@ -42,11 +42,10 @@ class CodeJitter {
 
   /// generates the jitted function and assigns the function pointer fn to it
   void jit_strict(size_t hammering_total_num_activations,
-                  size_t hammering_reps_before_sync,
-                  size_t sync_after_every_nth_hammering_rep,
+                  size_t hammer_sync_reps,
                   FLUSHING_STRATEGY flushing_strategy,
                   FENCING_STRATEGY fencing_strategy,
-                  const std::vector<volatile char*>& aggressor_pairs);
+                  const std::vector<volatile char *> &aggressor_pairs);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
   int hammer_pattern();
