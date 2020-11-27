@@ -1,4 +1,5 @@
 #include <cassert>
+#include <GlobalDefines.hpp>
 #include "Fuzzer/PatternAddressMapper.h"
 
 PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp) /* NOLINT */
@@ -17,7 +18,6 @@ void PatternAddressMapper::randomize_addresses(size_t bank) {
   const int agg_intra_distance = 2;
   const int agg_inter_distance = Range(4, 6).get_random_number(gen);
   bool use_seq_addresses = (bool) (Range(0, 1).get_random_number(gen));
-  std::cout << "use_seq_addresses: " << use_seq_addresses << std::endl;
   size_t cur_row = 1;
 
   int start_row = Range(0, 8192).get_random_number(gen);
@@ -72,15 +72,36 @@ std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() 
   std::cout << "Pattern (bank = " << aggressor_to_addr.at(hammering_pattern.accesses.at(0).id).bank << "): "
             << std::endl;
 
-  for (auto &agg : hammering_pattern.accesses) {
+  bool invalid_aggs{false};
+
+  for (size_t i = 0; i < hammering_pattern.accesses.size(); ++i) {
+    if (i!=0 && (i%hammering_pattern.base_period)==0) {
+      std::cout << std::endl;
+    }
+    auto agg = hammering_pattern.accesses[i];
     if (agg.id==ID_PLACEHOLDER_AGG) {
-      printf("[-] Found an invalid aggressor in the pattern. This shouldn't happen. Skipping it.\n");
+      printf(FRED "-1 " NONE);
+      invalid_aggs = true;
       continue;
     }
     address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
     std::cout << aggressor_to_addr.at(agg.id).row << " ";
   }
+
+//  for (auto &agg : hammering_pattern.accesses) {
+//    if (agg.id==ID_PLACEHOLDER_AGG) {
+//      printf(FRED "-1 " NONE);
+//      invalid_aggs = true;
+//      continue;
+//    }
+//    address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+//    std::cout << aggressor_to_addr.at(agg.id).row << " ";
+//  }
   std::cout << std::endl;
+  if (invalid_aggs) {
+    printf("[-] Found at least an invalid aggressor in the pattern. "
+           "These aggressors were NOT added but printed to visualize their position.\n");
+  }
   return address_pattern;
 }
 

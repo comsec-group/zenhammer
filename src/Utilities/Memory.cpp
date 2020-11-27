@@ -70,19 +70,17 @@ void Memory::initialize() {
 
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
 /// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
-void Memory::check_memory(const volatile char *start, const volatile char *end, uint64_t row_function) {
+void Memory::check_memory(const volatile char *start, const volatile char *end, DramAnalyzer &dram_analyzer) {
 
   if (start==nullptr || end==nullptr) {
     printf("[-] Function mem_values called with invalid arguments\n");
     exit(1);
   }
 
-  // use std::max here to make sure that we do not pass (under) the allocated memory area
-  auto start_offset = (uint64_t) std::max(0L, (start - start_address));
+  auto start_offset = (uint64_t) (start - start_address);
   start_offset = (start_offset/PAGE_SIZE)*PAGE_SIZE;
 
-  // use std::min here to make sure that we do not pass (over) the allocated memory area
-  auto end_offset = start_offset + std::min(size, ((uint64_t) (end - start)));
+  auto end_offset = start_offset + (uint64_t) (end - start);
   end_offset = (end_offset/PAGE_SIZE)*PAGE_SIZE;
 
   printf("[+] Checking if any bit flips occurred.\n");
@@ -97,6 +95,11 @@ void Memory::check_memory(const volatile char *start, const volatile char *end, 
       uint64_t offset = i + j;
       int rand_val = rand();
 
+      // make sure that we do not access an address out of the allocated memory area
+      if ((start_address + offset + sizeof(int) - 1) > (start_address + size)) {
+        return;
+      }
+
       clflushopt(start_address + offset);
       mfence();
 
@@ -110,7 +113,7 @@ void Memory::check_memory(const volatile char *start, const volatile char *end, 
         if (*((char *) (start_address + offset + c))!=((char *) &rand_val)[c]) {
           printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
                  start_address + offset + c,
-                 get_row_index(start_address + offset + c, row_function),
+                 dram_analyzer.get_row_index(start_address + offset + c),
                  offset%PAGE_SIZE,
                  ((unsigned char *) &rand_val)[c],
                  *(unsigned char *) (start_address + offset + c),

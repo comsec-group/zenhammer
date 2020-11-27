@@ -6,19 +6,20 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <unordered_set>
+#include <DRAMAddr.hpp>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/AsmPrimitives.hpp"
 
-volatile char *normalize_addr_to_bank(volatile char *cur_addr, std::vector<uint64_t> &cur_bank_rank,
-                                      std::vector<uint64_t> &bank_rank_functions) {
+volatile char *DramAnalyzer::normalize_addr_to_bank(volatile char *cur_addr, size_t bank_no) {
   volatile char *normalized_addr = cur_addr;
-  for (size_t i = 0; i < cur_bank_rank.size(); i++) {
+  for (size_t i = 0; i < bank_rank_masks.at(bank_no).size(); i++) {
     // apply the bank/rank function on the given address
     uint64_t mask = ((uint64_t) normalized_addr) & bank_rank_functions[i];
 
     // check whether we need to normalize the address
-    bool normalize = (cur_bank_rank[i]==((mask==0) || (mask==bank_rank_functions[i])));
+    bool normalize = (bank_rank_masks.at(bank_no)[i]==((mask==0) || (mask==bank_rank_functions[i])));
 
     // continue with next iteration if no normalization is required
     if (!normalize) continue;
@@ -35,16 +36,15 @@ volatile char *normalize_addr_to_bank(volatile char *cur_addr, std::vector<uint6
   return normalized_addr;
 }
 
-uint64_t get_row_increment(uint64_t row_function) {
+uint64_t DramAnalyzer::get_row_increment() const {
   for (size_t i = 0; i < 64; i++) {
     if (row_function & BIT_SET(i)) return BIT_SET(i);
   }
-  printf("[-] no bit set for row function\n");
+  printf("[-] No bit set for row function\n");
   return 0;
 }
 
-std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank,
-                                    std::vector<uint64_t> &bank_rank_functions) {
+std::vector<uint64_t> DramAnalyzer::get_bank_rank(std::vector<volatile char *> &target_bank) {
   std::vector<uint64_t> bank_rank;
   auto addr = target_bank.at(0);
   for (unsigned long fn : bank_rank_functions) {
@@ -56,7 +56,7 @@ std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank,
 }
 
 // Gets the row index for a given address by considering the given row function.
-uint64_t get_row_index(const volatile char *addr, uint64_t row_function) {
+uint64_t DramAnalyzer::get_row_index(const volatile char *addr) {
   uint64_t cur_row = (uint64_t) addr & row_function;
   for (size_t i = 0; i < 64; i++) {
     if (row_function & (1UL << i)) {
@@ -72,10 +72,7 @@ uint64_t get_row_index(const volatile char *addr, uint64_t row_function) {
  *  2) single DIMM system (only bank/rank bits)
  *  3) Bank/Rank functions use at most 2 bits
  */
-void find_functions(std::vector<volatile char *> *banks,
-                    uint64_t &row_function,
-                    std::vector<uint64_t> &bank_rank_functions,
-                    bool superpage_on) {
+void DramAnalyzer::find_functions(bool superpage_on) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
@@ -89,32 +86,34 @@ void find_functions(std::vector<volatile char *> *banks,
     row_function = 0;
 
     for (int ba = 6; ba < NUM_BANKS; ba++) {
-      auto addr = banks[ba].at(0);
+      auto addr = banks.at(ba).at(0);
 
       for (int b = 6; b < max_bits; b++) {
         // flip the bit at position b in the given address
         auto test_addr = (volatile char *) ((uint64_t) addr ^ BIT_SET(b));
-        auto time = test_addr_against_bank(test_addr, banks[ba]);
+        auto time = test_addr_against_bank(test_addr, banks.at(ba));
+
         if (time > THRESH) {
           if (b > 13) {
             row_function = row_function | BIT_SET(b);
           }
-        } else {
-          // it is possible that flipping this bit changes the function
-          for (int tb = 6; tb < b; tb++) {
-            auto test_addr2 = (volatile char *) ((uint64_t) test_addr ^ BIT_SET(tb));
-            time = test_addr_against_bank(test_addr2, banks[ba]);
-            if (time > THRESH) {
-              if (b > 13) {
-                row_function = row_function | BIT_SET(b);
-              }
-              uint64_t new_function = 0;
-              new_function = BIT_SET(b) | BIT_SET(tb);
-              auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
-              if (iter==bank_rank_functions.end()) {
-                bank_rank_functions.push_back(new_function);
-              }
-            }
+          continue;
+        }
+
+        // it is possible that flipping this bit changes the function
+        for (int tb = 6; tb < b; tb++) {
+          auto test_addr2 = (volatile char *) ((uint64_t) test_addr ^ BIT_SET(tb));
+          time = test_addr_against_bank(test_addr2, banks.at(ba));
+          if (time <= THRESH) {
+            continue;
+          }
+          if (b > 13) {
+            row_function = row_function | BIT_SET(b);
+          }
+          uint64_t new_function = BIT_SET(b) | BIT_SET(tb);
+          auto iter = std::find(bank_rank_functions.begin(), bank_rank_functions.end(), new_function);
+          if (iter==bank_rank_functions.end()) {
+            bank_rank_functions.push_back(new_function);
           }
         }
       }
@@ -129,9 +128,16 @@ void find_functions(std::vector<volatile char *> *banks,
         bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
     exit(1);
   }
+
+  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
+         row_function, get_row_increment(), bank_rank_functions.size());
+  for (size_t j = 0; j < bank_rank_functions.size(); j++) {
+    printf("0x%" PRIx64 " ", bank_rank_functions[j]);
+    if (j==(bank_rank_functions.size() - 1)) printf("\n");
+  }
 }
 
-uint64_t test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank) {
+uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank) {
   uint64_t cumulative_times = 0;
   int times = 0;
   for (auto const &other_addr : bank) {
@@ -144,8 +150,8 @@ uint64_t test_addr_against_bank(volatile char *addr, std::vector<volatile char *
   return (times==0) ? 0 : cumulative_times/times;
 }
 
-void find_bank_conflicts(volatile char *target, std::vector<volatile char *> *banks) {
-  srand(time(0));
+void DramAnalyzer::find_bank_conflicts(volatile char *target) {
+  srand(time(nullptr));
   int nr_banks_cur = 0;
   int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS) {
@@ -158,10 +164,10 @@ void find_bank_conflicts(volatile char *target, std::vector<volatile char *> *ba
     if ((ret1 > THRESH) && (ret2 > THRESH)) {
       bool all_banks_set = true;
       for (size_t i = 0; i < NUM_BANKS; i++) {
-        if (banks[i].empty()) {
+        if (banks.at(i).empty()) {
           all_banks_set = false;
         } else {
-          auto bank = banks[i];
+          auto bank = banks.at(i);
           ret1 = measure_time(a1, bank[0]);
           ret2 = measure_time(a2, bank[0]);
           if ((ret1 > THRESH) || (ret2 > THRESH)) {
@@ -176,9 +182,9 @@ void find_bank_conflicts(volatile char *target, std::vector<volatile char *> *ba
       if (all_banks_set) return;
 
       // store addresses found for each bank
-      assert(banks[nr_banks_cur].empty() && "Bank not empty");
-      banks[nr_banks_cur].push_back(a1);
-      banks[nr_banks_cur].push_back(a2);
+      assert(banks.at(nr_banks_cur).empty() && "Bank not empty");
+      banks.at(nr_banks_cur).push_back(a1);
+      banks.at(nr_banks_cur).push_back(a2);
       nr_banks_cur++;
     }
     if (remaining_tries==0) {
@@ -189,5 +195,65 @@ void find_bank_conflicts(volatile char *target, std::vector<volatile char *> *ba
     }
     remaining_tries--;
   }
+
+  printf("[+] Found bank conflicts.\n");
+  for (auto &bank : banks) {
+    find_targets(target, bank, NUM_TARGETS);
+  }
+  printf("[+] Populated addresses from different banks.\n");
 }
 
+void DramAnalyzer::find_targets(volatile char *target, std::vector<volatile char *> &target_bank, size_t size) {
+  // create an unordered set of the addresses in the target bank for a quick lookup
+  // std::unordered_set<volatile char*> tmp; tmp.insert(target_bank.begin(), target_bank.end());
+  std::unordered_set<volatile char *> tmp(target_bank.begin(), target_bank.end());
+  target_bank.clear();
+  size_t num_repetitions = 5;
+  srand(time(nullptr));
+  while (tmp.size() < size) {
+    auto a1 = target + (rand()%(MEM_SIZE/64))*64;
+    if (tmp.count(a1) > 0) continue;
+    uint64_t cumulative_times = 0;
+    for (size_t i = 0; i < num_repetitions; i++) {
+      for (const auto &addr : tmp) {
+        cumulative_times += measure_time(a1, addr);
+      }
+    }
+    cumulative_times /= num_repetitions;
+    if ((cumulative_times/tmp.size()) > THRESH) {
+      tmp.insert(a1);
+      target_bank.push_back(a1);
+    }
+  }
+}
+
+DramAnalyzer::DramAnalyzer() {
+  banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
+  bank_rank_masks = std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
+}
+
+const std::vector<std::vector<volatile char *>> &DramAnalyzer::get_banks() const {
+  return banks;
+}
+
+void DramAnalyzer::find_bank_rank_masks() {
+  for (size_t j = 0; j < NUM_BANKS; j++) {
+    bank_rank_masks[j] = get_bank_rank(banks.at(j));
+  }
+}
+
+std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
+  return bank_rank_functions;
+}
+
+uint64_t DramAnalyzer::get_row_function() const {
+  return row_function;
+}
+
+const std::vector<std::vector<uint64_t>> &DramAnalyzer::get_bank_rank_masks() const {
+  return bank_rank_masks;
+}
+
+const std::vector<std::vector<uint64_t>> &DramAnalyzer::get_bank_rank_masks() {
+  return bank_rank_masks;
+}

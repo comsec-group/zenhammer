@@ -93,34 +93,12 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
 }
 
 /// Determine exactly 'size' target addresses in given bank.
-void find_targets(volatile char *target, std::vector<volatile char *> &target_bank, size_t size) {
-  // create an unordered set of the addresses in the target bank for a quick lookup
-  // std::unordered_set<volatile char*> tmp; tmp.insert(target_bank.begin(), target_bank.end());
-  std::unordered_set<volatile char *> tmp(target_bank.begin(), target_bank.end());
-  target_bank.clear();
-  size_t num_repetitions = 5;
-  srand(time(nullptr));
-  while (tmp.size() < size) {
-    auto a1 = target + (rand()%(MEM_SIZE/64))*64;
-    if (tmp.count(a1) > 0) continue;
-    uint64_t cumulative_times = 0;
-    for (size_t i = 0; i < num_repetitions; i++) {
-      for (const auto &addr : tmp) {
-        cumulative_times += measure_time(a1, addr);
-      }
-    }
-    cumulative_times /= num_repetitions;
-    if ((cumulative_times/tmp.size()) > THRESH) {
-      tmp.insert(a1);
-      target_bank.push_back(a1);
-    }
-  }
-}
 
-void n_sided_frequency_based_hammering(Memory &memory, uint64_t row_function, int acts) {
+
+void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   PatternBuilder pattern_builder(acts, memory.get_starting_address());
   CodeJitter code_jitter;
-  const uint64_t row_increment = get_row_increment(row_function);
+  const uint64_t row_increment = dram_analyzer.get_row_increment();
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
 
@@ -153,7 +131,7 @@ void n_sided_frequency_based_hammering(Memory &memory, uint64_t row_function, in
 
       // check whether any bit flips occurred
       memory.check_memory(address_mapper.get_lowest_address() - (row_increment*25),
-                          address_mapper.get_highest_address() + (row_increment*25), row_function);
+                          address_mapper.get_highest_address() + (row_increment*25), dram_analyzer);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
@@ -162,12 +140,8 @@ void n_sided_frequency_based_hammering(Memory &memory, uint64_t row_function, in
 }
 
 // Performs n-sided hammering.
-void n_sided_hammer(Memory &memory,
-                    uint64_t row_function,
-                    std::vector<uint64_t> &bank_rank_functions,
-                    std::vector<uint64_t> *bank_rank_masks,
-                    int acts) {
-  auto row_increment = get_row_increment(row_function);
+void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
+  auto row_increment = dram_analyzer.get_row_increment();
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     srand(time(nullptr));
@@ -185,27 +159,24 @@ void n_sided_hammer(Memory &memory,
 
     // hammering first four banks
     for (int ba = 0; ba < 4; ba++) {
-      cur_start_addr = normalize_addr_to_bank(cur_start_addr, bank_rank_masks[ba], bank_rank_functions);
+      cur_start_addr =
+          dram_analyzer.normalize_addr_to_bank(cur_start_addr, ba);
       std::vector<volatile char *> aggressors;
       volatile char *cur_next_addr = cur_start_addr;
       printf("[+] agg row ");
       for (int i = 1; i < aggressor_rows_size; i += 2) {
-        cur_next_addr = normalize_addr_to_bank(cur_next_addr + (d*row_increment),
-                                               bank_rank_masks[ba],
-                                               bank_rank_functions);
-        printf("%lu ", get_row_index(cur_next_addr, row_function));
+        cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (d*row_increment), ba);
+        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
         aggressors.push_back(cur_next_addr);
 
-        cur_next_addr = normalize_addr_to_bank(cur_next_addr + (v*row_increment),
-                                               bank_rank_masks[ba],
-                                               bank_rank_functions);
-        printf("%lu ", get_row_index(cur_next_addr, row_function));
+        cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
+        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
         aggressors.push_back(cur_next_addr);
       }
 
       if ((aggressor_rows_size%2)!=0) {
-        normalize_addr_to_bank(cur_next_addr + (d*row_increment), bank_rank_masks[ba], bank_rank_functions);
-        printf("%lu ", get_row_index(cur_next_addr, row_function));
+        dram_analyzer.normalize_addr_to_bank(cur_next_addr + (d*row_increment), ba);
+        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
         aggressors.push_back(cur_next_addr);
       }
       printf("\n");
@@ -214,19 +185,12 @@ void n_sided_hammer(Memory &memory,
         printf("[+] Hammering %d aggressors with v %d d %d on bank %d\n", aggressor_rows_size, v, d, ba);
         hammer(aggressors);
       } else {
-        cur_next_addr = normalize_addr_to_bank(cur_next_addr + (100*row_increment),
-                                               bank_rank_masks[ba],
-                                               bank_rank_functions);
+        cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (100*row_increment), ba);
         auto d1 = cur_next_addr;
-        cur_next_addr = normalize_addr_to_bank(cur_next_addr + (v*row_increment),
-                                               bank_rank_masks[ba],
-                                               bank_rank_functions);
+        cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
         auto d2 = cur_next_addr;
         printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n",
-               get_row_index(d1, row_function),
-               d1,
-               get_row_index(d2, row_function),
-               d2);
+               dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
         if (ba==0) {
           printf("[+] sync: ref_rounds %lu, remainder %lu\n",
                  acts/aggressors.size(),
@@ -238,19 +202,19 @@ void n_sided_hammer(Memory &memory,
 
       // check 100 rows before and 120 rows after if any bits flipped
       memory.check_memory(aggressors[0] - (row_increment*100),
-                          aggressors[aggressors.size() - 1] + (row_increment*120), row_function);
+                          aggressors[aggressors.size() - 1] + (row_increment*120), dram_analyzer);
     }
   }
 }
 
 /// Determine the number of activations per refresh interval.
-size_t count_acts_per_ref(std::vector<volatile char *> *banks) {
+size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks) {
   size_t skip_first_N = 50;
-  volatile char *a = banks[0].at(0);
-  volatile char *b = banks[0].at(1);
+  volatile char *a = banks.at(0).at(0);
+  volatile char *b = banks.at(0).at(1);
   std::vector<uint64_t> acts;
   uint64_t running_sum = 0;
-  uint64_t before, after, count = 0, count_old = 0;
+  uint64_t before = 0, after = 0, count = 0, count_old = 0;
   *a;
   *b;
 
@@ -285,7 +249,10 @@ size_t count_acts_per_ref(std::vector<volatile char *> *banks) {
     }
   }
 
-  return (running_sum/acts.size());
+  auto activations = (running_sum/acts.size());
+  printf("[+] Counted %lu activations per refresh interval.\n", activations);
+
+  return activations;
 }
 
 /// Prints metadata about this evaluation run.
@@ -338,68 +305,36 @@ int main(int argc, char **argv) {
   // parse the program arguments
   parse_arguments(argc, argv);
 
-  // create an array of size NUM_BANKS in which each element is a vector<volatile char*>
-  std::vector<volatile char *> banks[NUM_BANKS];
-  std::vector<uint64_t> bank_rank_functions;
-  uint64_t row_function = 0;
-  int act = 0;
-  int ret = 0;
-
   // give this process the highest CPU priority
+  int ret = 0;
   ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
-  // allocate a large bulk of contigous memory
+  // allocate a large bulk of contiguous memory
   bool use_superpage = true;
   Memory memory(use_superpage);
   memory.allocate_memory(MEM_SIZE);
 
-  // find addresses of the same bank causing bank conflicts when accessed sequentially
-  find_bank_conflicts(memory.get_starting_address(), banks);
-  printf("[+] Found bank conflicts.\n");
-  for (auto &bank : banks) {
-    find_targets(memory.get_starting_address(), bank, NUM_TARGETS);
-  }
-  printf("[+] Populated addresses from different banks.\n");
-
+  DramAnalyzer dram_analyzer;
+  // find address sets that create bank conflicts
+  dram_analyzer.find_bank_conflicts(memory.get_starting_address());
   // determine the row and bank/rank functions
-  find_functions(banks, row_function, bank_rank_functions, use_superpage);
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function, get_row_increment(row_function), bank_rank_functions.size());
-  for (size_t j = 0; j < bank_rank_functions.size(); j++) {
-    printf("0x%" PRIx64 " ", bank_rank_functions[j]);
-    if (j==(bank_rank_functions.size() - 1)) printf("\n");
-  }
+  dram_analyzer.find_functions(use_superpage);
+  // determine the bank/rank masks
+  dram_analyzer.find_bank_rank_masks();
 
-  // TODO: This is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory
-  //  configuration. We should get these infos from dmidecode to do it properly, but for now this is easier.
-  size_t num_ranks;
-  if (bank_rank_functions.size()==5) {
-    num_ranks = RANKS(2);
-  } else if (bank_rank_functions.size()==4) {
-    num_ranks = RANKS(1);
-  } else {
-    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-    exit(0);
-  }
-  DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
-  DRAMAddr::set_base((void *) memory.get_starting_address());
+  // initialize the DRAMAddr class
+  DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
   // count the number of possible activations per refresh interval
-  act = count_acts_per_ref(banks);
-  printf("[+] %d activations per refresh interval.\n", act);
-
-  // determine bank/rank masks
-  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-  for (size_t j = 0; j < NUM_BANKS; j++) {
-    bank_rank_masks[j] = get_bank_rank(banks[j], bank_rank_functions);
-  }
+  int act = 0;
+  act = count_acts_per_ref(dram_analyzer.get_banks());
 
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    n_sided_frequency_based_hammering(memory, row_function, act);
+    n_sided_frequency_based_hammering(memory, dram_analyzer, act);
   } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    n_sided_hammer(memory, row_function, bank_rank_functions, bank_rank_masks, act);
+    n_sided_hammer(memory, dram_analyzer, act);
   } else {
     fprintf(stderr,
             "Invalid combination of program control-flow arguments given. "

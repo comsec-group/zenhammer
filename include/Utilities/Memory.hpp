@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <string>
 
+#include "DramAnalyzer.hpp"
+
 class Memory {
  private:
   /// the starting address of the allocated memory area
@@ -25,7 +27,7 @@ class Memory {
 
   void allocate_memory(uint64_t mem_size);
 
-  void check_memory(const volatile char *start, const volatile char *end, uint64_t row_function);
+  void check_memory(const volatile char *start, const volatile char *end, DramAnalyzer &dram_analyzer);
 
   void initialize();
 

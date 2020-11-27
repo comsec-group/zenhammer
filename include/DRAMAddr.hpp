@@ -53,5 +53,7 @@ class DRAMAddr {
   void *to_virt();
 
   [[gnu::unused]] std::string to_string();
+
+  static void initialize(uint64_t num_bank_rank_functions, volatile char *start_address);
 };
 #endif /* DRAMADDR */

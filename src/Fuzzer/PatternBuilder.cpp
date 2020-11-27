@@ -38,7 +38,7 @@ void PatternBuilder::randomize_parameters() {
   // specify ranges of valid values that are used to randomize during pattern generation
 
   // following values are randomized for each added aggressor
-  amplitude = Range(1, 12);
+  amplitude = Range(1, 24);
   N_sided = Range(2, 2);
   agg_inter_distance = Range(2, 16);
 
@@ -47,9 +47,8 @@ void PatternBuilder::randomize_parameters() {
 
   num_aggressors = Range(12, 56).get_random_number(gen);
   agg_intra_distance = 2;
-  use_sequential_aggressors = true;  // TODO: Make this random again (bool)(Range(0, 1).get_random_number(gen));
-  agg_frequency = Range(1, 16);       // TODO: Set back to (1,10)
-  num_refresh_intervals = Range(1, 8).get_random_number(gen);  // TODO: Set back to (1,8)
+  use_sequential_aggressors = (bool)(Range(0, 1).get_random_number(gen));
+  num_refresh_intervals = Range(1, 8).get_random_number(gen);
   sync_after_every_nth_hammering_rep = Range(1, num_refresh_intervals).get_random_number(gen);
 
   hammer_sync_reps = Range(3, 42).get_random_number(gen);
@@ -98,7 +97,6 @@ void PatternBuilder::randomize_parameters() {
 
   // ========================================================================================================
 
-  printf("    agg_frequency: (%d,%d)\n", agg_frequency.min, agg_frequency.max);
   printf("    agg_inter_distance: (%d,%d)\n", agg_inter_distance.min, agg_inter_distance.max);
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
   printf("    amplitude: (%d,%d)\n", amplitude.min, amplitude.max);
@@ -121,10 +119,10 @@ void PatternBuilder::randomize_parameters() {
 void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammering_pattern) {
   // initialize vars required for pattern generation
   auto pattern_length_mult = Range(1, 8).get_random_number(gen);
-  const size_t pattern_length = num_activations_per_tREFI * pattern_length_mult;
+  const size_t pattern_length = num_activations_per_tREFI*pattern_length_mult;
   hammering_pattern.accesses = std::vector<Aggressor>(pattern_length, Aggressor());
 
-  hammering_pattern.base_period = num_activations_per_tREFI * Range(1, pattern_length_mult).get_random_number(gen);
+  hammering_pattern.base_period = num_activations_per_tREFI/4*Range(1, pattern_length_mult*4).get_random_number(gen);
   size_t cur_period = hammering_pattern.base_period;
 
   auto empty_slots_exist =
@@ -169,7 +167,7 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammerin
   };
 
   size_t next_idx = 0;
-  auto get_next_agg = [&]() -> std::vector<Aggressor> {
+  auto get_next_agg = [&pairs, &next_idx]() -> std::vector<Aggressor> {
     auto ret_value = pairs.at(next_idx);
     next_idx = (next_idx + 1UL)%pairs.size();
     return ret_value;
@@ -184,7 +182,7 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammerin
     if (hammering_pattern.accesses[i].id!=ID_PLACEHOLDER_AGG) continue;
 
     // choose a random amplitude
-    auto amp = (size_t) amplitude.get_random_number(gen);
+    auto cur_amplitude = (size_t) amplitude.get_random_number(gen);
 
     // repeat until the current time slot k is filled up in each k+i*base_period
     int next_offset = i;
@@ -193,37 +191,33 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammerin
     cur_period = hammering_pattern.base_period;
 
     do {
-      // define the period to use for the next agg(s)*
-      // note: 8 is a randomly chosen value to not make frequencies ever-growing high
-      cur_period = cur_period*Range(1, expected_acts, true).get_random_number(gen); // TODO: Uncomment
-//      cur_period = hammering_pattern.base_period;
+      // define the period to use for the next agg(s)
+      cur_period = cur_period*Range(1, expected_acts, true).get_random_number(gen);
       collected_acts += (pattern_length/cur_period);
 
       // agg can be a single agg or a N-sided pair
-      auto agg = get_N_sided_agg(cur_N); // TODO: Uncomment and use to replace next line
-//      auto agg = get_next_agg();
-//      std::cout << "aggressors: ";
-//      for (auto &a : agg) std::cout << a.to_string() << " ";
-//      std::cout << std::endl;
+      std::vector<Aggressor> agg = (use_sequential_aggressors) ? get_next_agg() : get_N_sided_agg(cur_N);
 
       // if there's only one aggressor then successively accessing it multiple times does not trigger any activations
-      if (agg.size()==1) amp = 1;
+      if (agg.size()==1) cur_amplitude = 1;
 
       // generates an AggressorAccess for each added aggressor set
       std::unordered_map<int, Aggressor> off_agg_map;
       for (size_t l = 0; l < agg.size(); l++) off_agg_map[l] = agg[l];
-      hammering_pattern.agg_access_patterns.emplace_back(cur_period, amp, off_agg_map);
+      hammering_pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, off_agg_map);
 
       // fill the pattern with the given aggressors
       // - period
       for (size_t j = 0; j*cur_period < hammering_pattern.accesses.size(); j++) {
         // - amplitude
-        for (size_t m = 0; m < amp; m++) {
+        for (size_t m = 0; m < cur_amplitude; m++) {
           // - aggressors
           for (size_t k = 0; k < agg.size(); k++) {
             auto idx = (j*cur_period) + next_offset + (m*agg.size()) + k;
 //            printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
-            if (idx >= hammering_pattern.accesses.size()) goto exit_loops;
+            if (idx >= hammering_pattern.accesses.size()) {
+              goto exit_loops;
+            }
             hammering_pattern.accesses[idx] = agg[k];
           }
         }

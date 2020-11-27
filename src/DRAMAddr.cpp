@@ -1,4 +1,21 @@
+#include <GlobalDefines.hpp>
 #include "DRAMAddr.hpp"
+
+void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start_address) {
+  // TODO: This is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory
+  //  configuration. We should get these infos from dmidecode to do it properly, but for now this is easier.
+  size_t num_ranks;
+  if (num_bank_rank_functions==5) {
+    num_ranks = RANKS(2);
+  } else if (num_bank_rank_functions==4) {
+    num_ranks = RANKS(1);
+  } else {
+    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+    exit(0);
+  }
+  DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
+  DRAMAddr::set_base((void *) start_address);
+}
 
 void DRAMAddr::set_base(void *buff) {
   base_msb = (size_t) buff & (~((size_t) (1ULL << 30UL) - 1UL));  // get higher order bits above the super page
