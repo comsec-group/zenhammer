@@ -22,7 +22,7 @@ class PatternAddressMapper {
 
   volatile char *highest_address;
 
-  PatternAddressMapper(HammeringPattern &hp);
+  explicit PatternAddressMapper(HammeringPattern &hp);
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   // TODO: add bool allow_same_address_aggressors=false to control reuse of addresses for aggressors with different IDs

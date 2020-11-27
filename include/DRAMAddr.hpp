@@ -48,10 +48,10 @@ class DRAMAddr {
   // instance methods
   DRAMAddr(size_t bk, size_t r, size_t c);
 
-  DRAMAddr(void *addr);
+  explicit DRAMAddr(void *addr);
 
   void *to_virt();
 
-  std::string to_string();
+  [[gnu::unused]] std::string to_string();
 };
 #endif /* DRAMADDR */

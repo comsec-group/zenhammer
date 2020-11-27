@@ -1,6 +1,7 @@
+#include <cassert>
 #include "Fuzzer/PatternAddressMapper.h"
 
-PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp)
+PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp) /* NOLINT */
     : instance_id(uuid::gen_uuid()), hammering_pattern(hp) {
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
@@ -37,10 +38,12 @@ void PatternAddressMapper::randomize_addresses(size_t bank) {
         // wrong with this pattern
         known_agg = true;
       } else if (known_agg) {
-        // a previous aggressor was known but this aggressor is not known -> this must never happen
+        // a previous aggressor was known but this aggressor is not known -> this must never happen because we use
+        // Aggressor objects only once (e.g., either 1-sided or within a 2-sided pair); reusing addresses is achieve by
+        // mapping the different Aggressors to the same address
         fprintf(stderr,
                 "[-] Something went wrong with the aggressor's address selection. "
-                "Only one address of an N-sided pair is known. That's strange!\n");
+                "Only one address of an N-sided pair has been accessed before. That's strange!\n");
         exit(1);
       } else if (i > 0) {
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
@@ -66,16 +69,16 @@ void PatternAddressMapper::randomize_addresses(size_t bank) {
 
 std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() {
   std::vector<volatile char *> address_pattern;
-  std::cout << "Pattern (bank = ";
-  std::cout << aggressor_to_addr.at(hammering_pattern.accesses.at(0).id).bank
-            << "): "
+  std::cout << "Pattern (bank = " << aggressor_to_addr.at(hammering_pattern.accesses.at(0).id).bank << "): "
             << std::endl;
 
   for (auto &agg : hammering_pattern.accesses) {
-    // TODO: Debug this... could it be that there are still placeholder aggressors? Add a check in pattern generation!
+    if (agg.id==ID_PLACEHOLDER_AGG) {
+      printf("[-] Found an invalid aggressor in the pattern. This shouldn't happen. Skipping it.\n");
+      continue;
+    }
     address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
     std::cout << aggressor_to_addr.at(agg.id).row << " ";
-
   }
   std::cout << std::endl;
   return address_pattern;
@@ -83,18 +86,16 @@ std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() 
 
 volatile char *PatternAddressMapper::get_lowest_address() const {
   if (lowest_address==nullptr) {
-    fprintf(stderr, "[-] Cannot get lowest address because no address has been assigned to field.");
+    fprintf(stderr, "[-] Cannot get lowest address because no address has been assigned.");
     exit(1);
   }
-  // printf("lowest_address: %p\n", (volatile char *)lowest_address);
   return lowest_address;
 }
 
 volatile char *PatternAddressMapper::get_highest_address() const {
   if (lowest_address==nullptr) {
-    fprintf(stderr, "[-] Cannot get highest address because no address has been assigned to field.");
+    fprintf(stderr, "[-] Cannot get highest address because no address has been assigned");
     exit(1);
   }
-  // printf("highest_address: %p\n", (volatile char *)highest_address);
   return highest_address;
 }

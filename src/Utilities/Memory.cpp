@@ -22,6 +22,7 @@ void Memory::allocate_memory(size_t mem_size) {
     // allocate memory using super pages
     fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
     if (fp==nullptr) {
+      fprintf(stderr, "[-] Could not mount superpage from %s.\n", hugetlbfs_mountpoint.c_str());
       perror("fopen");
       exit(-1);
     }

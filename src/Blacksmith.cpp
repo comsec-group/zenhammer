@@ -152,8 +152,6 @@ void n_sided_frequency_based_hammering(Memory &memory, uint64_t row_function, in
       code_jitter.hammer_pattern();
 
       // check whether any bit flips occurred
-      // TODO: Add check here as lowest_address - (row_increment*25) could be an underflow condition and
-      //  highest_address + (row_increment*25) could be an overflow
       memory.check_memory(address_mapper.get_lowest_address() - (row_increment*25),
                           address_mapper.get_highest_address() + (row_increment*25), row_function);
 
@@ -256,8 +254,8 @@ size_t count_acts_per_ref(std::vector<volatile char *> *banks) {
   *a;
   *b;
 
-  auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, int num_numbers) {
-    int mean = running_sum/num_numbers;
+  auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, size_t num_numbers) {
+    size_t mean = running_sum/num_numbers;
     uint64_t var = 0;
     for (const auto &num : values) {
       var += std::pow(num - mean, 2);
@@ -318,24 +316,27 @@ void print_metadata() {
   fflush(stdout);
 }
 
-
-
-int main(int argc, char **argv) {
-  // prints the current git commit and some metadata
-  print_metadata();
-
-  // the optional parameter 1 is the number of execution rounds
+void parse_arguments(int argc, char **argv) {
+  // optional parameter 1: number of execution rounds
   if (argc==2) {
     char *p;
     errno = 0;
     unsigned long long conv = strtoull(argv[1], &p, 10);
     if (errno!=0 || *p!='\0' || conv > ULLONG_MAX) {
       printf(FRED "[-] Given program parameter (EXECUTION_ROUNDS) is invalid! Aborting." NONE "\n");
-      return -1;
+      exit(1);
     }
     EXECUTION_ROUNDS = conv;
     EXECUTION_ROUNDS_INFINITE = false;
   }
+}
+
+int main(int argc, char **argv) {
+  // prints the current git commit and some metadata
+  print_metadata();
+
+  // parse the program arguments
+  parse_arguments(argc, argv);
 
   // create an array of size NUM_BANKS in which each element is a vector<volatile char*>
   std::vector<volatile char *> banks[NUM_BANKS];
@@ -386,7 +387,7 @@ int main(int argc, char **argv) {
 
   // count the number of possible activations per refresh interval
   act = count_acts_per_ref(banks);
-  printf("[+] %d activations per refresh interval\n", act);
+  printf("[+] %d activations per refresh interval.\n", act);
 
   // determine bank/rank masks
   std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
