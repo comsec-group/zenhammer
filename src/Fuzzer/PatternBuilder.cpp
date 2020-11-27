@@ -47,7 +47,6 @@ void PatternBuilder::randomize_parameters() {
 
   num_aggressors = Range(12, 56).get_random_number(gen);
   agg_intra_distance = 2;
-  random_start_address = target_addr + (Range(MB(100), MEM_SIZE - MB(100)).get_random_number(gen)/PAGE_SIZE)*PAGE_SIZE;
   use_sequential_aggressors = true;  // TODO: Make this random again (bool)(Range(0, 1).get_random_number(gen));
   agg_frequency = Range(1, 16);       // TODO: Set back to (1,10)
   num_refresh_intervals = Range(1, 8).get_random_number(gen);  // TODO: Set back to (1,8)
@@ -113,7 +112,6 @@ void PatternBuilder::randomize_parameters() {
   printf("    num_aggressors: %d\n", num_aggressors);
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    hammering_total_num_activations: %d\n", hammering_total_num_activations);
-  printf("    random_start_address: %p\n", random_start_address);
   printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    use_fixed_amplitude_per_aggressor: %s\n", (use_fixed_amplitude_per_aggressor ? "true" : "false"));
   printf("    use_sequential_aggressors: %s\n", (use_sequential_aggressors ? "true" : "false"));

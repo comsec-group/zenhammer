@@ -12,7 +12,7 @@
 #include "Utilities/Memory.hpp"
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
-volatile char *Memory::allocate_memory(size_t mem_size) {
+void Memory::allocate_memory(size_t mem_size) {
   this->size = mem_size;
   volatile char *target;
   int ret;
@@ -25,7 +25,7 @@ volatile char *Memory::allocate_memory(size_t mem_size) {
       perror("fopen");
       exit(-1);
     }
-    target = (volatile char *) mmap((void *) starting_address, MEM_SIZE, PROT_READ | PROT_WRITE,
+    target = (volatile char *) mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
                                     MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
     if (target==MAP_FAILED) {
       perror("mmap");
@@ -43,16 +43,13 @@ volatile char *Memory::allocate_memory(size_t mem_size) {
     sleep(10);
   }
 
-  if (target!=starting_address) {
-    printf("[-] Could not create mmap area at address %p, instead using %p.\n",
-           starting_address, target);
-    starting_address = target;
+  if (target!=start_address) {
+    printf("[-] Could not create mmap area at address %p, instead using %p.\n", start_address, target);
+    start_address = target;
   }
 
   // initialize memory with random but reproducible sequence of numbers
   initialize();
-
-  return target;
 }
 
 void Memory::initialize() {
@@ -65,7 +62,7 @@ void Memory::initialize() {
     for (uint64_t j = 0; j < PAGE_SIZE; j += sizeof(int)) {
       uint64_t offset = i + j;
       // write (pseudo)random 4 bytes to target[offset] = target[i+j]
-      *((int *) (starting_address + offset)) = rand();
+      *((int *) (start_address + offset)) = rand();
     }
   }
 }
@@ -80,7 +77,7 @@ void Memory::check_memory(const volatile char *start, const volatile char *end, 
   }
 
   // use std::max here to make sure that we do not pass (under) the allocated memory area
-  auto start_offset = (uint64_t) std::max(0L, (start - starting_address));
+  auto start_offset = (uint64_t) std::max(0L, (start - start_address));
   start_offset = (start_offset/PAGE_SIZE)*PAGE_SIZE;
 
   // use std::min here to make sure that we do not pass (over) the allocated memory area
@@ -99,31 +96,31 @@ void Memory::check_memory(const volatile char *start, const volatile char *end, 
       uint64_t offset = i + j;
       int rand_val = rand();
 
-      clflushopt(starting_address + offset);
+      clflushopt(start_address + offset);
       mfence();
 
       // the bit did not flip
-      if (*((int *) (starting_address + offset))==rand_val) {
+      if (*((int *) (start_address + offset))==rand_val) {
         continue;
       }
 
       // the bit flipped, now compare byte per byte
       for (unsigned long c = 0; c < sizeof(int); c++) {
-        if (*((char *) (starting_address + offset + c))!=((char *) &rand_val)[c]) {
+        if (*((char *) (start_address + offset + c))!=((char *) &rand_val)[c]) {
           printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
-                 starting_address + offset + c,
-                 get_row_index(starting_address + offset + c, row_function),
+                 start_address + offset + c,
+                 get_row_index(start_address + offset + c, row_function),
                  offset%PAGE_SIZE,
                  ((unsigned char *) &rand_val)[c],
-                 *(unsigned char *) (starting_address + offset + c),
+                 *(unsigned char *) (start_address + offset + c),
                  (unsigned long) time(nullptr));
         }
       }
 
       // restore original (unflipped) value
-      *((int *) (starting_address + offset)) = rand_val;
+      *((int *) (start_address + offset)) = rand_val;
 
-      clflushopt(starting_address + offset);
+      clflushopt(start_address + offset);
       mfence();
     }
   }
@@ -134,8 +131,12 @@ Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
 }
 
 Memory::~Memory() {
-  if (munmap((void *) starting_address, size)==-1) {
+  if (munmap((void *) start_address, size)==-1) {
     fprintf(stderr, "munmap failed with error:");
     perror("mmap");
   }
+}
+
+volatile char *Memory::get_starting_address() const {
+  return start_address;
 }

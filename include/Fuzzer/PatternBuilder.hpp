@@ -58,8 +58,6 @@ class PatternBuilder {
 
   volatile char *target_addr;
 
-  volatile char *random_start_address{};
-
   asmjit::StringLogger *logger{nullptr};
 
   std::vector<volatile char *> aggressor_pairs;

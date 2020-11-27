@@ -117,8 +117,8 @@ void find_targets(volatile char *target, std::vector<volatile char *> &target_ba
   }
 }
 
-void n_sided_frequency_based_hammering(Memory &memory, volatile char *target, uint64_t row_function, int acts) {
-  PatternBuilder pattern_builder(acts, target);
+void n_sided_frequency_based_hammering(Memory &memory, uint64_t row_function, int acts) {
+  PatternBuilder pattern_builder(acts, memory.get_starting_address());
   CodeJitter code_jitter;
   const uint64_t row_increment = get_row_increment(row_function);
   std::random_device rd;
@@ -165,7 +165,6 @@ void n_sided_frequency_based_hammering(Memory &memory, volatile char *target, ui
 
 // Performs n-sided hammering.
 void n_sided_hammer(Memory &memory,
-                    volatile char *target,
                     uint64_t row_function,
                     std::vector<uint64_t> &bank_rank_functions,
                     std::vector<uint64_t> *bank_rank_masks,
@@ -176,7 +175,8 @@ void n_sided_hammer(Memory &memory,
     srand(time(nullptr));
 
     // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
-    auto cur_start_addr = target + MB(100) + (((rand()%(MEM_SIZE - MB(200))))/PAGE_SIZE)*PAGE_SIZE;
+    auto cur_start_addr =
+        memory.get_starting_address() + MB(100) + (((rand()%(MEM_SIZE - MB(200))))/PAGE_SIZE)*PAGE_SIZE;
     int aggressor_rows_size = (rand()%(MAX_ROWS - 3)) + 3;
 
     // distance between aggressors (within a pair)
@@ -318,6 +318,8 @@ void print_metadata() {
   fflush(stdout);
 }
 
+
+
 int main(int argc, char **argv) {
   // prints the current git commit and some metadata
   print_metadata();
@@ -349,13 +351,13 @@ int main(int argc, char **argv) {
   // allocate a large bulk of contigous memory
   bool use_superpage = true;
   Memory memory(use_superpage);
-  volatile char *target = memory.allocate_memory(MEM_SIZE);
+  memory.allocate_memory(MEM_SIZE);
 
   // find addresses of the same bank causing bank conflicts when accessed sequentially
-  find_bank_conflicts(target, banks);
+  find_bank_conflicts(memory.get_starting_address(), banks);
   printf("[+] Found bank conflicts.\n");
   for (auto &bank : banks) {
-    find_targets(target, bank, NUM_TARGETS);
+    find_targets(memory.get_starting_address(), bank, NUM_TARGETS);
   }
   printf("[+] Populated addresses from different banks.\n");
 
@@ -380,7 +382,7 @@ int main(int argc, char **argv) {
     exit(0);
   }
   DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
-  DRAMAddr::set_base((void *) target);
+  DRAMAddr::set_base((void *) memory.get_starting_address());
 
   // count the number of possible activations per refresh interval
   act = count_acts_per_ref(banks);
@@ -394,9 +396,9 @@ int main(int argc, char **argv) {
 
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    n_sided_frequency_based_hammering(memory, target, row_function, act);
+    n_sided_frequency_based_hammering(memory, row_function, act);
   } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    n_sided_hammer(memory, target, row_function, bank_rank_functions, bank_rank_masks, act);
+    n_sided_hammer(memory, row_function, bank_rank_functions, bank_rank_masks, act);
   } else {
     fprintf(stderr,
             "Invalid combination of program control-flow arguments given. "
