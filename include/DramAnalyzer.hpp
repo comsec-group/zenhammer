@@ -16,8 +16,10 @@ std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank,
 
 uint64_t get_row_index(const volatile char *addr, uint64_t row_function);
 
-void find_functions(std::vector<volatile char *> *banks, uint64_t &row_function,
-                    std::vector<uint64_t> &bank_rank_functions);
+void find_functions(std::vector<volatile char *> *banks,
+                    uint64_t &row_function,
+                    std::vector<uint64_t> &bank_rank_functions,
+                    bool superpage_on);
 
 uint64_t test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank);
 

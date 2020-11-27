@@ -1,22 +1,17 @@
 #ifndef GLOBAL_DEFINES
 #define GLOBAL_DEFINES
 
-// fonts color
+// font colors
 #define FRED "\e[0;31m"
 #define FGREEN "\e[0;32m"
 #define FYELLOW "\e[0;33m"
 #define FBLUE "\e[0;34m"
 #define FCYAN "\e[0;36m"
-// end coloring, revert to default color
-#define NONE "\e[0m"
+#define NONE "\e[0m" // end coloring, revert to default color
 
 // ########################################################
 // ################### CONFIG PARAMETERS ##################
 // ########################################################
-
-/// the starting address of the allocated memory area
-/// this is a fixed value as the assumption is that all memory cells are equally vulnerable
-#define MMAP_START_ADDRESS 0x2000000000
 
 /// the number of rounds to be used to measure cache hit/miss latency
 #define DRAMA_ROUNDS 1000
@@ -47,9 +42,6 @@
 
 /// the number of bytes to be allocated
 #define MEM_SIZE (GB(1))
-
-/// allocate a super page
-#define USE_SUPERPAGE 1
 
 #define PAGE_SIZE 4096
 

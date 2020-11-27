@@ -24,13 +24,12 @@ if (NOT ASMJIT_FOUND)
     message("Please download and install asmjit using this one-liner: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
 endif ()
 
-
 set(SOURCES
         src/Fuzzer/CodeJitter.cpp
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/PatternAddressMapper.cpp)
+        src/PatternAddressMapper.cpp src/Utilities/Memory.cpp include/Utilities/Memory.hpp)
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} OBJECT ${SOURCES})

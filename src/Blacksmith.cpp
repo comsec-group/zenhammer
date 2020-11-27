@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cinttypes>
 #include <climits>
 #include <cstdio>
@@ -8,10 +7,9 @@
 #include <ctime>
 #include <unistd.h>
 #include <cstdint>
-
-#include <cstring>
 #include <unordered_set>
 #include <vector>
+#include <Utilities/Memory.hpp>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
@@ -21,11 +19,10 @@
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapper.h"
 
-
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
-static unsigned long long EXECUTION_ROUNDS = 0;
-static bool EXECUTION_ROUNDS_INFINITE = true;
+static unsigned long long EXECUTION_ROUNDS{0};
+static bool EXECUTION_ROUNDS_INFINITE{true};
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void hammer(std::vector<volatile char *> &aggressors) {
@@ -95,105 +92,6 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
   }
 }
 
-/// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
-/// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
-void mem_values(volatile char *target,
-                bool init,
-                const volatile char *start,
-                const volatile char *end,
-                uint64_t row_function) {
-  uint64_t start_o = 0;
-  uint64_t end_o = MEM_SIZE;
-
-  if (start!=nullptr) {
-    start_o = (uint64_t) (start - target);
-    start_o = (start_o/PAGE_SIZE)*PAGE_SIZE;
-  }
-
-  if (end!=nullptr) {
-    end_o = start_o + ((uint64_t) (end - start));
-    end_o = (end_o/PAGE_SIZE)*PAGE_SIZE;
-  }
-
-  if (init) printf("[+] Initializing memory with pseudorandom sequence.\n");
-  else printf("[+] Checking if any bit flips occurred.\n");
-  fflush(stdout);
-
-  // for each page in the address space [start, end]
-  for (uint64_t i = start_o; i < end_o; i += PAGE_SIZE) {
-    // reseed rand to have a sequence of reproducible numbers, using this we can
-    // compare the initialized values with those after hammering to see whether
-    // bit flips occurred
-    srand(i*PAGE_SIZE);
-    for (uint64_t j = 0; j < PAGE_SIZE; j += sizeof(int)) {
-      uint64_t offset = i + j;
-      int rand_val = rand();
-      if (init) {
-        // write random 4 bytes to target[offset] = target[i+j]
-        *((int *) (target + offset)) = rand_val;
-      } else {
-        // check if any of the values written before (when 'init' was passed),
-        // changed its value
-        clflushopt(target + offset);
-        mfence();
-        if (*((int *) (target + offset))!=rand_val) {
-          for (unsigned long c = 0; c < sizeof(int); c++) {
-            if (*((char *) (target + offset + c))!=((char *) &rand_val)[c]) {
-              printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
-                     target + offset + c,
-                     get_row_index(target + offset + c, row_function),
-                     offset%PAGE_SIZE,
-                     ((unsigned char *) &rand_val)[c],
-                     *(unsigned char *) (target + offset + c),
-                     (unsigned long) time(nullptr));
-            }
-          }
-          *((int *) (target + offset)) = rand_val;
-          clflushopt(target + offset);
-          mfence();
-        }
-      }
-    }
-  }
-}
-
-/// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
-volatile char *allocate_memory() {
-  volatile char *target;
-  int ret;
-  FILE *fp;
-
-  if (USE_SUPERPAGE) {
-    // allocate memory using super pages
-    fp = fopen("/mnt/huge/buff", "w+");
-    if (fp==nullptr) {
-      perror("fopen");
-      exit(-1);
-    }
-    target = (volatile char *) mmap((void *) MMAP_START_ADDRESS, MEM_SIZE, PROT_READ | PROT_WRITE,
-                                    MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30 << MAP_HUGE_SHIFT), fileno(fp), 0);
-    if (target==MAP_FAILED) {
-      perror("mmap");
-      exit(-1);
-    }
-  } else {
-    // allocate memory using huge pages
-    ret = posix_memalign((void **) &target, MEM_SIZE, MEM_SIZE);
-    assert(ret==0);
-    ret = madvise((void *) target, MEM_SIZE, MADV_HUGEPAGE);
-    assert(ret==0);
-    memset((char *) target, 'A', MEM_SIZE);
-    // for khugepaged
-    printf("[+] Waiting for khugepaged\n");
-    sleep(10);
-  }
-
-  // initialize memory with random but reproducible sequence of numbers
-  mem_values(target, true, nullptr, nullptr, 0);
-
-  return target;
-}
-
 /// Determine exactly 'size' target addresses in given bank.
 void find_targets(volatile char *target, std::vector<volatile char *> &target_bank, size_t size) {
   // create an unordered set of the addresses in the target bank for a quick lookup
@@ -219,7 +117,7 @@ void find_targets(volatile char *target, std::vector<volatile char *> &target_ba
   }
 }
 
-void n_sided_frequency_based_hammering(volatile char *target, uint64_t row_function, int acts) {
+void n_sided_frequency_based_hammering(Memory &memory, volatile char *target, uint64_t row_function, int acts) {
   PatternBuilder pattern_builder(acts, target);
   CodeJitter code_jitter;
   const uint64_t row_increment = get_row_increment(row_function);
@@ -227,6 +125,8 @@ void n_sided_frequency_based_hammering(volatile char *target, uint64_t row_funct
   std::mt19937 gen = std::mt19937(rd());
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+    printf("EXECUTION_ROUNDS: %llu\n", EXECUTION_ROUNDS);
+    printf("EXECUTION_ROUNDS_INFINITE: %d\n", (int) EXECUTION_ROUNDS_INFINITE);
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     pattern_builder.randomize_parameters();
     HammeringPattern hammering_pattern;
@@ -252,8 +152,10 @@ void n_sided_frequency_based_hammering(volatile char *target, uint64_t row_funct
       code_jitter.hammer_pattern();
 
       // check whether any bit flips occurred
-      mem_values(target, false, address_mapper.get_lowest_address() - (row_increment*25),
-                 address_mapper.get_highest_address() + (row_increment*25), row_function);
+      // TODO: Add check here as lowest_address - (row_increment*25) could be an underflow condition and
+      //  highest_address + (row_increment*25) could be an overflow
+      memory.check_memory(address_mapper.get_lowest_address() - (row_increment*25),
+                          address_mapper.get_highest_address() + (row_increment*25), row_function);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
@@ -262,8 +164,12 @@ void n_sided_frequency_based_hammering(volatile char *target, uint64_t row_funct
 }
 
 // Performs n-sided hammering.
-void n_sided_hammer(volatile char *target, uint64_t row_function,
-                    std::vector<uint64_t> &bank_rank_functions, std::vector<uint64_t> *bank_rank_masks, int acts) {
+void n_sided_hammer(Memory &memory,
+                    volatile char *target,
+                    uint64_t row_function,
+                    std::vector<uint64_t> &bank_rank_functions,
+                    std::vector<uint64_t> *bank_rank_masks,
+                    int acts) {
   auto row_increment = get_row_increment(row_function);
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
@@ -274,8 +180,7 @@ void n_sided_hammer(volatile char *target, uint64_t row_function,
     int aggressor_rows_size = (rand()%(MAX_ROWS - 3)) + 3;
 
     // distance between aggressors (within a pair)
-    int v = (rand()%3) + 1;
-    v = 2;
+    int v = 2;
 
     // distance of each double-sided aggressor pair
     int d = (rand()%16);
@@ -334,8 +239,8 @@ void n_sided_hammer(volatile char *target, uint64_t row_function,
       }
 
       // check 100 rows before and 120 rows after if any bits flipped
-      mem_values(target, false, aggressors[0] - (row_increment*100),
-                 aggressors[aggressors.size() - 1] + (row_increment*120), row_function);
+      memory.check_memory(aggressors[0] - (row_increment*100),
+                          aggressors[aggressors.size() - 1] + (row_increment*120), row_function);
     }
   }
 }
@@ -399,7 +304,6 @@ void print_metadata() {
   system("echo Git_Status: `if [ \"$(git diff --stat)\" != \"\" ]; then echo dirty; else echo clean; fi`");
   fflush(stdout);
   printf("------ Run Configuration ------\n");
-  printf("ADDR: 0x%lx\n", MMAP_START_ADDRESS);
   printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
   printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
   printf("HAMMER_ROUNDS: %d\n", HAMMER_ROUNDS);
@@ -409,7 +313,6 @@ void print_metadata() {
   printf("MEM_SIZE: %lu\n", MEM_SIZE);
   printf("NUM_BANKS: %d\n", NUM_BANKS);
   printf("NUM_TARGETS: %d\n", NUM_TARGETS);
-  printf("USE_SUPERPAGE: %s\n", USE_SUPERPAGE ? "true" : "false");
   printf("USE_SYNC: %s\n", USE_SYNC ? "true" : "false");
   printf("======================================\n");
   fflush(stdout);
@@ -444,57 +347,61 @@ int main(int argc, char **argv) {
   if (ret!=0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
 
   // allocate a large bulk of contigous memory
-  volatile char *target = allocate_memory();
+  bool use_superpage = true;
+  Memory memory(use_superpage);
+  volatile char *target = memory.allocate_memory(MEM_SIZE);
+
   // find addresses of the same bank causing bank conflicts when accessed sequentially
   find_bank_conflicts(target, banks);
   printf("[+] Found bank conflicts.\n");
-  for (size_t i = 0; i < NUM_BANKS; i++) {
-    find_targets(target, banks[i], NUM_TARGETS);
-    printf("[+] Populated addresses from different banks.\n");
-    // determine the row and bank/rank functions
-    find_functions(banks, row_function, bank_rank_functions);
-    printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-           row_function, get_row_increment(row_function), bank_rank_functions.size());
-    for (size_t j = 0; j < bank_rank_functions.size(); j++) {
-      printf("0x%" PRIx64 " ", bank_rank_functions[j]);
-      if (j==(bank_rank_functions.size() - 1)) printf("\n");
-    }
+  for (auto &bank : banks) {
+    find_targets(target, bank, NUM_TARGETS);
+  }
+  printf("[+] Populated addresses from different banks.\n");
 
-    // TODO: This is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory
-    //  configuration. We should get these infos from dmidecode to do it properly, but for now this is easier.
-    size_t num_ranks;
-    if (bank_rank_functions.size()==5) {
-      num_ranks = RANKS(2);
-    } else if (bank_rank_functions.size()==4) {
-      num_ranks = RANKS(1);
-    } else {
-      fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-      exit(0);
-    }
-    DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
-    DRAMAddr::set_base((void *) target);
+  // determine the row and bank/rank functions
+  find_functions(banks, row_function, bank_rank_functions, use_superpage);
+  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
+         row_function, get_row_increment(row_function), bank_rank_functions.size());
+  for (size_t j = 0; j < bank_rank_functions.size(); j++) {
+    printf("0x%" PRIx64 " ", bank_rank_functions[j]);
+    if (j==(bank_rank_functions.size() - 1)) printf("\n");
+  }
 
-    // count the number of possible activations per refresh interval
-    act = count_acts_per_ref(banks);
-    printf("[+] %d activations per refresh interval\n", act);
+  // TODO: This is a shortcut to check if it's a single rank dimm or dual rank in order to load the right memory
+  //  configuration. We should get these infos from dmidecode to do it properly, but for now this is easier.
+  size_t num_ranks;
+  if (bank_rank_functions.size()==5) {
+    num_ranks = RANKS(2);
+  } else if (bank_rank_functions.size()==4) {
+    num_ranks = RANKS(1);
+  } else {
+    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+    exit(0);
+  }
+  DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
+  DRAMAddr::set_base((void *) target);
 
-    // determine bank/rank masks
-    std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
-    for (size_t j = 0; j < NUM_BANKS; j++) {
-      bank_rank_masks[j] = get_bank_rank(banks[j], bank_rank_functions);
-    }
+  // count the number of possible activations per refresh interval
+  act = count_acts_per_ref(banks);
+  printf("[+] %d activations per refresh interval\n", act);
 
-    // perform the hammering and check the flipped bits after each round
-    if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-      n_sided_frequency_based_hammering(target, row_function, act);
-    } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-      n_sided_hammer(target, row_function, bank_rank_functions, bank_rank_masks, act);
-    } else {
-      fprintf(stderr,
-              "Invalid combination of program control-flow arguments given. "
-              "Note that fuzzing is only supported with synchronized hammering.");
-      exit(1);
-    }
+  // determine bank/rank masks
+  std::vector<uint64_t> bank_rank_masks[NUM_BANKS];
+  for (size_t j = 0; j < NUM_BANKS; j++) {
+    bank_rank_masks[j] = get_bank_rank(banks[j], bank_rank_functions);
+  }
+
+  // perform the hammering and check the flipped bits after each round
+  if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+    n_sided_frequency_based_hammering(memory, target, row_function, act);
+  } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+    n_sided_hammer(memory, target, row_function, bank_rank_functions, bank_rank_masks, act);
+  } else {
+    fprintf(stderr,
+            "Invalid combination of program control-flow arguments given. "
+            "Note that fuzzing is only supported with synchronized hammering.");
+    exit(1);
   }
 
   return 0;

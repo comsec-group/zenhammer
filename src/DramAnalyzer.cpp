@@ -74,7 +74,8 @@ uint64_t get_row_index(const volatile char *addr, uint64_t row_function) {
  */
 void find_functions(std::vector<volatile char *> *banks,
                     uint64_t &row_function,
-                    std::vector<uint64_t> &bank_rank_functions) {
+                    std::vector<uint64_t> &bank_rank_functions,
+                    bool superpage_on) {
   size_t num_expected_fns = std::log2(NUM_BANKS);
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
@@ -84,7 +85,7 @@ void find_functions(std::vector<volatile char *> *banks,
 
   do {
     bank_rank_functions.clear();
-    int max_bits = (USE_SUPERPAGE) ? 30 : 21;
+    int max_bits = (superpage_on) ? 30 : 21;
     row_function = 0;
 
     for (int ba = 6; ba < NUM_BANKS; ba++) {

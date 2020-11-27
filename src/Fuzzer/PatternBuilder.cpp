@@ -122,11 +122,11 @@ void PatternBuilder::randomize_parameters() {
 
 void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammering_pattern) {
   // initialize vars required for pattern generation
-  auto th = num_activations_per_tREFI*0.2;
-  const size_t pattern_length = Range(10, num_activations_per_tREFI*8).get_random_number(gen);
+  auto pattern_length_mult = Range(1, 8).get_random_number(gen);
+  const size_t pattern_length = num_activations_per_tREFI * pattern_length_mult;
   hammering_pattern.accesses = std::vector<Aggressor>(pattern_length, Aggressor());
 
-  hammering_pattern.base_period = num_activations_per_tREFI;
+  hammering_pattern.base_period = num_activations_per_tREFI * Range(1, pattern_length_mult).get_random_number(gen);
   size_t cur_period = hammering_pattern.base_period;
 
   auto empty_slots_exist =
@@ -177,7 +177,7 @@ void PatternBuilder::generate_frequency_based_pattern(HammeringPattern &hammerin
     return ret_value;
   };
 
-  const size_t expected_acts = std::max((size_t)1, pattern_length/hammering_pattern.base_period);
+  const size_t expected_acts = std::max((size_t) 1, pattern_length/hammering_pattern.base_period);
 
   // generate the pattern
   // iterate over all slots in the base period

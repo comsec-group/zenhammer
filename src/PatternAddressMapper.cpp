@@ -72,6 +72,7 @@ std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() 
             << std::endl;
 
   for (auto &agg : hammering_pattern.accesses) {
+    // TODO: Debug this... could it be that there are still placeholder aggressors? Add a check in pattern generation!
     address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
     std::cout << aggressor_to_addr.at(agg.id).row << " ";
 
