@@ -70,12 +70,19 @@ void Memory::initialize() {
 
 /// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
 /// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
-void Memory::check_memory(const volatile char *start, const volatile char *end, DramAnalyzer &dram_analyzer) {
+void Memory::check_memory(DramAnalyzer &dram_analyzer,
+                          const volatile char *start,
+                          const volatile char *end,
+                          size_t check_offset) {
 
   if (start==nullptr || end==nullptr) {
     printf("[-] Function mem_values called with invalid arguments\n");
     exit(1);
   }
+
+  auto row_increment = dram_analyzer.get_row_increment();
+  start -= row_increment*check_offset;
+  end += row_increment*check_offset;
 
   auto start_offset = (uint64_t) (start - start_address);
   start_offset = (start_offset/PAGE_SIZE)*PAGE_SIZE;
