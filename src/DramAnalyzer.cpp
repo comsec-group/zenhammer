@@ -56,7 +56,7 @@ std::vector<uint64_t> DramAnalyzer::get_bank_rank(std::vector<volatile char *> &
 }
 
 // Gets the row index for a given address by considering the given row function.
-uint64_t DramAnalyzer::get_row_index(const volatile char *addr) {
+uint64_t DramAnalyzer::get_row_index(const volatile char *addr) const {
   uint64_t cur_row = (uint64_t) addr & row_function;
   for (size_t i = 0; i < 64; i++) {
     if (row_function & (1UL << i)) {
@@ -150,14 +150,14 @@ uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<v
   return (times==0) ? 0 : cumulative_times/times;
 }
 
-void DramAnalyzer::find_bank_conflicts(volatile char *target) {
+void DramAnalyzer::find_bank_conflicts() {
   srand(time(nullptr));
   int nr_banks_cur = 0;
   int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS) {
     reset:
-    auto a1 = target + (rand()%(MEM_SIZE/64))*64;
-    auto a2 = target + (rand()%(MEM_SIZE/64))*64;
+    auto a1 = start_address + (rand()%(MEM_SIZE/64))*64;
+    auto a2 = start_address + (rand()%(MEM_SIZE/64))*64;
     auto ret1 = measure_time(a1, a2);
     auto ret2 = measure_time(a1, a2);
 
@@ -198,12 +198,12 @@ void DramAnalyzer::find_bank_conflicts(volatile char *target) {
 
   printf("[+] Found bank conflicts.\n");
   for (auto &bank : banks) {
-    find_targets(target, bank, NUM_TARGETS);
+    find_targets(bank, NUM_TARGETS);
   }
   printf("[+] Populated addresses from different banks.\n");
 }
 
-void DramAnalyzer::find_targets(volatile char *target, std::vector<volatile char *> &target_bank, size_t size) {
+void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_t size) {
   // create an unordered set of the addresses in the target bank for a quick lookup
   // std::unordered_set<volatile char*> tmp; tmp.insert(target_bank.begin(), target_bank.end());
   std::unordered_set<volatile char *> tmp(target_bank.begin(), target_bank.end());
@@ -211,7 +211,7 @@ void DramAnalyzer::find_targets(volatile char *target, std::vector<volatile char
   size_t num_repetitions = 5;
   srand(time(nullptr));
   while (tmp.size() < size) {
-    auto a1 = target + (rand()%(MEM_SIZE/64))*64;
+    auto a1 = start_address + (rand()%(MEM_SIZE/64))*64;
     if (tmp.count(a1) > 0) continue;
     uint64_t cumulative_times = 0;
     for (size_t i = 0; i < num_repetitions; i++) {
@@ -227,7 +227,7 @@ void DramAnalyzer::find_targets(volatile char *target, std::vector<volatile char
   }
 }
 
-DramAnalyzer::DramAnalyzer() {
+DramAnalyzer::DramAnalyzer(volatile char *target) : start_address(target) {
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
   bank_rank_masks = std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
 }
@@ -246,14 +246,3 @@ std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
   return bank_rank_functions;
 }
 
-uint64_t DramAnalyzer::get_row_function() const {
-  return row_function;
-}
-
-const std::vector<std::vector<uint64_t>> &DramAnalyzer::get_bank_rank_masks() const {
-  return bank_rank_masks;
-}
-
-const std::vector<std::vector<uint64_t>> &DramAnalyzer::get_bank_rank_masks() {
-  return bank_rank_masks;
-}
