@@ -9,15 +9,16 @@
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
-#include <Utilities/Memory.hpp>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
 #include "DramAnalyzer.hpp"
+#include "Fuzzer/FuzzingParameterSet.h"
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapper.h"
+#include "Utilities/Memory.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -40,8 +41,8 @@ void hammer(std::vector<volatile char *> &aggressors) {
 /// Performs synchronized hammering on the given aggressor rows.
 void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
                  volatile char *d1, volatile char *d2) {
-  int ref_rounds = acts/aggressors.size();
-  int agg_rounds = ref_rounds;
+  size_t ref_rounds = acts/aggressors.size();
+  size_t agg_rounds = ref_rounds;
   uint64_t before = 0;
   uint64_t after = 0;
 
@@ -65,8 +66,8 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
   }
 
   // perform hammering for HAMMER_ROUNDS/ref_rounds times
-  for (int i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
-    for (int j = 0; j < agg_rounds; j++) {
+  for (size_t i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
+    for (size_t j = 0; j < agg_rounds; j++) {
       for (size_t k = 0; k < aggressors.size() - 2; k++) {
         *aggressors[k];
         clflushopt(aggressors[k]);
@@ -92,23 +93,19 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
   }
 }
 
-/// Determine exactly 'size' target addresses in given bank.
-
-
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
-  PatternBuilder pattern_builder(acts, memory.get_starting_address());
+  FuzzingParameterSet fuzzing_params(acts);
   CodeJitter code_jitter;
   const uint64_t row_increment = dram_analyzer.get_row_increment();
-  std::random_device rd;
-  std::mt19937 gen = std::mt19937(rd());
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-    printf("EXECUTION_ROUNDS: %llu\n", EXECUTION_ROUNDS);
-    printf("EXECUTION_ROUNDS_INFINITE: %d\n", (int) EXECUTION_ROUNDS_INFINITE);
+    fuzzing_params.randomize_parameters();
+    fuzzing_params.print_parameters();
+
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
-    pattern_builder.randomize_parameters();
     HammeringPattern hammering_pattern;
-    pattern_builder.generate_frequency_based_pattern(hammering_pattern);
+    PatternBuilder pattern_builder(hammering_pattern);
+    pattern_builder.generate_frequency_based_pattern(fuzzing_params);
     printf("Pattern length: %zu\n", hammering_pattern.accesses.size());
 
     // then test this pattern with 5 different address sets
@@ -116,12 +113,11 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     while (trials_per_pattern--) {
       // choose random addresses for pattern
       PatternAddressMapper address_mapper(hammering_pattern);
-      address_mapper.randomize_addresses(Range(0, 16).get_random_number(gen));
+      address_mapper.randomize_addresses(fuzzing_params.get_bank_no());
 
       // generate jitted hammering function
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
-      code_jitter.jit_strict(pattern_builder.hammering_total_num_activations,
-                             pattern_builder.hammer_sync_reps,
+      code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
                              address_mapper.export_pattern_for_jitting());
@@ -130,8 +126,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       code_jitter.hammer_pattern();
 
       // check whether any bit flips occurred
-      memory.check_memory(address_mapper.get_lowest_address() - (row_increment*25),
-                          address_mapper.get_highest_address() + (row_increment*25), dram_analyzer);
+      memory.check_memory(dram_analyzer, address_mapper.get_lowest_address(), address_mapper.get_highest_address(), 25);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
@@ -200,9 +195,8 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
         hammer_sync(aggressors, acts, d1, d2);
       }
 
-      // check 100 rows before and 120 rows after if any bits flipped
-      memory.check_memory(aggressors[0] - (row_increment*100),
-                          aggressors[aggressors.size() - 1] + (row_increment*120), dram_analyzer);
+      // check 100 rows before and after for flipped bits
+      memory.check_memory(dram_analyzer, aggressors[0], aggressors[aggressors.size() - 1], 100);
     }
   }
 }
@@ -315,9 +309,9 @@ int main(int argc, char **argv) {
   Memory memory(use_superpage);
   memory.allocate_memory(MEM_SIZE);
 
-  DramAnalyzer dram_analyzer;
+  DramAnalyzer dram_analyzer(memory.get_starting_address());
   // find address sets that create bank conflicts
-  dram_analyzer.find_bank_conflicts(memory.get_starting_address());
+  dram_analyzer.find_bank_conflicts();
   // determine the row and bank/rank functions
   dram_analyzer.find_functions(use_superpage);
   // determine the bank/rank masks

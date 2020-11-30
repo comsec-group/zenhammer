@@ -13,36 +13,38 @@
 // ################### CONFIG PARAMETERS ##################
 // ########################################################
 
-/// number of rounds to measure cache hit/miss latency
+// number of rounds to measure cache hit/miss latency
 #define DRAMA_ROUNDS 1000
 
-/// size in bytes of a cacheline
+// size in bytes of a cacheline
 #define CACHELINE_SIZE 64
 
-/// number of rounds to hammer
+// number of rounds to hammer
 #define HAMMER_ROUNDS 1000000
 
-/// threshold to distinguish between cache miss (t > THRESH) and cache hit (t < THRESH)
+// threshold to distinguish between cache miss (t > THRESH) and cache hit (t < THRESH)
 #define THRESH 430
 
 // number of conflicting addresses to be determined for each bank
 #define NUM_TARGETS 10
 
-/// maximum number of aggressor rows
+// maximum number of aggressor rows
 #define MAX_ROWS 30
 
-/// number of banks in the system
+// number of banks in the system
 #define NUM_BANKS 16
 
-/// number of active DIMMs in the system
+// number of active DIMMs in the system
 #define DIMM 1
 
-/// number of active channels in the system
+// number of active channels in the system
 #define CHANNEL 1
 
-/// number of bytes to be allocated
+// number of bytes to be allocated
 #define MEM_SIZE (GB(1))
 
+// TODO: possible to replace by PAGE_SIZE from <sys/user.h>?
+// the size of a page in bytes
 #define PAGE_SIZE 4096
 
 // #########################################################

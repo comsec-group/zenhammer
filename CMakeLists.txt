@@ -29,7 +29,9 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/PatternAddressMapper.cpp src/Utilities/Memory.cpp include/Utilities/Memory.hpp)
+        src/PatternAddressMapper.cpp
+        src/Utilities/Memory.cpp
+        src/Fuzzer/FuzzingParameterSet.cpp)
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} OBJECT ${SOURCES})

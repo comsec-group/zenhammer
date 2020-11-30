@@ -46,13 +46,12 @@ int CodeJitter::hammer_pattern() {
     return -1;
   }
   printf("[+] Hammering pattern.\n");
-  int ret = fn();
   fflush(stdout);
+  int ret = fn();
   return ret;
 }
 
 void CodeJitter::jit_strict(size_t hammering_total_num_activations,
-                            size_t hammer_sync_reps,
                             FLUSHING_STRATEGY flushing_strategy,
                             FENCING_STRATEGY fencing_strategy,
                             const std::vector<volatile char *> &aggressor_pairs) {
@@ -83,6 +82,9 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   if (fencing_strategy!=FENCING_STRATEGY::LATEST_POSSIBLE && fencing_strategy!=FENCING_STRATEGY::OMIT_FENCING) {
     printf("jit_strict does not support given FENCING_STRATEGY (%s).\n", get_string(fencing_strategy).c_str());
   }
+
+  printf("[+] Creating ASM code for hammering.\n");
+  fflush(stdout);
 
   asmjit::CodeHolder code;
   code.init(runtime.environment());
@@ -146,49 +148,35 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   a.cmp(asmjit::x86::rsi, 0);
   a.jle(for_end);
 
-  a.dec(asmjit::x86::rsi);
-
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
   std::unordered_map<uint64_t, bool> accessed_before;
 
-  // TODO synchronize with each REF? Do do this loop in asm?
-  for (size_t k = 1; k <= hammer_sync_reps; k++) {
-    // hammer each aggressor once
-    for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
-      auto cur_addr = (uint64_t) aggressor_pairs[i];
+  // hammer each aggressor once
+  for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
+    auto cur_addr = (uint64_t) aggressor_pairs[i];
 
-      // fence to ensure flushing finshed and defined order of accesses
-      if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr]) {
-        a.mfence();
-        accessed_before[cur_addr] = false;
-      }
-
-      // hammer
-      a.mov(asmjit::x86::rax, cur_addr);
-      a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
-      accessed_before[cur_addr] = true;
-
-//      a.dec(asmjit::x86::rsi);
-
-      // flush
-      if (flushing_strategy==FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-        // flush
-        a.mov(asmjit::x86::rax, cur_addr);
-        a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
-      }
+    // fence to ensure flushing finshed and defined order of accesses
+    if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr]) {
+      a.mfence();
+      accessed_before[cur_addr] = false;
     }
 
-    // TODO: Remove this and use fence and flush from above
-//    for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
-//      auto cur_addr = (uint64_t) aggressor_pairs[i];
-//      a.mov(asmjit::x86::rax, cur_addr);
-//      a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
-//    }
-    // TODO: end
+    // hammer
+    a.mov(asmjit::x86::rax, cur_addr);
+    a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+    accessed_before[cur_addr] = true;
+    a.dec(asmjit::x86::rsi);
 
-    // fences -> ensure that accesses are not interleaved, i.e., we acccess aggressors always in same order
-    a.mfence();
+    // flush
+    if (flushing_strategy==FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
+      // flush
+      a.mov(asmjit::x86::rax, cur_addr);
+      a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+    }
   }
+
+  // fences -> ensure that accesses are not interleaved, i.e., we acccess aggressors always in same order
+  a.mfence();
 
   // ------- part 3: synchronize with the end  -----------------------------------------------------------------------
 
@@ -212,6 +200,7 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
     // access
     a.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
     a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+    a.dec(asmjit::x86::rsi);
     // update counter that counts the number of activation in the trailing synchronization
     a.inc(asmjit::x86::edx);
   }
@@ -233,7 +222,6 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   a.jmp(for_begin);
   a.bind(for_end);
 
-
   // now move our counter for no. of activations in the end of interval sync. to the 1st output register %eax
   a.mov(asmjit::x86::eax, asmjit::x86::edx);
   a.ret();  // this is ESSENTIAL otherwise execution of jitted code creates a segfault
@@ -243,6 +231,7 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   if (err) throw std::runtime_error("[-] Error occurred while jitting code. Aborting execution!");
 
   printf("[+] Successfully created jitted hammering code.\n");
+  fflush(stdout);
 
   // uncomment the following line to see the jitted ASM code
   // printf("[DEBUG] asmjit logger content:\n%s\n", logger->data());
