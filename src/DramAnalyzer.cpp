@@ -119,15 +119,17 @@ void DramAnalyzer::find_functions(bool superpage_on) {
       }
     }
     num_tries++;
-  } while (num_tries < max_num_tries && bank_rank_functions.size()!=num_expected_fns);
+  } while (num_tries < max_num_tries // && bank_rank_functions.size()!=num_expected_fns
+      );
 
-  // we cannot continue if we couldn't determine valid bank/rank functions
-  if (bank_rank_functions.size()!=num_expected_fns) {
-    printf(
-        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. ",
-        bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
-    exit(1);
-  }
+  // TODO: Fix this
+//  // we cannot continue if we couldn't determine valid bank/rank functions
+//  if (bank_rank_functions.size()!=num_expected_fns) {
+//    printf(
+//        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. ",
+//        bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
+//    exit(1);
+//  }
 
   printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
          row_function, get_row_increment(), bank_rank_functions.size());
