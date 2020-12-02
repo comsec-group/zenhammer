@@ -1,0 +1,118 @@
+from collections import namedtuple
+import math
+import random
+import pprint as pp
+# Global parameters 
+
+MAX_REFS = 8
+MAX_ACT_PER_REF = 170
+
+MAX_AGGRESSORS  = 3
+MAX_DIST        = 8 #distance from the first row in the tuple
+MAX_FREQ        = 32 #
+MAX_AMPL        = 5 
+
+class Pattern():
+    def __init__(self, num_refs, max_act):
+        self.max_period = num_refs 
+        self.act_per_ref = max_act
+        self.pattern = [None]*num_refs*max_act
+
+    @classmethod 
+    def generate_pattern(cls,max_refs, max_act, max_aggr, max_dist, max_freq, max_ampl):
+
+        patt = cls(max_refs,max_act) 
+        filled = False
+        #while not filled:
+        testShape = AggressorTupleShape.generate_random(max_freq,max_ampl,max_aggr,max_dist)
+        pp.pprint(testShape.to_signal(len(patt.pattern)))
+
+
+        
+
+
+
+class Aggressor(namedtuple("Aggressor", ['shape_id', 'loc'])):
+    '''
+    an aggressor always depends on the shape it belongs to. An aggressor without shape doesn't exist.
+    each aggressor is represented by its shape_id and its offset (loc) from the first row of the shape 
+    '''
+    def __str__(self):
+        return f"A(sid:{self.shape_id},loc:{self.loc})"
+
+    def __repr__(self):
+        return self.__str__() 
+
+class AggressorTupleShape():
+    
+    def __init__(self, freq, width, loc):
+        self.frequency = freq
+        self.amplitude = width
+        self.aggr_loc = tuple(loc) 
+    
+    def period(self, max_period):
+        period = int(math.ceil(max_period / self.frequency))
+        if period < self.real_amplitude():
+            raise Exception(f"Period ({period}) < amplitude ({self.real_amplitude()}) ")
+        if self.real_amplitude() == 1 and period == 1:
+            raise Exception(f"Period can't be one with a single aggressor ")
+        return  period
+
+    def real_amplitude(self):
+        return self.amplitude*len(self.aggr_loc)
+    def __hash__(self):
+        return hash((self.frequency, self.amplitude, self.aggr_loc))
+    
+    def __eq__(self, o):
+        if not isinstance(o, AggressorTupleShape):
+            return False
+        return self.__hash__() == o.__hash__()
+    
+    def id(self):
+        return self.__hash__() & 0xffff 
+    
+    def aggressors(self):
+        return  [Aggressor(self.id(), x) for x in self.aggr_loc ]
+
+    def to_signal(self, max_period):
+        aggr_expanded = self.aggressors() * self.amplitude #aggressors repeated AMPLITUDE times 
+        signal = [0]*max_period   
+        for x in range(0, max_period, self.period(max_period)):
+            signal[x:x+len(aggr_expanded)] = aggr_expanded  
+        return signal
+
+    def __str__(self):
+        shape_dict = {"sid":self.id(), "freq": self.frequency, "amplitude": self.amplitude, "aggressors": self.aggressors()}
+        return shape_dict.__str__() 
+
+    def __repr__(self):
+        return self.__str__() 
+     
+    @classmethod
+    def generate_random(cls, max_freq, max_ampl, num_aggr, max_dist):
+        aggr_loc = [0]+[random.randint(1,max_dist) for x in range(num_aggr-1)]  
+        return cls(random.randint(1,max_freq), random.randint(1,max_ampl), aggr_loc)
+
+
+class AggressorTupleInstance(AggressorTupleShape):
+    
+    def __init__(self, shape, base):
+        if not isinstance(base_addr, DRAMAddr):
+            raise Exception("base is not a DRAMAddr")
+        self.shape = shape
+        self.base_addr = base 
+
+    def aggressors(self):
+        return  [self.base.add_row(x) for x in self.aggr_loc] # TODO implement the add_row in the DRAMAddr 
+
+    def to_signal(self, max_period):
+        aggr_expanded = self.aggressors() * amplitude #aggressors repeated AMPLITUDE times 
+        signal = [0]*max_period   
+        for x in range(0, max_period, self.period()):
+            signal[x:x+len(aggr_expanded)] = aggr_expanded  
+
+
+
+### TEST CODE
+
+Pattern.generate_pattern(MAX_REFS, MAX_ACT_PER_REF, MAX_AGGRESSORS, MAX_DIST, MAX_FREQ, MAX_AMPL)

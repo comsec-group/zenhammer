@@ -1,0 +1,2 @@
+
+int init(void);
