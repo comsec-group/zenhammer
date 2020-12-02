@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <nlohmann/json.hpp>
 
 #include "DRAMAddr.hpp"
 
@@ -15,17 +16,16 @@ class Aggressor {
   AGGRESSOR_ID_TYPE id;
 
   // default constructor: required to enable vector initialization
-  Aggressor() : id(ID_PLACEHOLDER_AGG){};
+  Aggressor() : id(ID_PLACEHOLDER_AGG) {};
 
   // creates a new Aggressor; the caller must ensure that the ID is valid
   explicit Aggressor(int id) : id(id) {}
 
-  std::string to_string() const {
-    if (id == ID_PLACEHOLDER_AGG) return "EMPTY";
-    std::stringstream ss;
-    ss << "agg" << std::setfill('0') << std::setw(2) << id;
-    return ss.str();
-  }
+  std::string to_string() const;
 };
+
+void to_json(nlohmann::json &j, const Aggressor &p);
+
+void from_json(const nlohmann::json &j, Aggressor &p);
 
 #endif /* AGGRESSOR */
