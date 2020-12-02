@@ -10,6 +10,7 @@
 #include "Fuzzer/AggressorAccessPattern.hpp"
 #include "Utilities/Range.hpp"
 #include "Utilities/Uuid.hpp"
+#include "PatternAddressMapping.hpp"
 
 class HammeringPattern {
  public:
@@ -24,9 +25,17 @@ class HammeringPattern {
   // additional and more structured information about the aggressors involved in this pattern such as whether they are 1-sided or 2-sided
   std::vector<AggressorAccessPattern> agg_access_patterns;
 
-  HammeringPattern() : instance_id(uuid::gen_uuid()) {};
-};
+  // from an OOP perspective it would make more sense to have a reference to this HammeringPattern in each of the
+  // PatternAddressMapping objects; however, for the JSON export having this vector of mappings for a pattern works
+  // better
+  std::vector<PatternAddressMapping> address_mappings;
 
+  HammeringPattern() : instance_id(uuid::gen_uuid()) {};
+
+  PatternAddressMapping &generate_random_addr_mapping(size_t bank);
+
+  std::vector<volatile char *> get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping);
+};
 
 void to_json(nlohmann::json &j, const HammeringPattern &p);
 

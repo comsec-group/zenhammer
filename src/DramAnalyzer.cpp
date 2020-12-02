@@ -73,7 +73,7 @@ uint64_t DramAnalyzer::get_row_index(const volatile char *addr) const {
  *  3) Bank/Rank functions use at most 2 bits
  */
 void DramAnalyzer::find_functions(bool superpage_on) {
-  size_t num_expected_fns = std::log2(NUM_BANKS);
+//  size_t num_expected_fns = std::log2(NUM_BANKS);
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
   // because of that we need to choose a rather large maximum number of tries
@@ -122,7 +122,8 @@ void DramAnalyzer::find_functions(bool superpage_on) {
   } while (num_tries < max_num_tries // && bank_rank_functions.size()!=num_expected_fns
       );
 
-  // TODO: Fix this
+  // TODO: Fix this... is the assumption correct at all? Maybe it makes more sense to build a histogram and use the
+  //  address function set with the highest "hits"
 //  // we cannot continue if we couldn't determine valid bank/rank functions
 //  if (bank_rank_functions.size()!=num_expected_fns) {
 //    printf(

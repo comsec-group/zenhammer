@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #define CHANS(x) ((x) << (8UL * 3UL))
 #define DIMMS(x) ((x) << (8UL * 2UL))
 #define RANKS(x) ((x) << (8UL * 1UL))
@@ -50,10 +52,18 @@ class DRAMAddr {
 
   explicit DRAMAddr(void *addr);
 
+  // must be DefaultConstructible for JSON (de-)serialization
+  DRAMAddr() = default;
+
   void *to_virt();
 
   [[gnu::unused]] std::string to_string();
 
   static void initialize(uint64_t num_bank_rank_functions, volatile char *start_address);
 };
+
+void to_json(nlohmann::json &j, const DRAMAddr &p);
+
+void from_json(const nlohmann::json &j, DRAMAddr &p);
+
 #endif /* DRAMADDR */

@@ -1,9 +1,12 @@
 #include <cassert>
 #include <GlobalDefines.hpp>
-#include "Fuzzer/PatternAddressMapper.hpp"
+#include <Utilities/Uuid.hpp>
+#include <Utilities/Range.hpp>
+#include <iostream>
+#include "Fuzzer/PatternAddressMapping.hpp"
 
-PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp) /* NOLINT */
-    : instance_id(uuid::gen_uuid()), hammering_pattern(hp) {
+PatternAddressMapping::PatternAddressMapping() /* NOLINT */
+    : instance_id(uuid::gen_uuid()) {
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937(rd());
@@ -13,7 +16,8 @@ PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp) /* NOLINT */
   lowest_address = (volatile char *) (~(0UL));
 }
 
-void PatternAddressMapper::randomize_addresses(size_t bank) {
+void PatternAddressMapping::randomize_addresses(size_t bank, std::vector<AggressorAccessPattern> &agg_access_patterns) {
+  // TODO: Let PatternAddressMapping take FuzzingParameterSet instance as reference and then use the fuzzed params here
   aggressor_to_addr.clear();
   const int agg_intra_distance = 2;
   const int agg_inter_distance = Range(4, 6).get_random_number(gen);
@@ -29,7 +33,7 @@ void PatternAddressMapper::randomize_addresses(size_t bank) {
   // addresses for all of them as we must have accessed all of them together before
   // however, we will consider mapping multiple aggressors to the same address to simulate hammering an aggressor of
   // a pair more frequently, for that we just choose a random row
-  for (auto &acc_pattern : hammering_pattern.agg_access_patterns) {
+  for (auto &acc_pattern : agg_access_patterns) {
     bool known_agg = false;
     for (size_t i = 0; i < acc_pattern.offset_aggressor_map.size(); i++) {
       Aggressor &current_agg = acc_pattern.offset_aggressor_map[i];
@@ -67,18 +71,19 @@ void PatternAddressMapper::randomize_addresses(size_t bank) {
   }
 }
 
-std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() {
+std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
+                                                                               size_t base_period) {
   std::vector<volatile char *> address_pattern;
-  std::cout << "Pattern (bank = " << aggressor_to_addr.at(hammering_pattern.accesses.at(0).id).bank << "): "
+  std::cout << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): "
             << std::endl;
 
   bool invalid_aggs{false};
 
-  for (size_t i = 0; i < hammering_pattern.accesses.size(); ++i) {
-    if (i!=0 && (i%hammering_pattern.base_period)==0) {
+  for (size_t i = 0; i < aggressors.size(); ++i) {
+    if (i!=0 && (i%base_period)==0) {
       std::cout << std::endl;
     }
-    auto agg = hammering_pattern.accesses[i];
+    auto agg = aggressors[i];
     if (agg.id==ID_PLACEHOLDER_AGG) {
       printf(FRED "-1 " NONE);
       invalid_aggs = true;
@@ -88,7 +93,7 @@ std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() 
     std::cout << aggressor_to_addr.at(agg.id).row << " ";
   }
 
-//  for (auto &agg : hammering_pattern.accesses) {
+//  for (auto &agg : aggressors) {
 //    if (agg.id==ID_PLACEHOLDER_AGG) {
 //      printf(FRED "-1 " NONE);
 //      invalid_aggs = true;
@@ -105,7 +110,7 @@ std::vector<volatile char *> PatternAddressMapper::export_pattern_for_jitting() 
   return address_pattern;
 }
 
-volatile char *PatternAddressMapper::get_lowest_address() const {
+volatile char *PatternAddressMapping::get_lowest_address() const {
   if (lowest_address==nullptr) {
     fprintf(stderr, "[-] Cannot get lowest address because no address has been assigned.");
     exit(1);
@@ -113,10 +118,21 @@ volatile char *PatternAddressMapper::get_lowest_address() const {
   return lowest_address;
 }
 
-volatile char *PatternAddressMapper::get_highest_address() const {
+volatile char *PatternAddressMapping::get_highest_address() const {
   if (lowest_address==nullptr) {
     fprintf(stderr, "[-] Cannot get highest address because no address has been assigned");
     exit(1);
   }
   return highest_address;
+}
+
+void to_json(nlohmann::json &j, const PatternAddressMapping &p) {
+  j = nlohmann::json{{"id", p.instance_id},
+                     {"aggressor_to_addr", p.aggressor_to_addr}
+  };
+}
+
+void from_json(const nlohmann::json &j, PatternAddressMapping &p) {
+  j.at("id").get_to(p.instance_id);
+  j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
 }

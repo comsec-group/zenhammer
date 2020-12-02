@@ -217,3 +217,16 @@ std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
              0b000000000000000010000000000000,
              0b000000000000000001000000000000}
      }}};
+
+void to_json(nlohmann::json &j, const DRAMAddr &p) {
+  j = {{"bank", p.bank},
+       {"row", p.row},
+       {"col", p.col}
+  };
+}
+
+void from_json(const nlohmann::json &j, DRAMAddr &p) {
+  j.at("bank").get_to(p.bank);
+  j.at("row").get_to(p.row);
+  j.at("col").get_to(p.col);
+}

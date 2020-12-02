@@ -17,7 +17,7 @@
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Fuzzer/PatternAddressMapper.hpp"
+#include "Fuzzer/PatternAddressMapping.hpp"
 #include "Memory.hpp"
 
 /// the number of rounds to hammer
@@ -111,25 +111,29 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     int trials_per_pattern = 5;
     while (trials_per_pattern--) {
       // choose random addresses for pattern
-      PatternAddressMapper address_mapper(hammering_pattern);
-      address_mapper.randomize_addresses(fuzzing_params.get_bank_no());
+      PatternAddressMapping mapping = hammering_pattern.generate_random_addr_mapping(fuzzing_params.get_bank_no());
 
       // generate jitted hammering function
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
       code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             address_mapper.export_pattern_for_jitting());
+                             hammering_pattern.get_jittable_accesses_vector(mapping));
 
       // do hammering
       code_jitter.hammer_pattern();
-
       // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, address_mapper.get_lowest_address(), address_mapper.get_highest_address(), 25);
+      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
+
+//    std::cout << "++++++++++++ DEBUGGING MODE ++++++++++++++++++++++++++++++++++++" << std::endl;
+//    nlohmann::json j = hammering_pattern;
+//    std::cout << j << std::endl;
+//    std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+//    exit(0);
   }
 }
 

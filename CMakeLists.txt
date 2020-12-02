@@ -58,7 +58,7 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/PatternAddressMapper.cpp
+        src/PatternAddressMapping.cpp
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
@@ -66,7 +66,7 @@ set(SOURCES
 
 set(HEADER_ONLY
         include/Utilities/ISerializable.hpp
-        include/Fuzzer/PatternAddressMapper.hpp)
+        include/Fuzzer/PatternAddressMapping.hpp)
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
