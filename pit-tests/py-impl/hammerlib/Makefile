@@ -9,6 +9,9 @@ CFLAGS = -I$(INC) -g -lm -msse4.2 -fpic   #-DDEBUG
 LDFLAGS= -shared
 
 all: $(TARGET) 
+	rm $(SRC:.c=.d)
+	rm $(SRC:.c=.o)
+
 
 $(TARGET): $(OBJ)
 	gcc  $(LDFLAGS) $(CFLAGS)  -o $(TARGET) $(OBJ)
@@ -19,5 +22,5 @@ $(SRC:.c=.d):%.d:%.c
 include $(SRC:.c=.d)
 
 clean:
-	rm -f $(OBJ) 
+	rm -f src/*.o 
 	rm -f $(TARGET)
