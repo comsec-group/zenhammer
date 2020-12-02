@@ -3,6 +3,7 @@
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   for (const auto &agg : p.accesses) agg_ids.push_back(agg.id);
+
   j = nlohmann::json{{"id", p.instance_id},
                      {"base_period", p.base_period},
 //                     {"accesses", p.accesses},

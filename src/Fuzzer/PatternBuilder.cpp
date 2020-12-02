@@ -111,7 +111,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
       // generates an AggressorAccess for each added aggressor set
       std::unordered_map<int, Aggressor> off_agg_map;
       for (size_t l = 0; l < agg.size(); l++) off_agg_map[l] = agg[l];
-      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, off_agg_map);
+      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, off_agg_map, i);
 
       // fill the pattern with the given aggressors
       // - period
