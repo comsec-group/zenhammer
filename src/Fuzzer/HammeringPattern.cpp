@@ -1,13 +1,10 @@
 #include "Fuzzer/HammeringPattern.hpp"
 
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
-  std::vector<AGGRESSOR_ID_TYPE> agg_ids;
-  for (const auto &agg : p.accesses) agg_ids.push_back(agg.id);
-
   j = nlohmann::json{{"id", p.instance_id},
                      {"base_period", p.base_period},
 //                     {"accesses", p.accesses},
-                     {"access_ids", agg_ids},
+                     {"access_ids", Aggressor::get_agg_ids(p.accesses)},
                      {"agg_access_patterns", p.agg_access_patterns},
                      {"address_mappings", p.address_mappings}
   };
@@ -17,17 +14,9 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("instance_id").get_to(p.instance_id);
   j.at("base_period").get_to(p.base_period);
 
-  // create exactly one aggressor object for each ID (for now it doesn't matter to have multiple aggressors with the
-  // same ID but maybe in the future)
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("accesses_agg_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
-  std::unordered_map<AGGRESSOR_ID_TYPE, Aggressor> aggs;
-  for (const auto &id : agg_ids) {
-    if (aggs.count(id)==0) {
-      aggs[id] = Aggressor(id);
-    }
-    p.accesses.push_back(aggs.at(id));
-  }
+  p.accesses = Aggressor::create_aggressors(agg_ids);
 
   j.at("agg_access_patterns").get_to<>(p.agg_access_patterns);
   j.at("address_mappings").get_to<>(p.address_mappings);

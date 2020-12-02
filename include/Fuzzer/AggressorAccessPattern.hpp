@@ -15,18 +15,18 @@ class AggressorAccessPattern {
 
   size_t start_offset{};
 
-  std::unordered_map<int, Aggressor> offset_aggressor_map;
+  std::vector<Aggressor> aggressors;
 
   AggressorAccessPattern() = default;
 
   AggressorAccessPattern(size_t frequency,
                          int amplitude,
-                         std::unordered_map<int, Aggressor> off_aggs,
+                         std::vector<Aggressor> aggressors,
                          size_t absolute_offset)
       : frequency(frequency),
         amplitude(amplitude),
         start_offset(absolute_offset),
-        offset_aggressor_map(std::move(off_aggs)) {
+        aggressors(std::move(aggressors)) {
   }
 };
 

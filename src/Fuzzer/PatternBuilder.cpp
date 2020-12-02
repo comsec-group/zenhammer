@@ -55,6 +55,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   // accessed as a single aggressor only; this will be handled later by mapping multiple Aggressor objects by their ID
   // to the same address
 
+
   int agg_id_cnt = 0;  // this equals the number of added aggressors
 
   int current_N = fuzzing_params.get_n_sided_range().min;
@@ -109,9 +110,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
       if (agg.size()==1) cur_amplitude = 1;
 
       // generates an AggressorAccess for each added aggressor set
-      std::unordered_map<int, Aggressor> off_agg_map;
-      for (size_t l = 0; l < agg.size(); l++) off_agg_map[l] = agg[l];
-      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, off_agg_map, i);
+      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, agg, i);
 
       // fill the pattern with the given aggressors
       // - period

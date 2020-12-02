@@ -35,8 +35,8 @@ void PatternAddressMapping::randomize_addresses(size_t bank, std::vector<Aggress
   // a pair more frequently, for that we just choose a random row
   for (auto &acc_pattern : agg_access_patterns) {
     bool known_agg = false;
-    for (size_t i = 0; i < acc_pattern.offset_aggressor_map.size(); i++) {
-      Aggressor &current_agg = acc_pattern.offset_aggressor_map[i];
+    for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
+      Aggressor &current_agg = acc_pattern.aggressors[i];
       if (aggressor_to_addr.count(current_agg.id) > 0) {
         // this indicates that all following aggressors must also have known addresses, otherwise there's something
         // wrong with this pattern
@@ -51,7 +51,7 @@ void PatternAddressMapping::randomize_addresses(size_t bank, std::vector<Aggress
         exit(1);
       } else if (i > 0) {
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
-        Aggressor &last_agg = acc_pattern.offset_aggressor_map.at(i - 1);
+        Aggressor &last_agg = acc_pattern.aggressors.at(i - 1);
         auto last_addr = aggressor_to_addr.at(last_agg.id);
         cur_row = cur_row + (size_t) agg_intra_distance;
         size_t row = use_seq_addresses ? cur_row : (last_addr.row + (size_t) agg_intra_distance);
