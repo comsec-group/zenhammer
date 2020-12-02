@@ -1,5 +1,5 @@
 include(CheckCXXCompilerFlag)
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 
@@ -17,26 +17,62 @@ endfunction()
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
 
-# Dependency: Asmjit
+##############################
+# Check if asmjit is installed
+##############################
+
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
 find_package(ASMJIT)
 if (NOT ASMJIT_FOUND)
-    message("Please download and install asmjit using this one-liner: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
+    message("Trying to download and install asmjit, if this fails use this one-liner: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
+    message("Downloading asmjit")
+    include(FetchContent)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+    FetchContent_Declare(
+            asmjit
+            GIT_REPOSITORY https://github.com/asmjit/asmjit.git)
+    FetchContent_Populate(asmjit)
 endif ()
 
+##############################
+# Download and install nlohmann-json if required
+##############################
+
+find_package(nlohmann_json QUIET)
+if (NOT nlohmann_json_FOUND)
+    message("Downloading nlohmann_json")
+    include(FetchContent)
+    set(JSON_BuildTests OFF CACHE INTERNAL "")
+    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+    FetchContent_Declare(
+            nlohmann_json
+            GIT_REPOSITORY https://github.com/nlohmann/json.git
+            GIT_TAG v3.7.3)
+    FetchContent_MakeAvailable(nlohmann_json)
+endif ()
+
+
 set(SOURCES
+        src/Fuzzer/Aggressor.cpp
         src/Fuzzer/CodeJitter.cpp
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
         src/PatternAddressMapper.cpp
-        src/Utilities/Memory.cpp
-        src/Fuzzer/FuzzingParameterSet.cpp)
+        src/Memory.cpp
+        src/Fuzzer/FuzzingParameterSet.cpp
+        src/Fuzzer/HammeringPattern.cpp
+        src/Fuzzer/AggressorAccessPattern.cpp)
+
+set(HEADER_ONLY
+        include/Utilities/ISerializable.hpp
+        include/Fuzzer/PatternAddressMapper.hpp)
 
 set(LIBRARY_NAME libblacksmith)
-add_library(${LIBRARY_NAME} OBJECT ${SOURCES})
+add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
+target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})

@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_H_
-#define BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_H_
+#ifndef BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
+#define BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
 
 #include <random>
 #include "Utilities/Range.hpp"
@@ -8,6 +8,8 @@
 class FuzzingParameterSet {
  private:
   std::mt19937 gen;
+
+  // TODO: Add brief comments
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals{};
@@ -72,4 +74,4 @@ class FuzzingParameterSet {
   int get_base_period() const;
 };
 
-#endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_H_
+#endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

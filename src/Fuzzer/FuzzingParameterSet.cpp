@@ -1,7 +1,7 @@
 #include <GlobalDefines.hpp>
 #include <unordered_map>
 #include <sstream>
-#include "Fuzzer/FuzzingParameterSet.h"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) {
   std::random_device rd;

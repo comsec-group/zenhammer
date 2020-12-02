@@ -1,6 +1,6 @@
 #include <cassert>
 #include <GlobalDefines.hpp>
-#include "Fuzzer/PatternAddressMapper.h"
+#include "Fuzzer/PatternAddressMapper.hpp"
 
 PatternAddressMapper::PatternAddressMapper(HammeringPattern &hp) /* NOLINT */
     : instance_id(uuid::gen_uuid()), hammering_pattern(hp) {

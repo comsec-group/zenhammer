@@ -1,6 +1,6 @@
 #include <unordered_set>
 
-#include "Fuzzer/FuzzingParameterSet.h"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 #include "DramAnalyzer.hpp"
 

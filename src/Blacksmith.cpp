@@ -13,12 +13,12 @@
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
 #include "DramAnalyzer.hpp"
-#include "Fuzzer/FuzzingParameterSet.h"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Fuzzer/PatternAddressMapper.h"
-#include "Utilities/Memory.hpp"
+#include "Fuzzer/PatternAddressMapper.hpp"
+#include "Memory.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -96,7 +96,6 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   FuzzingParameterSet fuzzing_params(acts);
   CodeJitter code_jitter;
-  const uint64_t row_increment = dram_analyzer.get_row_increment();
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
     fuzzing_params.randomize_parameters();
@@ -106,7 +105,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     HammeringPattern hammering_pattern;
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
-    printf("Pattern length: %zu\n", hammering_pattern.accesses.size());
+    printf("[+] Pattern length: %zu\n", hammering_pattern.accesses.size());
 
     // then test this pattern with 5 different address sets
     int trials_per_pattern = 5;
@@ -136,6 +135,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
 // Performs n-sided hammering.
 void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
+  // TODO: Remove the usage of rand here and use C++ functions instead
   auto row_increment = dram_analyzer.get_row_increment();
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
@@ -176,6 +176,7 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
       }
       printf("\n");
 
+      // TODO: make USE_SYNC a program parameter (not a define)
       if (!USE_SYNC) {
         printf("[+] Hammering %d aggressors with v %d d %d on bank %d\n", aggressor_rows_size, v, d, ba);
         hammer(aggressors);
@@ -262,7 +263,7 @@ void print_metadata() {
   fflush(stdout);
   system("echo Git_Status: `if [ \"$(git diff --stat)\" != \"\" ]; then echo dirty; else echo clean; fi`");
   fflush(stdout);
-  printf("------ Run Configuration ------\n");
+  printf("------ Run Configuration ------\n");  // TODO: update this
   printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
   printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
   printf("HAMMER_ROUNDS: %d\n", HAMMER_ROUNDS);

@@ -9,7 +9,7 @@
 #include "Utilities/AsmPrimitives.hpp"
 #include "DramAnalyzer.hpp"
 
-#include "Utilities/Memory.hpp"
+#include "Memory.hpp"
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {

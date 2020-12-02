@@ -31,7 +31,7 @@ class CodeJitter {
   asmjit::StringLogger* logger = nullptr;
 
   /// a function pointer to a function that takes no input (void) and returns an integer
-  int (*fn)(void) = nullptr;
+  int (*fn)() = nullptr;
 
  public:
   /// constructor
