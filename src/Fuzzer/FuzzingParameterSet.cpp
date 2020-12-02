@@ -63,7 +63,7 @@ void FuzzingParameterSet::randomize_parameters() {
 
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
-  base_period = num_activations_per_tREFI/4*Range(1, num_refresh_intervals*16).get_random_number(gen);
+  base_period = (num_activations_per_tREFI/4)*Range(1, num_refresh_intervals*4).get_random_number(gen);
 
   // === STATIC FUZZING PARAMETERS ====================================================
   // fix values/formulas that must be configured before running this program
