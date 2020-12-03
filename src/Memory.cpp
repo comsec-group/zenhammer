@@ -56,11 +56,11 @@ void Memory::allocate_memory(size_t mem_size) {
 void Memory::initialize() {
   printf("[+] Initializing memory with pseudorandom sequence.\n");
   // for each page in the address space [start, end]
-  for (uint64_t i = 0; i < size; i += PAGE_SIZE) {
+  for (uint64_t i = 0; i < size; i += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
     // those after hammering to see whether bit flips occurred
-    srand(i*PAGE_SIZE);
-    for (uint64_t j = 0; j < PAGE_SIZE; j += sizeof(int)) {
+    srand(i*getpagesize());
+    for (uint64_t j = 0; j < (uint64_t)getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
       // write (pseudo)random 4 bytes to target[offset] = target[i+j]
       *((int *) (start_address + offset)) = rand();
@@ -85,20 +85,20 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
   end += row_increment*check_offset;
 
   auto start_offset = (uint64_t) (start - start_address);
-  start_offset = (start_offset/PAGE_SIZE)*PAGE_SIZE;
+  start_offset = (start_offset/getpagesize())*getpagesize();
 
   auto end_offset = start_offset + (uint64_t) (end - start);
-  end_offset = (end_offset/PAGE_SIZE)*PAGE_SIZE;
+  end_offset = (end_offset/getpagesize())*getpagesize();
 
   printf("[+] Checking if any bit flips occurred.\n");
 
   // for each page in the address space [start, end]
-  for (uint64_t i = start_offset; i < end_offset; i += PAGE_SIZE) {
+  for (uint64_t i = start_offset; i < end_offset; i += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can
     // compare the initialized values with those after hammering to see whether
     // bit flips occurred
-    srand(i*PAGE_SIZE);
-    for (uint64_t j = 0; j < PAGE_SIZE; j += sizeof(int)) {
+    srand(i*getpagesize());
+    for (uint64_t j = 0; j < (uint64_t)getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
       int rand_val = rand();
 
@@ -121,7 +121,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
           printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
                  start_address + offset + c,
                  dram_analyzer.get_row_index(start_address + offset + c),
-                 offset%PAGE_SIZE,
+                 offset%getpagesize(),
                  ((unsigned char *) &rand_val)[c],
                  *(unsigned char *) (start_address + offset + c),
                  (unsigned long) time(nullptr));
