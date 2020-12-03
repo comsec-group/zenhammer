@@ -61,6 +61,8 @@ class FuzzingParameterSet {
 
   int get_num_aggressors() const;
 
+  int get_random_amplitude(int max);
+
   int get_random_amplitude();
 
   int get_random_N_sided();

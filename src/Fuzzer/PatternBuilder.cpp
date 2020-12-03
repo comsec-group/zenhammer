@@ -25,7 +25,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
         for (size_t i = offset; i < aggressors.size(); i += base_period) {
           // printf("[DEBUG] Checking index %zu: %s\n", i, pattern[i].to_string().c_str());
           if (aggressors[i].id==ID_PLACEHOLDER_AGG) {
-            // printf("[DEBUG] Empty slot found at idx: %zu\n", i);
+//            printf("[DEBUG] Empty slot found at idx: %zu\n", i);
             next_offset = i;
             return true;
           }
@@ -45,9 +45,14 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   };
 
   size_t next_idx = 0;
-  auto get_next_agg = [&pairs, &next_idx]() -> std::vector<Aggressor> {
-    auto ret_value = pairs.at(next_idx);
-    next_idx = (next_idx + 1UL)%pairs.size();
+  auto get_next_agg = [&pairs, &next_idx](size_t N) -> std::vector<Aggressor> {
+    auto max_tries = pairs.size()+1;
+    std::vector<Aggressor> ret_value;
+    do {
+      ret_value = pairs.at(next_idx);
+      next_idx = (next_idx + 1UL)%pairs.size();
+      max_tries--;
+    } while (ret_value.size()!=N && max_tries > 0);
     return ret_value;
   };
 
@@ -86,20 +91,23 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   // TODO: I am not sure if it makes sense to randomize the abstract aggressors too; I think it is sufficient if we
   //  have the 'use sequential addresses' logic in the PatternAddressMapping
   const bool use_seq_aggs = fuzzing_params.get_random_use_seq_addresses();
-  printf("[DEBUG] use_seq_aggs: %s\n", use_seq_aggs ? "true" : "false");
+//  printf("[DEBUG] use_seq_aggs: %s\n", use_seq_aggs ? "true" : "false");
 
   // generate the pattern by iterating over all slots in the base period
   for (size_t i = 0; i < pattern.base_period; ++i) {
     // check if this slot was already filled up by (an) amplified aggressor(s)
-    if (pattern.accesses[i].id!=ID_PLACEHOLDER_AGG) continue;
-
-    // choose a random amplitude
-    auto cur_amplitude = (size_t) fuzzing_params.get_random_amplitude();
+    if (pattern.accesses[i].id!=ID_PLACEHOLDER_AGG) {
+//      printf("[DEBUG] Skipping idx %zu because pattern.accesses[%zu].id!=-1\n", i, i);
+      continue;
+    }
 
     // repeat until the current time slot k is filled up in each k+i*base_period
     int next_offset = i;
     int cur_N = fuzzing_params.get_random_N_sided();
     cur_period = pattern.base_period;
+
+    // choose a random amplitude
+    auto cur_amplitude = (size_t) fuzzing_params.get_random_amplitude(fuzzing_params.get_base_period()/cur_N);
 
     do {
       // define the period to use for the next agg(s)
@@ -108,27 +116,30 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
           fuzzing_params.get_max_period()/pattern.base_period).get_random_number(gen);
 
       // agg can be a single agg or a N-sided pair
-      std::vector<Aggressor> agg = use_seq_aggs ? get_next_agg() : get_random_N_sided_agg(cur_N);
+      std::vector<Aggressor> agg = use_seq_aggs ? get_next_agg(cur_N) : get_random_N_sided_agg(cur_N);
 
       // if there's only one aggressor then successively accessing it multiple times does not trigger any activations
-      if (agg.size()==1) cur_amplitude = 1;
+      if (agg.size()==1) {
+        cur_amplitude = 1;
+      }
+//      printf("[DEBUG] cur_amplitude: %lu\n", cur_amplitude);
 
-      // generates an AggressorAccess for each added aggressor set
+      // generates an AggressorAccess for this aggressor pair
       pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, agg, i);
 
       // fill the pattern with the given aggressors
       // - period
-      for (size_t j = 0; j*cur_period < pattern.accesses.size(); j++) {
+      for (size_t offt_period = 0; offt_period < pattern.accesses.size(); offt_period += cur_period) {
         // - amplitude
-        for (size_t m = 0; m < cur_amplitude; m++) {
+        for (size_t num_amplitude = 0; num_amplitude < cur_amplitude; num_amplitude++) {
           // - aggressors
-          for (size_t k = 0; k < agg.size(); k++) {
-            auto idx = (j*cur_period) + next_offset + (m*agg.size()) + k;
-             printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
+          for (size_t idx_agg = 0; idx_agg < agg.size(); idx_agg++) {
+            auto idx = offt_period + next_offset + (num_amplitude*agg.size()) + idx_agg;
+//            printf("[DEBUG] filling agg: %s, idx: %zu\n", agg[idx_agg].to_string().c_str(), idx);
             if (idx >= pattern.accesses.size()) {
               goto exit_loops;
             }
-            pattern.accesses[idx] = agg[k];
+            pattern.accesses[idx] = agg[idx_agg];
           }
         }
       }

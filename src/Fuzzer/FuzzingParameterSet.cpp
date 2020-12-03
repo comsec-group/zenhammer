@@ -3,6 +3,7 @@
 #include <sstream>
 #include <nlohmann/json.hpp>
 #include "Fuzzer/FuzzingParameterSet.hpp"
+#include <limits>
 
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
   std::random_device rd;
@@ -142,7 +143,7 @@ int FuzzingParameterSet::get_num_aggressors() const {
 }
 
 int FuzzingParameterSet::get_random_amplitude() {
-  return amplitude.get_random_number(gen);
+  return get_random_amplitude(std::numeric_limits<int>::max());
 }
 
 int FuzzingParameterSet::get_random_N_sided() {
@@ -179,4 +180,8 @@ int FuzzingParameterSet::get_num_refresh_intervals() const {
 
 int FuzzingParameterSet::get_max_period() const {
   return max_period;
+}
+
+int FuzzingParameterSet::get_random_amplitude(int max) {
+  return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
