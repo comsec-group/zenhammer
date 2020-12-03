@@ -1,10 +1,13 @@
 #ifndef BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
 #define BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
 
-#include <nlohmann/json.hpp>
-#include "Fuzzer/Aggressor.hpp"
 #include <random>
+#include <nlohmann/json.hpp>
+
+#include "Fuzzer/Aggressor.hpp"
 #include "Fuzzer/AggressorAccessPattern.hpp"
+#include "BitFlip.hpp"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 
 class PatternAddressMapping {
  public:
@@ -13,6 +16,8 @@ class PatternAddressMapping {
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
+
+  std::vector<BitFlip> bit_flips;
 
   // a randomization engine
   std::mt19937 gen;

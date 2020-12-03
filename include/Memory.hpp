@@ -35,6 +35,12 @@ class Memory {
   void initialize();
 
   volatile char *get_starting_address() const;
+
+  void check_memory(DramAnalyzer &dram_analyzer,
+                    volatile const char *start,
+                    volatile const char *end,
+                    size_t check_offset,
+                    PatternAddressMapping &mapping);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

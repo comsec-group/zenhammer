@@ -4,11 +4,12 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <unistd.h>
+#include <Fuzzer/PatternAddressMapping.hpp>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/AsmPrimitives.hpp"
 #include "DramAnalyzer.hpp"
-
+#include "Fuzzer/BitFlip.hpp"
 #include "Memory.hpp"
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
@@ -68,12 +69,11 @@ void Memory::initialize() {
   }
 }
 
-/// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
-/// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
 void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           const volatile char *start,
                           const volatile char *end,
-                          size_t check_offset) {
+                          size_t check_offset,
+                          PatternAddressMapping &mapping) {
 
   if (start==nullptr || end==nullptr) {
     printf("[-] Function mem_values called with invalid arguments\n");
@@ -117,14 +117,19 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
 
       // the bit flipped, now compare byte per byte
       for (unsigned long c = 0; c < sizeof(int); c++) {
-        if (*((char *) (start_address + offset + c))!=((char *) &rand_val)[c]) {
+        volatile char *flipped_address = start_address + offset + c;
+        if (*((char *) flipped_address)!=((char *) &rand_val)[c]) {
           printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
-                 start_address + offset + c,
-                 dram_analyzer.get_row_index(start_address + offset + c),
+                 flipped_address,
+                 dram_analyzer.get_row_index(flipped_address),
                  offset%getpagesize(),
                  ((unsigned char *) &rand_val)[c],
-                 *(unsigned char *) (start_address + offset + c),
+                 *(unsigned char *) flipped_address,
                  (unsigned long) time(nullptr));
+
+          uint8_t bitmask = ((unsigned char *) &rand_val)[c] ^ (*(unsigned char *) flipped_address);
+          BitFlip flip = BitFlip(DRAMAddr((void*)flipped_address), bitmask, *(unsigned char *) flipped_address);
+          mapping.bit_flips.emplace_back(flip);
         }
       }
 
@@ -135,6 +140,16 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       mfence();
     }
   }
+}
+/// Serves two purposes, if init=true then it initializes the memory with a pseudorandom (i.e., reproducible) sequence
+/// of numbers; if init=false then it checks whether any of the previously written values changed (i.e., bits flipped).
+void Memory::check_memory(DramAnalyzer &dram_analyzer,
+                          const volatile char *start,
+                          const volatile char *end,
+                          size_t check_offset) {
+  // create a "fake" pattern mapping to keep this method for backward compatibility
+  PatternAddressMapping pattern_mapping;
+  check_memory(dram_analyzer, start, end, check_offset, pattern_mapping);
 }
 
 Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
