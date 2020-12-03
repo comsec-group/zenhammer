@@ -9,22 +9,6 @@
 
 #include "GlobalDefines.hpp"
 
-uint64_t static inline KB(uint64_t value) {
-  return ((value) << 10ULL);
-}
-
-uint64_t static inline MB(uint64_t value) {
-  return ((value) << 20ULL);
-}
-
-uint64_t static inline GB(uint64_t value) {
-  return ((value) << 30ULL);
-}
-
-[[gnu::unused]] static inline uint64_t BIT_SET(uint64_t value) {
-  return (1ULL << (value));
-}
-
 [[gnu::unused]] static inline __attribute__((always_inline)) void clflush(volatile void *p) {
   asm volatile("clflush (%0)\n"::"r"(p)
   : "memory");

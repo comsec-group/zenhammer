@@ -1,6 +1,26 @@
 #ifndef GLOBAL_DEFINES
 #define GLOBAL_DEFINES
 
+#include <cstdio>
+#include <cstdint>
+#include <unistd.h>
+
+uint64_t static inline KB(uint64_t value) {
+  return ((value) << 10ULL);
+}
+
+uint64_t static inline MB(uint64_t value) {
+  return ((value) << 20ULL);
+}
+
+uint64_t static inline GB(uint64_t value) {
+  return ((value) << 30ULL);
+}
+
+[[gnu::unused]] static inline uint64_t BIT_SET(uint64_t value) {
+  return (1ULL << (value));
+}
+
 // font colors
 #define FRED "\e[0;31m"
 #define FGREEN "\e[0;32m"
@@ -43,10 +63,6 @@
 // number of bytes to be allocated
 #define MEM_SIZE (GB(1))
 
-// TODO: possible to replace by PAGE_SIZE from <sys/user.h>?
-// the size of a page in bytes
-#define PAGE_SIZE 4096
-
 // #########################################################
 // ################ PROGRAM FLOW PARAMETERS ################
 // #########################################################
@@ -56,5 +72,22 @@
 
 // generate frequency-based patterns using fuzzing
 #define USE_FREQUENCY_BASED_FUZZING 1
+
+[[gnu::unused]] static void print_global_defines() {
+  printf("------ Run Configuration ------\n");  // TODO: update this
+  printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
+  printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
+  printf("HAMMER_ROUNDS: %d\n", HAMMER_ROUNDS);
+  printf("THRESH: %d\n", THRESH);
+  printf("NUM_TARGETS: %d\n", NUM_TARGETS);
+  printf("MAX_ROWS: %d\n", MAX_ROWS);
+  printf("NUM_BANKS: %d\n", NUM_BANKS);
+  printf("DIMM: %d\n", DIMM);
+  printf("CHANNEL: %d\n", CHANNEL);
+  printf("MEM_SIZE: %lu\n", MEM_SIZE);
+  printf("PAGE_SIZE: %d\n", getpagesize());
+  printf("USE_SYNC: %s\n", USE_SYNC ? "true" : "false");
+  printf("USE_FREQUENCY_BASED_FUZZING: %s\n", USE_FREQUENCY_BASED_FUZZING ? "true" : "false");
+}
 
 #endif /* GLOBAL_DEFINES */

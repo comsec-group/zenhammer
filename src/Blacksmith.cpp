@@ -94,12 +94,13 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
 }
 
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
+  printf("Starting frequency-based hammering.\n");
   FuzzingParameterSet fuzzing_params(acts);
+  fuzzing_params.print_static_parameters();
   CodeJitter code_jitter;
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
-    fuzzing_params.randomize_parameters();
-    fuzzing_params.print_parameters();
+    fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     HammeringPattern hammering_pattern;
@@ -111,7 +112,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     int trials_per_pattern = 5;
     while (trials_per_pattern--) {
       // choose random addresses for pattern
-      PatternAddressMapping mapping = hammering_pattern.generate_random_addr_mapping(fuzzing_params.get_bank_no());
+      PatternAddressMapping mapping = hammering_pattern.generate_random_addr_mapping(fuzzing_params);
 
       // generate jitted hammering function
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
@@ -147,7 +148,7 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
 
     // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
     auto cur_start_addr =
-        memory.get_starting_address() + MB(100) + (((rand()%(MEM_SIZE - MB(200))))/PAGE_SIZE)*PAGE_SIZE;
+        memory.get_starting_address() + MB(100) + (((rand()%(MEM_SIZE - MB(200))))/getpagesize())*getpagesize();
     int aggressor_rows_size = (rand()%(MAX_ROWS - 3)) + 3;
 
     // distance between aggressors (within a pair)
@@ -263,21 +264,13 @@ void print_metadata() {
   gethostname(name, sizeof name);
   printf("Hostname: %s\n", name);
   printf("Internal_DIMM_ID: %d\n", -1);
-  system("echo \"Git_SHA: `git rev-parse --short HEAD`\"\n");
+  system("echo \"Git_SHA: `git rev-parse --short HEAD 2>/dev/null || echo 'not a repository'`\"\n");
   fflush(stdout);
-  system("echo Git_Status: `if [ \"$(git diff --stat)\" != \"\" ]; then echo dirty; else echo clean; fi`");
+  system("echo Git_Status: `if [ \"$(git diff --stat 2>/dev/null)\" != \"\" ]; then echo dirty; else echo clean; fi`");
   fflush(stdout);
-  printf("------ Run Configuration ------\n");  // TODO: update this
-  printf("CACHELINE_SIZE: %d\n", CACHELINE_SIZE);
-  printf("DRAMA_ROUNDS: %d\n", DRAMA_ROUNDS);
-  printf("HAMMER_ROUNDS: %d\n", HAMMER_ROUNDS);
   printf("EXECUTION_ROUNDS: %s\n",
          (EXECUTION_ROUNDS_INFINITE ? std::string("INFINITE") : std::to_string(EXECUTION_ROUNDS)).c_str());
-  printf("MAX_ROWS: %d\n", MAX_ROWS);
-  printf("MEM_SIZE: %lu\n", MEM_SIZE);
-  printf("NUM_BANKS: %d\n", NUM_BANKS);
-  printf("NUM_TARGETS: %d\n", NUM_TARGETS);
-  printf("USE_SYNC: %s\n", USE_SYNC ? "true" : "false");
+  print_global_defines();
   printf("======================================\n");
   fflush(stdout);
 }
