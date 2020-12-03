@@ -15,6 +15,8 @@ NUM_HOSTS=2
 declare -a HOSTS=("pc-10835.ethz.ch" "cn104-ee-tik.ethz.ch" )
 declare -a DIMM_IDS=(23)
 
+# TODO: Add check that verifies whether we have sudo privileges on remote host and superpages are available
+
 for i in $(seq 1 $NUM_HOSTS);
 do
   # TODO: Think about if we really want to use scp (directory might be dirty) or use git
@@ -22,7 +24,7 @@ do
   scp ../../blacksmith host:~/
 
   # run scripts/execute_remotely.sh via ssh in new tmux session
-  ssh -t HOSTS[$i] "tmux new-session -d -s my_session 'cd ~/blacksmith/scripts && ./run_benchmark.sh'"
+  ssh -t HOSTS["${i}"] "tmux new-session -d -s my_session 'cd ~/blacksmith/scripts && ./run_benchmark.sh'"
 done
 
 
@@ -39,7 +41,7 @@ TIMESTAMP=`date +"%Y%m%d_%H%M%S"`
 cd ~/blacksmith && cmake . && make
 
 # start the benchmark and write stdout to file + JSON export
-sudo ./blacksmith | tee ${TIMESTAMP}.log
+sudo ./blacksmith | tee "${TIMESTAMP}".log
 
 # upload results to S3 bucket into a folder called "timestamp_hostname"
 # note: the credentials only have permission to upload data
