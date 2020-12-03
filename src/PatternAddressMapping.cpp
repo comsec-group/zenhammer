@@ -23,7 +23,7 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
   const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
   bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
 
-  int start_row = Range(0, 8192).get_random_number(gen);
+  int start_row = Range<int>(0, 8192).get_random_number(gen);
   size_t cur_row = start_row;
 
   // we can make use here of the fact that each aggressor (identified by its ID) has a fixed N, that means, is
@@ -60,7 +60,7 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
         // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
         // and hammering spanning rows across multiple subarrays doesn't lead to bit flips
         // TODO: Change this back?
-        size_t row = use_seq_addresses ? cur_row : Range(start_row, start_row + 256).get_random_number(gen);
+        size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 256).get_random_number(gen);
         aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
       }
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();

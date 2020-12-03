@@ -33,10 +33,11 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    base_period: %d\n", base_period);
+  printf("    max_period: %d\n", max_period);
   printf(NONE);
 }
 
-std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range range_N_sided,
+std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<int> range_N_sided,
                                                                         std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
   for (int i = 0; i <= range_N_sided.max; i++) {
@@ -46,8 +47,6 @@ std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range ra
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  printf("[+] Randomizing fuzzing parameters.\n");
-
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
@@ -55,21 +54,21 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //  == are randomized for each added aggressor ======
 
   // [exported as part of AggressorAccessPattern]
-  amplitude = Range(1, 24);
+  amplitude = Range<int>(1, 24);
 
   // [derivable from aggressors in AggressorAccessPattern]
-  N_sided = Range(2, 2);
+  N_sided = Range<int>(2, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  agg_inter_distance = Range(4, 6);
+  agg_inter_distance = Range<int>(4, 6);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  bank_no = Range(0, NUM_BANKS - 1);
+  bank_no = Range<int>(0, NUM_BANKS - 1);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  use_sequential_aggressors = Range(0, 1);
+  use_sequential_aggressors = Range<int>(0, 1);
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -77,21 +76,21 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range(12, 56).get_random_number(gen);
+  num_aggressors = Range<int>(12, 56).get_random_number(gen);
 
   // [included in HammeringPattern]
-  num_refresh_intervals = Range(1, 8).get_random_number(gen);
+  num_refresh_intervals = Range<int>(1, 8).get_random_number(gen);
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = (num_activations_per_tREFI/4)*Range(1, num_refresh_intervals*4).get_random_number(gen);
+  base_period = (num_activations_per_tREFI/4)*Range<int>(1, num_refresh_intervals*4).get_random_number(gen);
 
-  // TODO: add max period
+  // [included in HammeringPattern]
+  max_period = base_period*10;
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-  // TODO: export (JSON) these only once per benchmark run
 
   // == fix values/formulas that must be configured before running this program ======
 
@@ -150,7 +149,7 @@ int FuzzingParameterSet::get_random_N_sided() {
   return N_sided_probabilities(gen);
 }
 
-const Range &FuzzingParameterSet::get_n_sided_range() const {
+const Range<int> &FuzzingParameterSet::get_n_sided_range() const {
   return N_sided;
 }
 
@@ -176,4 +175,8 @@ int FuzzingParameterSet::get_random_inter_distance() {
 
 int FuzzingParameterSet::get_num_refresh_intervals() const {
   return num_refresh_intervals;
+}
+
+int FuzzingParameterSet::get_max_period() const {
+  return max_period;
 }

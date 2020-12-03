@@ -11,6 +11,7 @@ PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern) : pattern(ha
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params) {
   pattern.accesses = std::vector<Aggressor>(fuzzing_params.get_total_acts_pattern(), Aggressor());
   pattern.base_period = fuzzing_params.get_base_period();
+  pattern.max_period = fuzzing_params.get_max_period();
   pattern.total_activations = fuzzing_params.get_total_acts_pattern();
   pattern.num_refresh_intervals = fuzzing_params.get_num_refresh_intervals();
   size_t cur_period = pattern.base_period;
@@ -82,11 +83,10 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     i += N;
   }
 
-  // the number of total activations (for a single aggressor) if we are using the base period as frequency
-  const size_t expected_acts = std::max((size_t) 1, fuzzing_params.get_total_acts_pattern()/pattern.base_period);
   // TODO: I am not sure if it makes sense to randomize the abstract aggressors too; I think it is sufficient if we
   //  have the 'use sequential addresses' logic in the PatternAddressMapping
   const bool use_seq_aggs = fuzzing_params.get_random_use_seq_addresses();
+  printf("[DEBUG] use_seq_aggs: %s\n", use_seq_aggs ? "true" : "false");
 
   // generate the pattern by iterating over all slots in the base period
   for (size_t i = 0; i < pattern.base_period; ++i) {
@@ -98,14 +98,14 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
 
     // repeat until the current time slot k is filled up in each k+i*base_period
     int next_offset = i;
-    size_t collected_acts = 0;
     int cur_N = fuzzing_params.get_random_N_sided();
     cur_period = pattern.base_period;
 
     do {
       // define the period to use for the next agg(s)
-      cur_period = cur_period*Range(1, expected_acts, true).get_random_number(gen);
-      collected_acts += (fuzzing_params.get_total_acts_pattern()/cur_period);
+      cur_period = pattern.base_period*Range<size_t>(
+          cur_period/pattern.base_period,
+          fuzzing_params.get_max_period()/pattern.base_period).get_random_number(gen);
 
       // agg can be a single agg or a N-sided pair
       std::vector<Aggressor> agg = use_seq_aggs ? get_next_agg() : get_random_N_sided_agg(cur_N);
@@ -124,7 +124,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
           // - aggressors
           for (size_t k = 0; k < agg.size(); k++) {
             auto idx = (j*cur_period) + next_offset + (m*agg.size()) + k;
-            // printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
+             printf("filling agg: %s, idx: %zu\n", agg[k].to_string().c_str(), idx);
             if (idx >= pattern.accesses.size()) {
               goto exit_loops;
             }

@@ -25,17 +25,19 @@ class FuzzingParameterSet {
 
   int base_period{};
 
-  Range bank_no{};
+  int max_period{};
+
+  Range<int> bank_no{};
 
   size_t total_acts_pattern{};
 
-  Range use_sequential_aggressors{};
+  Range<int> use_sequential_aggressors{};
 
-  Range agg_inter_distance;
+  Range<int> agg_inter_distance;
 
-  Range amplitude;
+  Range<int> amplitude;
 
-  Range N_sided;
+  Range<int> N_sided;
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -50,7 +52,7 @@ class FuzzingParameterSet {
 
   void randomize_parameters(bool print = true);
 
-  static std::discrete_distribution<int> build_distribution(Range range_N_sided,
+  static std::discrete_distribution<int> build_distribution(Range<int> range_N_sided,
                                                             std::unordered_map<int, int> probabilities);
 
   int get_random_bank_no();
@@ -63,7 +65,7 @@ class FuzzingParameterSet {
 
   int get_random_N_sided();
 
-  const Range &get_n_sided_range() const;
+  const Range<int> &get_n_sided_range() const;
 
   bool get_random_use_seq_addresses();
 
@@ -80,6 +82,8 @@ class FuzzingParameterSet {
   void print_semi_dynamic_parameters() const;
 
   int get_num_refresh_intervals() const;
+
+  int get_max_period() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

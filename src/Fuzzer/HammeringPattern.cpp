@@ -4,6 +4,7 @@
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
   j = nlohmann::json{{"id", p.instance_id},
                      {"base_period", p.base_period},
+                     {"max_period", p.max_period},
                      {"total_activations", p.total_activations},
                      {"num_refresh_intervals", p.num_refresh_intervals},
 //                     {"accesses", p.accesses},
@@ -16,6 +17,7 @@ void to_json(nlohmann::json &j, const HammeringPattern &p) {
 void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("instance_id").get_to(p.instance_id);
   j.at("base_period").get_to(p.base_period);
+  j.at("max_period").get_to(p.max_period);
   j.at("total_activations").get_to(p.total_activations);
   j.at("num_refresh_intervals").get_to(p.num_refresh_intervals);
 

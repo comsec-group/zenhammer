@@ -19,6 +19,8 @@ class HammeringPattern {
   // the base period this hammering pattern was generated for
   size_t base_period{};
 
+  size_t max_period{};
+
   size_t total_activations{};
 
   size_t num_refresh_intervals{};
