@@ -62,7 +62,8 @@ set(SOURCES
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
-        src/Fuzzer/AggressorAccessPattern.cpp)
+        src/Fuzzer/AggressorAccessPattern.cpp
+        src/Fuzzer/BitFlip.cpp)
 
 set(HEADER_ONLY
         include/Utilities/ISerializable.hpp
