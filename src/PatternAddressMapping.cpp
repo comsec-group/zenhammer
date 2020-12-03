@@ -127,11 +127,13 @@ volatile char *PatternAddressMapping::get_highest_address() const {
 
 void to_json(nlohmann::json &j, const PatternAddressMapping &p) {
   j = nlohmann::json{{"id", p.instance_id},
-                     {"aggressor_to_addr", p.aggressor_to_addr}
+                     {"aggressor_to_addr", p.aggressor_to_addr},
+                     {"bit_flips", p.bit_flips},
   };
 }
 
 void from_json(const nlohmann::json &j, PatternAddressMapping &p) {
   j.at("id").get_to(p.instance_id);
   j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
+  j.at("bit_flips").get_to(p.bit_flips);
 }

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
@@ -95,11 +96,17 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
 
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   printf("Starting frequency-based hammering.\n");
+
+  std::vector<HammeringPattern> hammering_patterns;
+
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
+
   CodeJitter code_jitter;
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+    // TODO: Print round to stdout so that we can check current progress more easy
+    //  Maybe it's nice to have a representation like X/Y where X=Round and Y=ProbedAddress
     printf("[+] Randomizing fuzzing parameters.\n");
     fuzzing_params.randomize_parameters(true);
 
@@ -107,7 +114,6 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     HammeringPattern hammering_pattern;
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
-    printf("[+] Pattern length: %zu\n", hammering_pattern.accesses.size());
 
     // then test this pattern with 5 different address sets
     int trials_per_pattern = 5;
@@ -125,18 +131,22 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25);
+      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25, mapping);
+
+      hammering_patterns.push_back(hammering_pattern);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
-
-//    std::cout << "++++++++++++ DEBUGGING MODE ++++++++++++++++++++++++++++++++++++" << std::endl;
-//    nlohmann::json j = hammering_pattern;
-//    std::cout << j << std::endl;
-//    std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-//    exit(0);
   }
+
+  // TODO: make filename dynamic to avoid unintended overwriting
+  // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
+  std::ofstream json_export;
+  json_export.open("benchmark_results.json");
+  nlohmann::json j = hammering_patterns;
+  json_export << j;
+  json_export.close();
 }
 
 // Performs n-sided hammering.
