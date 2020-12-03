@@ -3,10 +3,10 @@
 #include <Utilities/Uuid.hpp>
 #include <Utilities/Range.hpp>
 #include <iostream>
+#include <Fuzzer/FuzzingParameterSet.hpp>
 #include "Fuzzer/PatternAddressMapping.hpp"
 
-PatternAddressMapping::PatternAddressMapping() /* NOLINT */
-    : instance_id(uuid::gen_uuid()) {
+PatternAddressMapping::PatternAddressMapping() : instance_id(uuid::gen_uuid()) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937(rd());
@@ -16,16 +16,15 @@ PatternAddressMapping::PatternAddressMapping() /* NOLINT */
   lowest_address = (volatile char *) (~(0UL));
 }
 
-void PatternAddressMapping::randomize_addresses(size_t bank, std::vector<AggressorAccessPattern> &agg_access_patterns) {
-  // TODO: Let PatternAddressMapping take FuzzingParameterSet instance as reference and then use the fuzzed params here
+void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_params,
+                                                std::vector<AggressorAccessPattern> &agg_access_patterns) {
   aggressor_to_addr.clear();
-  const int agg_intra_distance = 2;
-  const int agg_inter_distance = Range(4, 6).get_random_number(gen);
-  bool use_seq_addresses = (bool) (Range(0, 1).get_random_number(gen));
-  size_t cur_row = 1;
+  const int bank_no = fuzzing_params.get_random_bank_no();
+  const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
+  bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
 
   int start_row = Range(0, 8192).get_random_number(gen);
-  cur_row = start_row;
+  size_t cur_row = start_row;
 
   // we can make use here of the fact that each aggressor (identified by its ID) has a fixed N, that means, is
   // either accessed individually (N=1) or in a group of multiple aggressors (N>1; e.g., N=2 for double sided)
@@ -53,16 +52,16 @@ void PatternAddressMapping::randomize_addresses(size_t bank, std::vector<Aggress
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
         Aggressor &last_agg = acc_pattern.aggressors.at(i - 1);
         auto last_addr = aggressor_to_addr.at(last_agg.id);
-        cur_row = cur_row + (size_t) agg_intra_distance;
-        size_t row = use_seq_addresses ? cur_row : (last_addr.row + (size_t) agg_intra_distance);
-        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, row, last_addr.col)});
+        cur_row = cur_row + (size_t) fuzzing_params.get_agg_intra_distance();
+        size_t row = use_seq_addresses ? cur_row : (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance());
+        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, last_addr.col)});
       } else {
         cur_row = cur_row + (size_t) agg_inter_distance;
         // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
         // and hammering spanning rows across multiple subarrays doesn't lead to bit flips
         // TODO: Change this back?
         size_t row = use_seq_addresses ? cur_row : Range(start_row, start_row + 256).get_random_number(gen);
-        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank, row, 0)});
+        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
       }
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
       if (cur_addr < lowest_address) lowest_address = cur_addr;

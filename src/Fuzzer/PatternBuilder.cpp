@@ -11,6 +11,8 @@ PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern) : pattern(ha
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params) {
   pattern.accesses = std::vector<Aggressor>(fuzzing_params.get_total_acts_pattern(), Aggressor());
   pattern.base_period = fuzzing_params.get_base_period();
+  pattern.total_activations = fuzzing_params.get_total_acts_pattern();
+  pattern.num_refresh_intervals = fuzzing_params.get_num_refresh_intervals();
   size_t cur_period = pattern.base_period;
 
   std::vector<std::vector<Aggressor>> pairs;
@@ -80,7 +82,11 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     i += N;
   }
 
+  // the number of total activations (for a single aggressor) if we are using the base period as frequency
   const size_t expected_acts = std::max((size_t) 1, fuzzing_params.get_total_acts_pattern()/pattern.base_period);
+  // TODO: I am not sure if it makes sense to randomize the abstract aggressors too; I think it is sufficient if we
+  //  have the 'use sequential addresses' logic in the PatternAddressMapping
+  const bool use_seq_aggs = fuzzing_params.get_random_use_seq_addresses();
 
   // generate the pattern by iterating over all slots in the base period
   for (size_t i = 0; i < pattern.base_period; ++i) {
@@ -102,9 +108,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
       collected_acts += (fuzzing_params.get_total_acts_pattern()/cur_period);
 
       // agg can be a single agg or a N-sided pair
-      std::vector<Aggressor> agg = (fuzzing_params.use_sequential_aggressor_addresses())
-                                   ? get_next_agg()
-                                   : get_random_N_sided_agg(cur_N);
+      std::vector<Aggressor> agg = use_seq_aggs ? get_next_agg() : get_random_N_sided_agg(cur_N);
 
       // if there's only one aggressor then successively accessing it multiple times does not trigger any activations
       if (agg.size()==1) cur_amplitude = 1;

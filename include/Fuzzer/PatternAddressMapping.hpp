@@ -26,7 +26,7 @@ class PatternAddressMapping {
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   // TODO: add bool allow_same_address_aggressors=false to control reuse of addresses for aggressors with different IDs
-  void randomize_addresses(size_t bank, std::vector<AggressorAccessPattern> &agg_access_patterns);
+  void randomize_addresses(FuzzingParameterSet &fuzzing_params, std::vector<AggressorAccessPattern> &agg_access_patterns);
 
   // exports this pattern in a format that can be used by the CodeJitter
   std::vector<volatile char *> export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
