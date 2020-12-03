@@ -100,6 +100,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   CodeJitter code_jitter;
 
   while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+    printf("[+] Randomizing fuzzing parameters.\n");
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
@@ -264,9 +265,9 @@ void print_metadata() {
   gethostname(name, sizeof name);
   printf("Hostname: %s\n", name);
   printf("Internal_DIMM_ID: %d\n", -1);
-  system("echo \"Git_SHA: `git rev-parse --short HEAD 2>/dev/null || echo 'not a repository'`\"\n");
   fflush(stdout);
-  system("echo Git_Status: `if [ \"$(git diff --stat 2>/dev/null)\" != \"\" ]; then echo dirty; else echo clean; fi`");
+  system(
+      "echo \"Git_SHA: `(git rev-parse --short HEAD 2>/dev/null | tr '\\n' ' ' && if [ \"$(git diff --stat 2>/dev/null)\" != \"\" ]; then echo -n '(dirty)'; else echo -n '(clean)'; fi) || echo 'not a repository'`\"\n");
   fflush(stdout);
   printf("EXECUTION_ROUNDS: %s\n",
          (EXECUTION_ROUNDS_INFINITE ? std::string("INFINITE") : std::to_string(EXECUTION_ROUNDS)).c_str());
