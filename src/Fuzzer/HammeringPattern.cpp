@@ -1,8 +1,11 @@
+#include <Fuzzer/FuzzingParameterSet.hpp>
 #include "Fuzzer/HammeringPattern.hpp"
 
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
   j = nlohmann::json{{"id", p.instance_id},
                      {"base_period", p.base_period},
+                     {"total_activations", p.total_activations},
+                     {"num_refresh_intervals", p.num_refresh_intervals},
 //                     {"accesses", p.accesses},
                      {"access_ids", Aggressor::get_agg_ids(p.accesses)},
                      {"agg_access_patterns", p.agg_access_patterns},
@@ -13,6 +16,8 @@ void to_json(nlohmann::json &j, const HammeringPattern &p) {
 void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("instance_id").get_to(p.instance_id);
   j.at("base_period").get_to(p.base_period);
+  j.at("total_activations").get_to(p.total_activations);
+  j.at("num_refresh_intervals").get_to(p.num_refresh_intervals);
 
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("accesses_agg_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
@@ -22,9 +27,9 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("address_mappings").get_to<>(p.address_mappings);
 }
 
-PatternAddressMapping &HammeringPattern::generate_random_addr_mapping(size_t bank) {
+PatternAddressMapping &HammeringPattern::generate_random_addr_mapping(FuzzingParameterSet &fuzzing_params) {
   PatternAddressMapping mapping;
-  mapping.randomize_addresses(bank, agg_access_patterns);
+  mapping.randomize_addresses(fuzzing_params, agg_access_patterns);
   address_mappings.push_back(mapping);
   return address_mappings.back();
 }
@@ -33,7 +38,7 @@ std::vector<volatile char *> HammeringPattern::get_jittable_accesses_vector(Patt
   // sanity check to make sure that this mapping is valid for this pattern
   bool mapping_exists = false;
   for (auto &pam : address_mappings) {
-    if (&pam==&pattern_address_mapping) {
+    if (pam.instance_id==pattern_address_mapping.instance_id) {
       mapping_exists = true;
       break; // no need to continue loop from here
     }

@@ -19,6 +19,10 @@ class HammeringPattern {
   // the base period this hammering pattern was generated for
   size_t base_period{};
 
+  size_t total_activations{};
+
+  size_t num_refresh_intervals{};
+
   // the order in which accesses happen
   std::vector<Aggressor> accesses;
 
@@ -32,7 +36,7 @@ class HammeringPattern {
 
   HammeringPattern() : instance_id(uuid::gen_uuid()) {};
 
-  PatternAddressMapping &generate_random_addr_mapping(size_t bank);
+  PatternAddressMapping &generate_random_addr_mapping(FuzzingParameterSet &fuzzing_params);
 
   std::vector<volatile char *> get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping);
 };

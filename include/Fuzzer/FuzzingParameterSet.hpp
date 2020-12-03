@@ -29,7 +29,7 @@ class FuzzingParameterSet {
 
   size_t total_acts_pattern{};
 
-  bool use_sequential_aggressors{};
+  Range use_sequential_aggressors{};
 
   Range agg_inter_distance;
 
@@ -48,14 +48,12 @@ class FuzzingParameterSet {
  public:
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
 
-  void randomize_parameters();
+  void randomize_parameters(bool print = true);
 
   static std::discrete_distribution<int> build_distribution(Range range_N_sided,
                                                             std::unordered_map<int, int> probabilities);
 
-  void print_parameters() const;
-
-  int get_bank_no();
+  int get_random_bank_no();
 
   int get_hammering_total_num_activations() const;
 
@@ -67,11 +65,21 @@ class FuzzingParameterSet {
 
   const Range &get_n_sided_range() const;
 
-  bool use_sequential_aggressor_addresses() const;
+  bool get_random_use_seq_addresses();
 
   size_t get_total_acts_pattern() const;
 
   int get_base_period() const;
+
+  int get_agg_intra_distance() const;
+
+  int get_random_inter_distance();
+
+  void print_static_parameters() const;
+
+  void print_semi_dynamic_parameters() const;
+
+  int get_num_refresh_intervals() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
