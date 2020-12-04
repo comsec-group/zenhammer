@@ -46,7 +46,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
 
   size_t next_idx = 0;
   auto get_next_agg = [&pairs, &next_idx](size_t N) -> std::vector<Aggressor> {
-    auto max_tries = pairs.size()+1;
+    auto max_tries = pairs.size() + 1;
     std::vector<Aggressor> ret_value;
     do {
       ret_value = pairs.at(next_idx);
@@ -125,7 +125,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
 //      printf("[DEBUG] cur_amplitude: %lu\n", cur_amplitude);
 
       // generates an AggressorAccess for this aggressor pair
-      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, agg, i);
+      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, agg, next_offset);
 
       // fill the pattern with the given aggressors
       // - period
