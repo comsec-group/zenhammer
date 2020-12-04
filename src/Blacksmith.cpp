@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 #include <fstream>
+#include <chrono>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
@@ -23,8 +24,7 @@
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
-static unsigned long long EXECUTION_ROUNDS{0};
-static bool EXECUTION_ROUNDS_INFINITE{true};
+static long RUN_TIME_LIMIT{0};
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void hammer(std::vector<volatile char *> &aggressors) {
@@ -104,7 +104,19 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
   CodeJitter code_jitter;
 
-  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+  auto get_timestamp_sec = []() -> long {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+  };
+
+  long limit = get_timestamp_sec() + RUN_TIME_LIMIT;
+//  printf("[DEBUG] limit: %ld\n", limit);
+
+  int cur_round = 0;
+  while (get_timestamp_sec() < limit) {
+//    printf("[DEBUG] cur time: %ld\n", get_timestamp_sec());
+
+    cur_round++;
     // TODO: Print round to stdout so that we can check current progress more easy
     //  Maybe it's nice to have a representation like X/Y where X=Round and Y=ProbedAddress
     printf("[+] Randomizing fuzzing parameters.\n");
@@ -118,6 +130,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     // then test this pattern with 5 different address sets
     int trials_per_pattern = 5;
     while (trials_per_pattern--) {
+      printf("[+] Running for pattern %d with address set %d.\n", cur_round, 5 - trials_per_pattern);
+
       // choose random addresses for pattern
       PatternAddressMapping mapping = hammering_pattern.generate_random_addr_mapping(fuzzing_params);
 
@@ -140,6 +154,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     }
   }
 
+
   // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
@@ -154,7 +169,11 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   // TODO: Remove the usage of rand here and use C++ functions instead
   auto row_increment = dram_analyzer.get_row_increment();
 
-  while (EXECUTION_ROUNDS_INFINITE || EXECUTION_ROUNDS--) {
+  auto ts_start = std::chrono::high_resolution_clock::now();
+  ts_start.time_since_epoch().count();
+  auto limit = ts_start.time_since_epoch().count() + RUN_TIME_LIMIT;
+
+  while (std::chrono::high_resolution_clock::now().time_since_epoch().count() < limit) {
     srand(time(nullptr));
 
     // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
@@ -201,8 +220,12 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
         auto d1 = cur_next_addr;
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
         auto d2 = cur_next_addr;
-        printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n",
-               dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
+        printf("[+] d1 row %"
+        PRIu64
+        " (%p) d2 row %"
+        PRIu64
+        " (%p)\n",
+            dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
         if (ba==0) {
           printf("[+] sync: ref_rounds %lu, remainder %lu\n",
                  acts/aggressors.size(),
@@ -269,50 +292,47 @@ size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks
 /// Prints metadata about this evaluation run.
 void print_metadata() {
   printf("=== Evaluation Run Metadata ==========\n");
-  // TODO: Include our internal DRAM ID (not sure yet where to encode it; environment variable, dialog, parameter?)
   printf("Start_ts: %lu\n", (unsigned long) time(nullptr));
   char name[1024] = "";
   gethostname(name, sizeof name);
   printf("Hostname: %s\n", name);
-  printf("Internal_DIMM_ID: %d\n", -1);
   fflush(stdout);
   system(
       "echo \"Git_SHA: `(git rev-parse --short HEAD 2>/dev/null | tr '\\n' ' ' && if [ \"$(git diff --stat 2>/dev/null)\" != \"\" ]; then echo -n '(dirty)'; else echo -n '(clean)'; fi) || echo 'not a repository'`\"\n");
   fflush(stdout);
-  printf("EXECUTION_ROUNDS: %s\n",
-         (EXECUTION_ROUNDS_INFINITE ? std::string("INFINITE") : std::to_string(EXECUTION_ROUNDS)).c_str());
+  printf("RUN_TIME_LIMIT: %ld\n", RUN_TIME_LIMIT);
   print_global_defines();
   printf("======================================\n");
   fflush(stdout);
 }
 
-void parse_arguments(int argc, char **argv) {
-  // optional parameter 1: number of execution rounds
-  if (argc==2) {
-    char *p;
-    errno = 0;
-    unsigned long long conv = strtoull(argv[1], &p, 10);
-    if (errno!=0 || *p!='\0' || conv > ULLONG_MAX) {
-      printf(FRED "[-] Given program parameter (EXECUTION_ROUNDS) is invalid! Aborting." NONE "\n");
-      exit(1);
-    }
-    EXECUTION_ROUNDS = conv;
-    EXECUTION_ROUNDS_INFINITE = false;
+char *getCmdOption(char **begin, char **end, const std::string &option) {
+  char **itr = std::find(begin, end, option);
+  if (itr!=end && ++itr!=end) {
+    return *itr;
   }
+  return 0;
+}
+
+bool cmdOptionExists(char **begin, char **end, const std::string &option) {
+  return std::find(begin, end, option)!=end;
 }
 
 int main(int argc, char **argv) {
+  // parse the program arguments
+  RUN_TIME_LIMIT = strtol(getCmdOption(argv, argv + argc, "-runtime_limit"), nullptr, 10);
+
   // prints the current git commit and some metadata
   print_metadata();
 
-  // parse the program arguments
-  parse_arguments(argc, argv);
-
   // give this process the highest CPU priority
-  int ret = 0;
-  ret = setpriority(PRIO_PROCESS, 0, -20);
-  if (ret!=0) printf(FRED "[-] Instruction setpriority failed." NONE "\n");
-
+  int ret = setpriority(PRIO_PROCESS, 0, -20);
+  if (ret!=0) {
+    printf(FRED
+    "[-] Instruction setpriority failed."
+    NONE
+    "\n");
+  }
   // allocate a large bulk of contiguous memory
   bool use_superpage = true;
   Memory memory(use_superpage);
