@@ -143,7 +143,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
-  json_export.open("benchmark_results.json");
+  json_export.open("raw_data.json");
   nlohmann::json j = hammering_patterns;
   json_export << j;
   json_export.close();
@@ -330,8 +330,7 @@ int main(int argc, char **argv) {
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
   // count the number of possible activations per refresh interval
-  int act = 0;
-  act = count_acts_per_ref(dram_analyzer.get_banks());
+  int act = count_acts_per_ref(dram_analyzer.get_banks());
 
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
