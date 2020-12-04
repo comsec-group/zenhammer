@@ -66,7 +66,6 @@ set(SOURCES
         src/Fuzzer/BitFlip.cpp)
 
 set(HEADER_ONLY
-        include/Utilities/ISerializable.hpp
         include/Fuzzer/PatternAddressMapping.hpp)
 
 set(LIBRARY_NAME libblacksmith)
