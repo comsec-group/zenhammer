@@ -25,7 +25,7 @@ class Memory {
 
   ~Memory();
 
-  void allocate_memory(uint64_t mem_size);
+  void allocate_memory(size_t mem_size);
 
   void check_memory(DramAnalyzer &dram_analyzer,
                     const volatile char *start,

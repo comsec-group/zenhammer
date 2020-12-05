@@ -1,7 +1,9 @@
 include(CheckCXXCompilerFlag)
 cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
+
 set(CMAKE_CXX_STANDARD 11)
+set(ignoreMe "${CMAKE_C_COMPILER}")
 
 # Add some compiler options if they are supported
 function(enable_cxx_compiler_flag_if_supported flag)
@@ -22,16 +24,10 @@ enable_cxx_compiler_flag_if_supported("-Wextra")
 ##############################
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
-find_package(ASMJIT)
+find_package(AsmJit)
 if (NOT ASMJIT_FOUND)
     message("Trying to download and install asmjit, if this fails use this one-liner: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
-    message("Downloading asmjit")
-    include(FetchContent)
-    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
-    FetchContent_Declare(
-            asmjit
-            GIT_REPOSITORY https://github.com/asmjit/asmjit.git)
-    FetchContent_Populate(asmjit)
+    return()
 endif ()
 
 ##############################
@@ -51,7 +47,6 @@ if (NOT nlohmann_json_FOUND)
     FetchContent_MakeAvailable(nlohmann_json)
 endif ()
 
-
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
         src/Fuzzer/CodeJitter.cpp
@@ -66,14 +61,14 @@ set(SOURCES
         src/Fuzzer/BitFlip.cpp)
 
 set(HEADER_ONLY
-        include/Fuzzer/PatternAddressMapping.hpp)
+        include/Fuzzer/PatternAddressMapping.hpp
+        include/GlobalDefines.hpp)
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
-target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include ${ASMJIT_DIR}/src)
 target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
 target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})
-

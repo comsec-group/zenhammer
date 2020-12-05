@@ -2,7 +2,8 @@
 
 #include <algorithm>
 #include <set>
-#include <unordered_map>
+#include <map>
+#include <string>
 
 CodeJitter::CodeJitter() {
   logger = new asmjit::StringLogger;
@@ -24,7 +25,7 @@ void CodeJitter::cleanup() {
 }
 
 std::string get_string(FENCING_STRATEGY strategy) {
-  std::unordered_map<FENCING_STRATEGY, std::string> map =
+  std::map<FENCING_STRATEGY, std::string> map =
       {
           {FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"},
           {FENCING_STRATEGY::OMIT_FENCING, "OMIT_FENCING"}
@@ -33,7 +34,7 @@ std::string get_string(FENCING_STRATEGY strategy) {
 }
 
 std::string get_string(FLUSHING_STRATEGY strategy) {
-  std::unordered_map<FLUSHING_STRATEGY, std::string> map =
+  std::map<FLUSHING_STRATEGY, std::string> map =
       {
           {FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"}
       };
