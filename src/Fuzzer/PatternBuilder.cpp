@@ -40,8 +40,6 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     for (auto &agg_set : pairs) {
       if (agg_set.size()==N) return agg_set;
     }
-    fprintf(stderr, "[-] Couldn't get a N-sided aggressor pair but this shouldn't have happened.\n");
-    exit(1);
   };
 
   size_t next_idx = 0;
