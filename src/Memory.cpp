@@ -128,8 +128,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                  (unsigned long) time(nullptr));
 
           uint8_t bitmask = ((unsigned char *) &rand_val)[c] ^ (*(unsigned char *) flipped_address);
-          BitFlip flip = BitFlip(DRAMAddr((void*)flipped_address), bitmask, *(unsigned char *) flipped_address);
-          mapping.bit_flips.emplace_back(flip);
+          mapping.bit_flips.emplace_back(DRAMAddr((void*)flipped_address), bitmask, *(unsigned char *) flipped_address);
         }
       }
 
