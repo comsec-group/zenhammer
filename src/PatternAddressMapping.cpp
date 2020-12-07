@@ -94,7 +94,7 @@ std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(s
 
     // check whether there exists a aggressor ID -> address mapping before trying to access it
     if (aggressor_to_addr.count(agg.id)==0) {
-      fprintf(stderr, "[-] ");
+      fprintf(stderr, "[-] Could not find a valid address mapping for aggressor with ID %d.\n", agg.id);
       continue;
     }
 
