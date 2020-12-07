@@ -58,7 +58,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   amplitude = Range<int>(1, 24);
 
   // [derivable from aggressors in AggressorAccessPattern]
-  N_sided = Range<int>(1, 2);
+  N_sided = Range<int>(2, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -109,7 +109,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  std::unordered_map<int, int> distribution = {{1, 2}, {2, 8}};
+  std::unordered_map<int, int> distribution = {{2, 8}};
   N_sided_probabilities = build_distribution(N_sided, distribution);
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
