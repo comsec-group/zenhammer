@@ -72,36 +72,41 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
 
 std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
                                                                                size_t base_period) {
-  std::vector<volatile char *> address_pattern;
-  std::cout << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): "
-            << std::endl;
+  std::stringstream stdout_str;
+  stdout_str << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): " << std::endl;
 
+  std::vector<volatile char *> address_pattern;
   bool invalid_aggs{false};
 
   for (size_t i = 0; i < aggressors.size(); ++i) {
+    // for better visualization: add whitespace after each base period
     if (i!=0 && (i%base_period)==0) {
-      std::cout << std::endl;
+      stdout_str << std::endl;
     }
+
+    // check whether this is a valid aggressor, i.e., the aggressor's ID != -1
     auto agg = aggressors[i];
     if (agg.id==ID_PLACEHOLDER_AGG) {
-      printf(FRED "-1 " NONE);
+      stdout_str << FRED << "-1" << NONE;
       invalid_aggs = true;
       continue;
     }
+
+    // check whether there exists a aggressor ID -> address mapping before trying to access it
+    if (aggressor_to_addr.count(agg.id)==0) {
+      fprintf(stderr, "[-] ");
+      continue;
+    }
+
+    // retrieve virtual address of current aggressor in pattern and add it to output vector
     address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
-    std::cout << aggressor_to_addr.at(agg.id).row << " ";
+    stdout_str << aggressor_to_addr.at(agg.id).row << " ";
   }
 
-//  for (auto &agg : aggressors) {
-//    if (agg.id==ID_PLACEHOLDER_AGG) {
-//      printf(FRED "-1 " NONE);
-//      invalid_aggs = true;
-//      continue;
-//    }
-//    address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
-//    std::cout << aggressor_to_addr.at(agg.id).row << " ";
-//  }
+  // print string representation of pattern
+  std::cout << stdout_str.str() << std::endl;
   std::cout << std::endl;
+
   if (invalid_aggs) {
     printf("[-] Found at least an invalid aggressor in the pattern. "
            "These aggressors were NOT added but printed to visualize their position.\n");

@@ -37,7 +37,8 @@ PatternAddressMapping &HammeringPattern::generate_random_addr_mapping(FuzzingPar
 }
 
 std::vector<volatile char *> HammeringPattern::get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping) {
-  // sanity check to make sure that this mapping is valid for this pattern
+  // sanity check to make sure that this mapping is valid for this pattern by checking if this PatternAddressMapping has
+  // been associated before to this HammeringPattern
   bool mapping_exists = false;
   for (auto &pam : address_mappings) {
     if (pam.instance_id==pattern_address_mapping.instance_id) {
