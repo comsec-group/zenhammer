@@ -105,7 +105,6 @@ std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(s
 
   // print string representation of pattern
   std::cout << stdout_str.str() << std::endl;
-  std::cout << std::endl;
 
   if (invalid_aggs) {
     printf("[-] Found at least an invalid aggressor in the pattern. "
