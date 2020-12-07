@@ -36,10 +36,15 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
   auto get_random_N_sided_agg = [&](size_t N) -> std::vector<Aggressor> {
+    if (N < (size_t) fuzzing_params.get_n_sided_range().min && N > (size_t) fuzzing_params.get_n_sided_range().max) {
+      fprintf(stderr, "[-] Given N in get_random_N_sided_agg is out of bounds of its valid range!\n");
+    }
     std::shuffle(pairs.begin(), pairs.end(), gen);
     for (auto &agg_set : pairs) {
       if (agg_set.size()==N) return agg_set;
     }
+    // this should never happen as we ensure that there's at least 1 aggressor set for each N in the given range
+    return {};
   };
 
   size_t next_idx = 0;
@@ -117,7 +122,9 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
       std::vector<Aggressor> agg = use_seq_aggs ? get_next_agg(cur_N) : get_random_N_sided_agg(cur_N);
 
       // if there's only one aggressor then successively accessing it multiple times does not trigger any activations
-      if (agg.size()==1) {
+      if (agg.empty()) {
+        continue;
+      } else if (agg.size()==1) {
         cur_amplitude = 1;
       }
 //      printf("[DEBUG] cur_amplitude: %lu\n", cur_amplitude);
