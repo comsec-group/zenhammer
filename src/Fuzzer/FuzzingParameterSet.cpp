@@ -47,6 +47,21 @@ std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<in
   return std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
+static int get_random_divisior(int n) {
+  std::vector<int> divisors; 
+  for (size_t i = 1; i <= sqrt(n); i++) {
+    if (n%i == 0) {
+      if (n/i == 1) {
+        divisors.push_back(i);
+      } else {
+	divisors.push_back(i);
+	divisors.push_back(n/i);
+      }
+    }
+  }
+  return divisors[rand()%divisors.size()];
+}
+
 void FuzzingParameterSet::randomize_parameters(bool print) {
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
@@ -88,10 +103,12 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = (num_activations_per_tREFI/4)*Range<int>(1, num_refresh_intervals*4).get_random_number(gen);
+  //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
+  base_period = get_random_divisior(num_activations_per_tREFI);
 
   // [included in HammeringPattern]
-  max_period = base_period*10;
+  //max_period = num_activations_per_tREFI*Range<int>(1,12).get_random_number(gen);
+  max_period = total_acts_pattern; 
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
