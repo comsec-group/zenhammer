@@ -110,21 +110,17 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   };
 
   long limit = get_timestamp_sec() + RUN_TIME_LIMIT;
-//  printf("[DEBUG] limit: %ld\n", limit);
 
   int cur_round = 0;
   while (get_timestamp_sec() < limit) {
-//    printf("[DEBUG] cur time: %ld\n", get_timestamp_sec());
-
     cur_round++;
-    // TODO: Print round to stdout so that we can check current progress more easy
-    //  Maybe it's nice to have a representation like X/Y where X=Round and Y=ProbedAddress
     printf("[+] Randomizing fuzzing parameters.\n");
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     HammeringPattern hammering_pattern;
     PatternBuilder pattern_builder(hammering_pattern);
+    printf("[+] Generating frequency-based hammering pattern.\n");
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // then test this pattern with 5 different address sets
@@ -133,7 +129,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       printf("[+] Running for pattern %d with address set %d.\n", cur_round, 5 - trials_per_pattern);
 
       // choose random addresses for pattern
-      PatternAddressMapping mapping = hammering_pattern.generate_random_addr_mapping(fuzzing_params);
+      PatternAddressMapping mapping;
+      mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // generate jitted hammering function
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
@@ -147,6 +144,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // check whether any bit flips occurred
       memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25, mapping);
 
+      // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
+      hammering_pattern.address_mappings.push_back(mapping);
       hammering_patterns.push_back(hammering_pattern);
 
       // cleanup the jitter for its next use
@@ -220,12 +219,8 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
         auto d1 = cur_next_addr;
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
         auto d2 = cur_next_addr;
-        printf("[+] d1 row %"
-        PRIu64
-        " (%p) d2 row %"
-        PRIu64
-        " (%p)\n",
-            dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
+        printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n", 
+          dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
         if (ba==0) {
           printf("[+] sync: ref_rounds %lu, remainder %lu\n",
                  acts/aggressors.size(),
@@ -319,8 +314,12 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
 }
 
 int main(int argc, char **argv) {
-  // parse the program arguments
-  RUN_TIME_LIMIT = strtol(getCmdOption(argv, argv + argc, "-runtime_limit"), nullptr, 10);
+  if (cmdOptionExists(argv, argv + argc, "-runtime_limit")) {
+    // parse the program arguments
+    RUN_TIME_LIMIT = strtol(getCmdOption(argv, argv + argc, "-runtime_limit"), nullptr, 10);
+  } else {
+    RUN_TIME_LIMIT = 120; // 2 minutes
+  }
 
   // prints the current git commit and some metadata
   print_metadata();
@@ -328,10 +327,7 @@ int main(int argc, char **argv) {
   // give this process the highest CPU priority
   int ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) {
-    printf(FRED
-    "[-] Instruction setpriority failed."
-    NONE
-    "\n");
+    printf(FRED "[-] Instruction setpriority failed." NONE "\n");
   }
   // allocate a large bulk of contiguous memory
   bool use_superpage = true;
@@ -351,7 +347,6 @@ int main(int argc, char **argv) {
 
   // count the number of possible activations per refresh interval
   int act = count_acts_per_ref(dram_analyzer.get_banks());
-
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     n_sided_frequency_based_hammering(memory, dram_analyzer, act);

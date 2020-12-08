@@ -6,6 +6,7 @@
 #include <string>
 
 #include "DramAnalyzer.hpp"
+#include "Fuzzer/PatternAddressMapping.hpp"
 
 class Memory {
  private:
