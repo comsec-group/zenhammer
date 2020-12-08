@@ -16,3 +16,7 @@ scripts/run_as_sudo.sh
 cmake-build-debug
 .idea
 cmake-build-debug*
+CMakeFiles/*
+build/*
+
+.DS_Store
