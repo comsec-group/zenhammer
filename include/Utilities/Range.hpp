@@ -7,33 +7,40 @@ template<typename T = int>
 struct Range {
   T min{0};
   T max{0};
+  T step{1};
   std::uniform_int_distribution<T> dist;
 
   Range() = default;
 
-  Range(T min, T max) : min(min), max(max), dist(std::uniform_int_distribution<T>(min, max)) {}
+  Range(T min, T max) : min(min), max(max), dist(std::uniform_int_distribution<T>(min, max)) {
 
-  Range(T min, T max, bool ensure_order) {
-    T new_min = min;
-    T new_max = max;
-    if (ensure_order) {
-      if (min >= max) {
-        new_min = max;
-        new_max = min;
-      }
-    }
+  }
+
+  Range(T min, T max, T step) : min(min), max(max), step(step), dist(std::uniform_int_distribution<T>(min, max)) {
+
+  }
+
+  void reset_min_max(T new_min, T new_max) {
     min = new_min;
     max = new_max;
-    dist = std::uniform_int_distribution<T>(new_min, new_max);
+    dist = std::uniform_int_distribution<T>(min, max);
   }
 
   T get_random_number(std::mt19937 &gen) {
-    return dist(gen);
+    if (step!=1) {
+      return Range<T>(min/step, max/step).get_random_number(gen)*step;
+    } else {
+      return dist(gen);
+    }
   }
 
   T get_random_number(int upper_bound, std::mt19937 &gen) {
     if (max > upper_bound) dist = std::uniform_int_distribution<>(min, upper_bound);
-    return dist(gen);
+    if (step!=1) {
+      return Range<T>(min/step, upper_bound/step).get_random_number(gen)*step;
+    } else {
+      return dist(gen);
+    }
   }
 };
 #endif /* RANGE */

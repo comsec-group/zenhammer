@@ -9,8 +9,6 @@ class FuzzingParameterSet {
  private:
   std::mt19937 gen;
 
-  // TODO: Add brief comments
-
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals{};
 
@@ -81,11 +79,11 @@ class FuzzingParameterSet {
 
   void print_semi_dynamic_parameters() const;
 
-  int get_num_refresh_intervals() const;
+  int get_random_even_divisior(int n, int min_value);
 
-  int get_max_period() const;
+  int random_range_step(int min_value, int max_value, int step);
 
-  static int get_random_even_divisior(int n, int min_value);
+  int get_random_N_sided(size_t upper_bound_max);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

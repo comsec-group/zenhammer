@@ -28,8 +28,6 @@ class PatternBuilder {
 
   static int all_slots_full(size_t offset, size_t period, int pattern_length, std::vector<Aggressor> &aggs);
 
-  int random_range_step(int min_value, int max_value, int step);
-
   static void fill_slots(size_t start_period,
                   size_t period,
                   size_t amplitude,

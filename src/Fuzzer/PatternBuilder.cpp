@@ -57,10 +57,6 @@ void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, size_t &next_idx) 
   }
 };
 
-int PatternBuilder::random_range_step(int min_value, int max_value, int step) {
-  return Range<int>(min_value/step, max_value/step).get_random_number(gen)*step;
-}
-
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params) {
   size_t last_agg_idx = 0;
   int pattern_length = fuzzing_params.get_total_acts_pattern();
@@ -83,8 +79,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     remove_smaller_than(cur_multiplicators, cur_m);
     cur_period = base_period*cur_m;
 
-    // TODO: Use get_random_N_sided from fuzzing_params
-    auto num_aggressors = ((base_period - k)==1) ? 1 : random_range_step(2, std::min(6UL, base_period - k), 2);
+    auto num_aggressors = ((base_period - k)==1) ? 1 : fuzzing_params.get_random_N_sided(base_period - k);
     auto cur_amplitude = fuzzing_params.get_random_amplitude((int) (base_period - k)/num_aggressors);
 
     std::vector<Aggressor> aggressors;
