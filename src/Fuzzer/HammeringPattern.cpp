@@ -28,11 +28,8 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("address_mappings").get_to<>(p.address_mappings);
 }
 
-void HammeringPattern::generate_random_addr_mapping(FuzzingParameterSet &fuzzing_params,
-                                                     PatternAddressMapping &pattern_address_mapping) {
-  pattern_address_mapping.randomize_addresses(fuzzing_params, agg_access_patterns);
-}
-
 std::vector<volatile char *> HammeringPattern::get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping) {
   return pattern_address_mapping.export_pattern_for_jitting(accesses, base_period);
 }
+
+HammeringPattern::HammeringPattern(size_t base_period) : instance_id(uuid::gen_uuid()), base_period(base_period) {}

@@ -118,7 +118,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
-    HammeringPattern hammering_pattern;
+    HammeringPattern hammering_pattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
     printf("[+] Generating frequency-based hammering pattern.\n");
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);

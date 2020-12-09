@@ -63,8 +63,6 @@ class FuzzingParameterSet {
 
   int get_random_amplitude(int max);
 
-  int get_random_amplitude();
-
   int get_random_N_sided();
 
   const Range<int> &get_n_sided_range() const;
@@ -86,6 +84,8 @@ class FuzzingParameterSet {
   int get_num_refresh_intervals() const;
 
   int get_max_period() const;
+
+  static int get_random_even_divisior(int n, int min_value);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
