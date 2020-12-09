@@ -47,6 +47,28 @@ std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<in
   return std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
+int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
+  std::vector<int> divisors;
+  for (size_t i = 1; i <= sqrt(n); i++) {
+    if (n%i==0) {
+      if ((n/i)==1 && (i%2)==0) {
+        divisors.push_back(i);
+      } else {
+        if (i%2==0) divisors.push_back(i);
+        if ((n/i)%2==0) divisors.push_back(n/i);
+      }
+    }
+  }
+
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(divisors.begin(), divisors.end(), g);
+  for (const auto &e : divisors) {
+    if (e >= min_value) return e;
+  }
+  return -1;
+}
+
 void FuzzingParameterSet::randomize_parameters(bool print) {
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
@@ -55,10 +77,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //  == are randomized for each added aggressor ======
 
   // [exported as part of AggressorAccessPattern]
-  amplitude = Range<int>(1, 24);
+  amplitude = Range<int>(1, 4);
 
   // [derivable from aggressors in AggressorAccessPattern]
-  N_sided = Range<int>(2, 2);
+  N_sided = Range<int>(1, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -82,16 +104,18 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   num_aggressors = Range<int>(4, 52).get_random_number(gen);
 
   // [included in HammeringPattern]
-  num_refresh_intervals = Range<int>(1, 12).get_random_number(gen);
+  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^6}
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = (num_activations_per_tREFI/4)*Range<int>(1, num_refresh_intervals*4).get_random_number(gen);
+  //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
 
   // [included in HammeringPattern]
-  max_period = base_period*10;
+  //max_period = num_activations_per_tREFI*Range<int>(1,12).get_random_number(gen);
+  max_period = total_acts_pattern;
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -109,7 +133,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  std::unordered_map<int, int> distribution = {{2, 8}};
+  std::unordered_map<int, int> distribution = {{2, 1}};
   N_sided_probabilities = build_distribution(N_sided, distribution);
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
@@ -142,10 +166,6 @@ int FuzzingParameterSet::get_hammering_total_num_activations() const {
 
 int FuzzingParameterSet::get_num_aggressors() const {
   return num_aggressors;
-}
-
-int FuzzingParameterSet::get_random_amplitude() {
-  return get_random_amplitude(std::numeric_limits<int>::max());
 }
 
 int FuzzingParameterSet::get_random_N_sided() {
@@ -187,3 +207,4 @@ int FuzzingParameterSet::get_max_period() const {
 int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
+

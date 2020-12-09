@@ -38,7 +38,7 @@ class HammeringPattern {
 
   HammeringPattern() : instance_id(uuid::gen_uuid()) {};
 
-  PatternAddressMapping &generate_random_addr_mapping(FuzzingParameterSet &fuzzing_params);
+  explicit HammeringPattern(size_t base_period);
 
   std::vector<volatile char *> get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping);
 };

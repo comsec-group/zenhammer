@@ -73,7 +73,7 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
 std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
                                                                                size_t base_period) {
   std::stringstream stdout_str;
-  stdout_str << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): " << std::endl;
+//  stdout_str << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): " << std::endl;
 
   std::vector<volatile char *> address_pattern;
   bool invalid_aggs{false};
@@ -105,7 +105,6 @@ std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(s
 
   // print string representation of pattern
   std::cout << stdout_str.str() << std::endl;
-  std::cout << std::endl;
 
   if (invalid_aggs) {
     printf("[-] Found at least an invalid aggressor in the pattern. "

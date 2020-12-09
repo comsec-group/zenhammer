@@ -4,6 +4,7 @@ project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(ignoreMe "${CMAKE_C_COMPILER}")
+set(CMAKE_BUILD_TYPE DEBUG)
 
 # Add some compiler options if they are supported
 function(enable_cxx_compiler_flag_if_supported flag)
@@ -66,7 +67,7 @@ set(HEADER_ONLY
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
-target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include ${ASMJIT_DIR}/src)
+target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include ${ASMJIT_INCLUDE_DIR})
 target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
 target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
