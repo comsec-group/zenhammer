@@ -28,7 +28,7 @@ class CodeJitter {
   asmjit::JitRuntime runtime;
 
   /// a logger that keeps track of the generated ASM instructions - useful for debugging
-  asmjit::StringLogger* logger = nullptr;
+  asmjit::StringLogger *logger = nullptr;
 
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;

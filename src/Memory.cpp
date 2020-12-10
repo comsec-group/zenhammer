@@ -25,30 +25,30 @@ void Memory::allocate_memory(size_t mem_size) {
   if (superpage) {
     // allocate memory using super pages
     fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
-    if (fp == nullptr) {
+    if (fp==nullptr) {
       fprintf(stderr, "[-] Could not mount superpage from %s.\n", hugetlbfs_mountpoint.c_str());
       perror("fopen");
       exit(-1);
     }
-    target = (volatile char *)mmap((void *)start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
-                                   MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
-    if (target == MAP_FAILED) {
+    target = (volatile char *) mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
+                                    MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
+    if (target==MAP_FAILED) {
       perror("mmap");
       exit(-1);
     }
   } else {
     // allocate memory using huge pages
-    ret = posix_memalign((void **)&target, MEM_SIZE, MEM_SIZE);
-    assert(ret == 0);
-    ret = madvise((void *)target, MEM_SIZE, MADV_HUGEPAGE);
-    assert(ret == 0);
-    memset((char *)target, 'A', MEM_SIZE);
+    ret = posix_memalign((void **) &target, MEM_SIZE, MEM_SIZE);
+    assert(ret==0);
+    ret = madvise((void *) target, MEM_SIZE, MADV_HUGEPAGE);
+    assert(ret==0);
+    memset((char *) target, 'A', MEM_SIZE);
     // for khugepaged
     printf("[+] Waiting for khugepaged.\n");
     sleep(10);
   }
 
-  if (target != start_address) {
+  if (target!=start_address) {
     printf("[-] Could not create mmap area at address %p, instead using %p.\n", start_address, target);
     start_address = target;
   }
@@ -63,11 +63,11 @@ void Memory::initialize() {
   for (uint64_t i = 0; i < size; i += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
     // those after hammering to see whether bit flips occurred
-    srand(i * getpagesize());
-    for (uint64_t j = 0; j < (uint64_t)getpagesize(); j += sizeof(int)) {
+    srand(i*getpagesize());
+    for (uint64_t j = 0; j < (uint64_t) getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
       // write (pseudo)random 4 bytes to target[offset] = target[i+j]
-      *((int *)(start_address + offset)) = rand();
+      *((int *) (start_address + offset)) = rand();
     }
   }
 }
@@ -77,21 +77,21 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           const volatile char *end,
                           size_t check_offset,
                           PatternAddressMapping &mapping) {
-  if (start == nullptr || end == nullptr) {
+  if (start==nullptr || end==nullptr) {
     printf("[-] Function mem_values called with invalid arguments\n");
     exit(1);
   }
 
   auto row_increment = dram_analyzer.get_row_increment();
-  start -= row_increment * check_offset;
-  end += row_increment * check_offset;
+  start -= row_increment*check_offset;
+  end += row_increment*check_offset;
 
-  auto start_offset = (uint64_t)(start - start_address);
-  start_offset = (start_offset / getpagesize()) * getpagesize();
+  auto start_offset = (uint64_t) (start - start_address);
+  start_offset = (start_offset/getpagesize())*getpagesize();
 
-  auto end_offset = start_offset + (uint64_t)(end - start);
-  end_offset = (end_offset / getpagesize()) * getpagesize();
- 
+  auto end_offset = start_offset + (uint64_t) (end - start);
+  end_offset = (end_offset/getpagesize())*getpagesize();
+
   printf("[+] Checking if any bit flips occurred.\n");
 
   // for each page in the address space [start, end]
@@ -99,8 +99,8 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
     // reseed rand to have a sequence of reproducible numbers, using this we can
     // compare the initialized values with those after hammering to see whether
     // bit flips occurred
-    srand(i * getpagesize());
-    for (uint64_t j = 0; j < (uint64_t)getpagesize(); j += sizeof(int)) {
+    srand(i*getpagesize());
+    for (uint64_t j = 0; j < (uint64_t) getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
       int rand_val = rand();
 
@@ -113,29 +113,30 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       mfence();
 
       // the bit did not flip
-      if (*((int *)(start_address + offset)) == rand_val) {
+      if (*((int *) (start_address + offset))==rand_val) {
         continue;
       }
 
       // the bit flipped, now compare byte per byte
       for (unsigned long c = 0; c < sizeof(int); c++) {
         volatile char *flipped_address = start_address + offset + c;
-        if (*((char *)flipped_address) != ((char *)&rand_val)[c]) {
+        if (*((char *) flipped_address)!=((char *) &rand_val)[c]) {
           printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
                  flipped_address,
                  dram_analyzer.get_row_index(flipped_address),
-                 offset % getpagesize(),
-                 ((unsigned char *)&rand_val)[c],
-                 *(unsigned char *)flipped_address,
-                 (unsigned long)time(nullptr));
+                 offset%getpagesize(),
+                 ((unsigned char *) &rand_val)[c],
+                 *(unsigned char *) flipped_address,
+                 (unsigned long) time(nullptr));
 
-          uint8_t bitmask = ((unsigned char *)&rand_val)[c] ^ (*(unsigned char *)flipped_address);
-          mapping.bit_flips.emplace_back(DRAMAddr((void *)flipped_address), bitmask, *(unsigned char *)flipped_address);
+          uint8_t bitmask = ((unsigned char *) &rand_val)[c] ^(*(unsigned char *) flipped_address);
+          mapping.bit_flips
+              .emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
         }
       }
 
       // restore original (unflipped) value
-      *((int *)(start_address + offset)) = rand_val;
+      *((int *) (start_address + offset)) = rand_val;
 
       clflushopt(start_address + offset);
       mfence();
@@ -157,7 +158,7 @@ Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
 }
 
 Memory::~Memory() {
-  if (munmap((void *)start_address, size) == -1) {
+  if (munmap((void *) start_address, size)==-1) {
     fprintf(stderr, "munmap failed with error:");
     perror("mmap");
   }
