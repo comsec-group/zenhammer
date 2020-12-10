@@ -35,7 +35,6 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    base_period: %d\n", base_period);
-  printf("    max_period: %d\n", max_period);
   printf(NONE);
 }
 
@@ -46,10 +45,6 @@ std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<in
     dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : 0);
   }
   return std::discrete_distribution<int>(dd.begin(), dd.end());
-}
-
-int FuzzingParameterSet::random_range_step(int min_value, int max_value, int step) {
-  return Range<int>(min_value/step, max_value/step).get_random_number(gen)*step;
 }
 
 int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
@@ -85,7 +80,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(2, 10, 2);
+//  N_sided = Range<int>(2, 2, 2);
+  N_sided = Range<int>(2, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -117,11 +113,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [included in HammeringPattern]
   //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
-  std::cout << "base_period: " << base_period << std::endl;
-
-  // [included in HammeringPattern]
-  //max_period = num_activations_per_tREFI*Range<int>(1,12).get_random_number(gen);
-  max_period = total_acts_pattern;
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -182,12 +173,8 @@ int FuzzingParameterSet::get_random_N_sided(size_t upper_bound_max) {
   if ((size_t) N_sided.max > upper_bound_max) {
     N_sided.reset_min_max(N_sided.min, upper_bound_max);
   }
-  return N_sided_probabilities(gen);
+  return get_random_N_sided();
 
-}
-
-const Range<int> &FuzzingParameterSet::get_n_sided_range() const {
-  return N_sided;
 }
 
 bool FuzzingParameterSet::get_random_use_seq_addresses() {

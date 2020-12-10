@@ -23,8 +23,6 @@ class FuzzingParameterSet {
 
   int base_period{};
 
-  int max_period{};
-
   Range<int> bank_no{};
 
   size_t total_acts_pattern{};
@@ -63,8 +61,6 @@ class FuzzingParameterSet {
 
   int get_random_N_sided();
 
-  const Range<int> &get_n_sided_range() const;
-
   bool get_random_use_seq_addresses();
 
   size_t get_total_acts_pattern() const;
@@ -80,8 +76,6 @@ class FuzzingParameterSet {
   void print_semi_dynamic_parameters() const;
 
   int get_random_even_divisior(int n, int min_value);
-
-  int random_range_step(int min_value, int max_value, int step);
 
   int get_random_N_sided(size_t upper_bound_max);
 };
