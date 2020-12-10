@@ -105,6 +105,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   num_aggressors = Range<int>(4, 52).get_random_number(gen);
 
   // [included in HammeringPattern]
+  // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
   num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
 
   // [included in HammeringPattern]
