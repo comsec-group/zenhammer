@@ -157,8 +157,9 @@ void DramAnalyzer::find_bank_conflicts() {
   srand(time(nullptr));
   int nr_banks_cur = 0;
   int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
-  while (nr_banks_cur < NUM_BANKS) {
+  while (nr_banks_cur < NUM_BANKS && remaining_tries > 0) {
     reset:
+    remaining_tries--;
     auto a1 = start_address + (rand()%(MEM_SIZE/64))*64;
     auto a2 = start_address + (rand()%(MEM_SIZE/64))*64;
     auto ret1 = measure_time(a1, a2);
@@ -196,7 +197,6 @@ void DramAnalyzer::find_bank_conflicts() {
               (int) NUM_BANKS);
       exit(1);
     }
-    remaining_tries--;
   }
 
   printf("[+] Found bank conflicts.\n");

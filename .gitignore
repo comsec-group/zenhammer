@@ -20,3 +20,4 @@ CMakeFiles/*
 build/*
 
 .DS_Store
+/visualize/venv/

@@ -219,8 +219,8 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
         auto d1 = cur_next_addr;
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
         auto d2 = cur_next_addr;
-        printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n", 
-          dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
+        printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n",
+               dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
         if (ba==0) {
           printf("[+] sync: ref_rounds %lu, remainder %lu\n",
                  acts/aggressors.size(),

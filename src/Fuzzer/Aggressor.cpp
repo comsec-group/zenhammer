@@ -34,7 +34,7 @@ std::vector<Aggressor> Aggressor::create_aggressors(const std::vector<AGGRESSOR_
   std::unordered_map<AGGRESSOR_ID_TYPE, Aggressor> aggId_to_aggressor_map;
 
   for (const auto &id : agg_ids) {
-    if (aggId_to_aggressor_map.count(id) == 0) {
+    if (aggId_to_aggressor_map.count(id)==0) {
       aggId_to_aggressor_map[id] = Aggressor(id);
     }
     result_list.push_back(aggId_to_aggressor_map.at(id));
