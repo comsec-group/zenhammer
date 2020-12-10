@@ -15,6 +15,9 @@ from operator import attrgetter
 def col_green(sstr):
     return f"\033[92m{sstr}\033[0m"
 
+def col_red(sstr):
+    return f"\033[91m{sstr}\033[0m"
+
 class AggressorAccessPattern():
     
     @classmethod 
@@ -38,8 +41,9 @@ class AggressorAccessPattern():
         return len(s.aggr_list)
 
     def __str__(s):
-        flip = "v" if s.flips else "x"
-        return f"AggAccPatt[{flip}](freq: {s.period}, ampl: {s.amplitude}, phase: {s.phase}, aggr: {s.aggr_tuple})"
+        flip = col_green("v") if s.flips else col_red("x")
+
+        return f"AggAccPatt[{flip}](period: {s.period}, ampl: {s.amplitude}, phase: {s.phase}, aggr: {s.aggr_tuple})"
    
     def __repr__(self):
         return self.__str__()
@@ -162,7 +166,8 @@ class HammeringPattern():
         self.instances = InstanceList((inst for inst in gen_instances(mappings)))
    
     def __str__(s):
-        return f"HammPatt[{col_green(s.uid)}]( #aggr_tuples: {len(s.aggr_list)}, period (base/max): {s.base_period}/{s.max_period})"
+        col_fn = col_green if any([x.flips for x in s.instances]) else col_red
+        return f"HammPatt[{col_fn(s.uid)}]( #aggr_tuples: {len(s.aggr_list)}, period (base/max): {s.base_period}/{s.max_period})"
 
     def __repr__(self):
         return self.__str__()
@@ -212,8 +217,8 @@ class HammeringPatternInstance():
 
     def __str__(s):
         aggr_str = "\n" + pp.pformat(s.aggr_list, indent=4)
-        flips = "v" if len(s.flips) else "x"
-        return f"HammInst[{col_green(s.uid)}][{flips}]({aggr_str})"                
+        col_fn = col_green if len(s.flips) else col_red 
+        return f"HammInst[{col_fn(s.uid)}]({aggr_str})"                
 
     def to_signal(s):
         return list(enumerate(s.order))
