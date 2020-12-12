@@ -1,4 +1,7 @@
+boto3==1.16.34
+botocore==1.19.34
 cycler==0.10.0
+jmespath==0.10.0
 kiwisolver==1.3.1
 matplotlib==3.3.3
 numpy==1.19.4
@@ -7,6 +10,8 @@ Pillow==8.0.1
 pyparsing==2.4.7
 python-dateutil==2.8.1
 pytz==2020.4
+s3transfer==0.3.3
 scipy==1.5.4
 seaborn==0.11.0
 six==1.15.0
+urllib3==1.26.2
