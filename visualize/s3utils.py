@@ -1,26 +1,20 @@
-import re
 import threading
-
 import boto3
-import pandas as pd
-from botocore.exceptions import ClientError
-from typing import List
 
 BUCKET_NAME = 'blacksmith-evaluation'
 client = boto3.client("s3")
 
 
-def get_file(path: str, filters: list, get_s3_url: bool = False):
+def get_file(path: str, filter: str, get_s3_url: bool = False):
     response = client.list_objects(Bucket=BUCKET_NAME, Prefix=path)
     files = []
     for content in response.get('Contents', []):
         filename = content.get('Key')
-        for f in filters:
-            if f in filename:
-                if get_s3_url:
-                    files.append(f"s3://{BUCKET_NAME}/{filename}")
-                else:
-                    files.append(filename)
+        if filter in filename:
+            if get_s3_url:
+                files.append(f"s3://{BUCKET_NAME}/{filename}")
+            else:
+                files.append(filename)
     return files
 
 
@@ -48,16 +42,6 @@ def get_folder_in_s3_path():
         last_dimm_id = dimm_id
     return folder_names
 
-
-# def get_folder_in_s3_path(path: str):
-#     result = client.list_objects_v2(Bucket=BUCKET_NAME)
-#     folder_names = []
-#     if result.get('CommonPrefixes') is None:
-#         print("[-] get_folder_in_s3_path failed for {}.".format(path))
-#         return []
-#     for o in result.get('CommonPrefixes'):
-#         folder_names.append(o.get('Prefix'))
-#     return folder_names
 
 def download_file_to(path: str, destination: str):
     print(f"[+] Downloading file from s3://{BUCKET_NAME}/{path}")
