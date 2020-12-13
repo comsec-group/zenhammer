@@ -48,8 +48,8 @@ class FuzzingParameterSet {
 
   void randomize_parameters(bool print = true);
 
-  static std::discrete_distribution<int> build_distribution(Range<int> range_N_sided,
-                                                            std::unordered_map<int, int> probabilities);
+  void set_distribution(Range<int> range_N_sided,
+                               std::unordered_map<int, int> probabilities);
 
   int get_random_bank_no();
 

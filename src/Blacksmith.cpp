@@ -97,12 +97,14 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   printf("Starting frequency-based hammering.\n");
 
-  std::vector<HammeringPattern> hammering_patterns;
+//  std::vector<HammeringPattern> hammering_patterns;
 
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
   CodeJitter code_jitter;
+
+  nlohmann::json arr = nlohmann::json::array();
 
   auto get_timestamp_sec = []() -> long {
     return std::chrono::duration_cast<std::chrono::seconds>(
@@ -146,7 +148,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
       // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapping);
-      hammering_patterns.push_back(hammering_pattern);
+      arr.push_back(hammering_pattern);
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
@@ -158,8 +160,9 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
   json_export.open("raw_data.json");
-  nlohmann::json j = hammering_patterns;
-  json_export << j;
+//  nlohmann::json j = hammering_patterns;
+//  json_export << j;
+  json_export << arr;
   json_export.close();
 }
 

@@ -38,13 +38,13 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   printf(NONE);
 }
 
-std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<int> range_N_sided,
-                                                                        std::unordered_map<int, int> probabilities) {
+void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
+                                           std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
   for (int i = 0; i <= range_N_sided.max; i++) {
-    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : 0);
+    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int)0);
   }
-  return std::discrete_distribution<int>(dd.begin(), dd.end());
+  N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
 int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
@@ -131,8 +131,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  std::unordered_map<int, int> distribution = {{2, 1}};
-  N_sided_probabilities = build_distribution(N_sided, distribution);
+  set_distribution(N_sided, {{1, 1}, {2, 5}, {3, 1}, {4, 5}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
