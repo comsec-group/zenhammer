@@ -1,3 +1,5 @@
+import gc
+import os
 import pprint as pp
 import itertools
 
@@ -106,7 +108,7 @@ class AggressorAccessPattern():
         num_rows = len(self.aggr_tuple)
         time_serie = [None] * self.period
         time_serie[0:len(self.patt())] = map(row_idx, self.patt())
-        print(f"period: {self.period}, ampl: {self.amplitude} phase: {self.phase}, max_period: {max_period}")
+        # print(f"period: {self.period}, ampl: {self.amplitude} phase: {self.phase}, max_period: {max_period}")
         time_serie = list(rotate(time_serie, self.phase, max_period))
 
         lines = to_lines(time_serie)
@@ -117,7 +119,7 @@ class AggressorAccessPattern():
             flip_lines = drawable_flips(self.flips, max_period)
 
         lc = collections.LineCollection(lines, linewidths=lwidth)
-        lc_flips = collections.LineCollection(flip_lines, linewidths=lwidth, color="red")
+        lc_flips = collections.LineCollection(flip_lines, linewidths=lwidth * 1.5, color="red")
 
         # Code drawing the time_plot
         ax.add_collection(lc)
@@ -146,9 +148,8 @@ class HammeringPattern():
     @classmethod
     def from_json(cls, ddict):
 
-        if not set(
-                ("id", "agg_access_patterns", "access_ids", "address_mappings", "base_period", "max_period")).issubset(
-            set(ddict.keys())):
+        if not {"id", "agg_access_patterns", "access_ids", "address_mappings", "base_period", "max_period"}.issubset(
+                set(ddict.keys())):
             return NotImplemented
         order = list(map(int, ddict['access_ids']))
         agg_list = list(map(AggressorAccessPattern.from_json, ddict['agg_access_patterns']))
@@ -159,7 +160,7 @@ class HammeringPattern():
 
         def gen_instances(mappings):
             for mmap in mappings:
-                if not set(mmap.keys()) == set(("aggressor_to_addr", "id", "bit_flips")):
+                if not set(mmap.keys()) == {"aggressor_to_addr", "id", "bit_flips"}:
                     yield NotImplemented
                 yield HammeringPatternInstance(self, mmap)
 
@@ -194,7 +195,7 @@ class HammeringPatternInstance():
         def interpolate_flip(flip):
             dist = lambda tup, flp: min(map(lambda x: abs(flp.addr.row - x.row), tup.aggr_tuple))
             min_dist = min((dist(tup, flip) for tup in self.aggr_list))
-            print(self.uid, ": ", min_dist)
+            # print(self.uid, ": ", min_dist)
             # assert min_dist < 5, "No AggressorAccessPattern respects the max distance"
             for tup in self.aggr_list:
                 dista = dist(tup, flip)
@@ -228,9 +229,12 @@ class HammeringPatternInstance():
     def to_signal(s):
         return list(enumerate(s.order))
 
-    def time_plot(self):
+    def time_plot(self, dest_filepath: str = None, plot_subtitle: str = None):
+        print('[+] Generating time plot.')
+        plt.rc('text', usetex=True)
 
         fig, axes = plt.subplots(len(self.aggr_list), 1, sharex='all', constrained_layout=True)
+        fig.set_figheight(7)
         for tup, ax in zip(self.aggr_list, axes):
             tup.to_time_plot(ax, self.max_period)
 
@@ -240,11 +244,21 @@ class HammeringPatternInstance():
         tmp_ax.set_xlim(-1, self.max_period + 1)
 
         fig.suptitle(f'{self.uid}')
+        if plot_subtitle is not None:
+            fig.suptitle(f"{self.uid}"
+                         "\n{\\small{"
+                         f"{plot_subtitle}"
+                         "}")
         plt.xlabel("Time")
-        # plt.show()
-        plt.savefig("figure_time.pdf")
 
-    def freq_ampl_plot(self):
+        if dest_filepath is None:
+            plt.show()
+        else:
+            plt.savefig(os.path.join(dest_filepath, "plot_time.png"), dpi=180)
+
+        plt.close()
+
+    def freq_ampl_plot(self, dest_filepath: str = None, plot_subtitle: str = None):
         def autolabel(ax, rect, label):
             height = rect.get_height()
             ax.annotate(f'{label}',
@@ -257,9 +271,11 @@ class HammeringPatternInstance():
             return [Line2D([0], [0], color='C0', lw=4, label='No Flips'),
                     Line2D([0], [0], color='C1', lw=4, label='Flips')]
 
+        print('[+] Generating frequency/amplitude plot.')
         data = pd.DataFrame([x.to_pandas_entry(self.max_period) for x in self.aggr_list])
         data.sort_values(["frequency", "amplitude"], inplace=True)
         fig, ax = plt.subplots()
+        fig.set_figheight(7)
 
         for k, g in data.groupby("frequency"):
             off = [x / 10 for x in range(1, len(g))]
@@ -281,14 +297,24 @@ class HammeringPatternInstance():
         ax2.set_ylim(ax.get_ylim())
 
         fig.suptitle(f'{self.uid}')
+        if plot_subtitle is not None:
+            fig.suptitle(f"{self.uid}"
+                         "\n{\\small{"
+                         f"{plot_subtitle}"
+                         "}")
         ax.set_xlabel("Frequency")
         ax.set_ylabel("Amplitude")
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax.legend(handles=gen_legend())
-        # plt.show()
-        plt.savefig("figure_amp.pdf")
 
-    def freq_phase_plot(self):
+        if dest_filepath is None:
+            plt.show()
+        else:
+            plt.savefig(os.path.join(dest_filepath, "plot_freq_amplitude.png"), dpi=180)
+
+        plt.close(fig)
+
+    def freq_phase_plot(self, dest_filepath: str = None, plot_subtitle: str = None):
         def autolabel(ax, rect, label):
             height = rect.get_height()
             ax.annotate(f'{label}',
@@ -301,13 +327,22 @@ class HammeringPatternInstance():
             return [Line2D([0], [0], color='C0', lw=4, label='No Flips'),
                     Line2D([0], [0], color='C1', lw=4, label='Flips')]
 
+        print('[+] Generating frequency/phase plot.')
         data = pd.DataFrame([x.to_pandas_entry(self.max_period) for x in self.aggr_list])
         fig, ax = plt.subplots()
-        ax.scatter(data['frequency'], data['phase'], c=["C0" if r.flips == False else "C1" for x, r in data.iterrows()])
+        ax.scatter(data['frequency'], data['phase'], c=["C0" if r.flips is False else "C1" for x, r in data.iterrows()])
+
+        fig.suptitle(f'{self.uid}', y=0.96)
+        if plot_subtitle is not None:
+            plt.title(plot_subtitle, fontsize=9)
 
         ax.set_xlabel("Frequency")
         ax.set_ylabel("Phase")
         ax.legend(handles=gen_legend())
-        # plt.show()
 
-        plt.savefig("figure_freq_phase.pdf")
+        if dest_filepath is None:
+            plt.show()
+        else:
+            plt.savefig(os.path.join(dest_filepath, "plot_freq_phase.png"), dpi=180)
+
+        plt.close(fig)
