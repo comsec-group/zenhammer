@@ -3,8 +3,8 @@
 REFS_PER_RI = int(64000/7.8) 
 
 # Parameters per setup 
-MAX_REFS = 4 
-MAX_ACT_PER_REF = 170
+MAX_REFS = 10 
+MAX_ACT_PER_REF = 160
 
 
 # Config parameters 

@@ -11,7 +11,7 @@ typedef struct FlipList {
 } FlipList;
 
 
-void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, size_t rounds);
+void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, size_t rounds, size_t act_ref);
 //void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t num_refs, size_t max_act, size_t rounds);
 
 FlipList scan(void* base, void* end); 

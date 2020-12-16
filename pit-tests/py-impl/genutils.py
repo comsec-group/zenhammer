@@ -23,4 +23,20 @@ def gen_ampl_freq(aggr_tuple):
     #frequency = rnd(int(expected_iters*1.2)) 
     #amplitude = rnd(int(expected_iters*1.1)) 
     return (amplitude, frequency)
+
+
+def log_file_name():
+    from datetime import datetime
+    import subprocess as sp
+    import re
     
+    serial_re = re.compile(r"Serial Number:\s*(.+)\n")
+    now = datetime.now()
+    now_str = now.strftime("%Y-%m-%d__%H-%M")
+    modules = filter(lambda x: x!="Not Specified", serial_re.findall(sp.check_output("dmidecode -t memory".split(), encoding='UTF-8'))) 
+    file_str = now_str + "__" + "-".join(modules) + ".pkl" 
+    return file_str
+
+
+    
+

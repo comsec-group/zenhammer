@@ -5,7 +5,7 @@ SRC=$(wildcard src/*.c)
 OBJ=$(SRC:.c=.o)
 TARGET=libhammer.so
 
-CFLAGS = -I$(INC) -g -lm -msse4.2 -fpic   #-DDEBUG 
+CFLAGS = -I$(INC) -g -lm -msse4.2 -fpic -DVERBOSE  #-DDEBUG 
 LDFLAGS= -shared
 
 all: $(TARGET) 

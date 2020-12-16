@@ -62,11 +62,11 @@ class PatternShape():
             return False
         return self.__hash__() == o.__hash__()
     
-    def id(self):
-        return self.__hash__() & 0xffff 
+    def uid(self):
+        return self.__hash__() & 0xffffffff 
    
     def __str__(self):
-        dictt = {"id": self.id(), "freq": self.frequency, "ampl": self.amplitude, "aggr": self.aggr_tuple, "period": self.period()}
+        dictt = {"uid": self.uid(), "freq": self.frequency, "ampl": self.amplitude, "aggr": self.aggr_tuple, "period": self.period()}
         return str(dictt)
 
     def __repr__(self):
@@ -135,12 +135,10 @@ class PhasedPatternShape(PatternShape):
         if not isinstance(o, PatternShape):
             return False
         return self.__hash__() == o.__hash__()
-    
-    def id(self):
-        return self.__hash__() & 0xffff 
+   
 
     def __str__(self):
-        dictt = {"id": self.id(), "freq": self.frequency, "ampl": self.amplitude, "aggr": self.aggr_tuple, "period": self.period(), "phase": self.phase}
+        dictt = {"uid": self.uid(), "freq": self.frequency, "ampl": self.amplitude, "aggr": self.aggr_tuple, "period": self.period(), "phase": self.phase}
         return str(dictt)
 
     def to_signal(self):
@@ -216,15 +214,14 @@ class PatternInstance(PhasedPatternShape):
         sync_addr = (ctypes.c_size_t)(sync_addr.to_addr())
         patt = (ctypes.c_void_p * len(signal))(*signal) 
         rounds = (ctypes.c_size_t)(int(4*EXPECTED_ACT/len(signal)))
-        libref.hammer_func(sync_addr, patt, len(patt), rounds) 
+        act_ref = (ctypes.c_size_t)(int(self.act_per_ref))
+        libref.hammer_func(sync_addr, patt, len(patt), rounds,  act_ref ) 
         flips = FlipScanner.scan(*scan_range)        
-        if flips:
-            print("[Flips]")
-            pp.pprint(flips)
+        return flips
     
 
 libref.hammer_func.restype = ctypes.c_void_p
-libref.hammer_func.argstype = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t] 
+libref.hammer_func.argstype = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t] 
 
 
 

@@ -42,9 +42,21 @@ FlipList scan(void* base, void* end) {
 }
 
 
+static void __attribute__((always_inline)) inline refresh_sync(char* addr) {
+	while(1) {
+		size_t t0 = rdtscp();
+		*(volatile char*)addr;
+		size_t dt = rdtscp() - t0;
+		clflushopt(addr);
+		if (dt > THRESH) 
+			break;
+	}
+}
+
+
 // this version is not syncing with the various refreshes. it simply generates a pattern with a given freq
 // and hopes for the best
-void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, size_t rounds) {
+void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, size_t rounds, size_t acts_ref) {
 // ROUNDS 25000
 // NUM_REFS ~8
 // MAX_ACT ~170	
@@ -67,24 +79,25 @@ void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, siz
 	
 	// sync_addr is an address mapping to a different back to avoid intereference
 	// REF is for all banks so this doesn't matter
-	while(1) {
-		size_t t0 = rdtscp();
-		*(volatile char*)sync_addr;
-		size_t dt = rdtscp() - t0;
-		clflushopt(sync_addr);
-		if (dt > THRESH) 
-			break;
-	}
-
+	refresh_sync(sync_addr);
 	// hammer the different addresses
 	// patt can be seen as a matrix where each row contains the activates to be done in that specific refresh interval 
 	// patt[num_refs][max_act_per_ref]	
 	for (size_t r = 0; r < rounds; ++r) {
-		for (size_t j = 0; j < len; j++) {
+		for (size_t j = 0; j < len;) {
 			// no need to serialize. 
 			// If you access to different addresses they get serialized authomatically (checked with PMU L2/L3 misses)
-			*(volatile char*) patt[j];
-			clflushopt(patt[j]);
+			//
+			char* curr_addr = patt[j];
+			asm volatile("cmovnz (%0), %%rdx \n"::"r"(curr_addr));
+//			*(volatile char*) patt[j];
+			clflushopt(curr_addr);
+			if (++j % acts_ref == 0) {
+
+				refresh_sync((char*)curr_addr);	
+			} 
+			
+
 		}
 //
 //			// Once done hammering keep on touching the last address
