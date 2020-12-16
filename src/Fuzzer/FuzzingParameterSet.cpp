@@ -38,13 +38,13 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   printf(NONE);
 }
 
-std::discrete_distribution<int> FuzzingParameterSet::build_distribution(Range<int> range_N_sided,
-                                                                        std::unordered_map<int, int> probabilities) {
+void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
+                                           std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
   for (int i = 0; i <= range_N_sided.max; i++) {
-    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : 0);
+    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int)0);
   }
-  return std::discrete_distribution<int>(dd.begin(), dd.end());
+  N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
 int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
@@ -75,18 +75,18 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //  == are randomized for each added aggressor ======
 
   // [exported as part of AggressorAccessPattern]
-  amplitude = Range<int>(1, 4);
+  amplitude = Range<int>(1, 8);
 
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
 //  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(2, 2);
+  N_sided = Range<int>(1, 4);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  agg_inter_distance = Range<int>(2, 16);
+  agg_inter_distance = Range<int>(2, 64);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
   bank_no = Range<int>(0, NUM_BANKS - 1);
@@ -102,11 +102,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // mapped to the same DRAM address]
   // TODO: Think whether we should make agg_id->address unique because now this parameter does not really have a meaning
   //  if we map different aggressor ids to the same address
-  num_aggressors = Range<int>(4, 52).get_random_number(gen);
+  num_aggressors = Range<int>(4, 64).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
+  num_refresh_intervals = std::pow(2, Range<int>(0, 8).get_random_number(gen));  // {2^0,..,2^k}
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -131,8 +131,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  std::unordered_map<int, int> distribution = {{2, 1}};
-  N_sided_probabilities = build_distribution(N_sided, distribution);
+  set_distribution(N_sided, {{1, 1}, {2, 5}, {3, 1}, {4, 5}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
