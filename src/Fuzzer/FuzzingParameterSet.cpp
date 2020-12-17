@@ -41,9 +41,16 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
                                            std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
-  for (int i = 0; i <= range_N_sided.max; i++) {
-    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int)0);
+  size_t num_iterations = 0;
+  for (int i = 0; i <= range_N_sided.max; num_iterations++, i += range_N_sided.step) {
+    dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int) 0);
   }
+
+  if (num_iterations < probabilities.size()) {
+    fprintf(stderr,
+            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
+  }
+
   N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }
 
@@ -81,7 +88,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
 //  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(1, 4);
+  N_sided = Range<int>(2, 4, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -131,7 +138,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  set_distribution(N_sided, {{1, 1}, {2, 5}, {3, 1}, {4, 5}});
+  set_distribution(N_sided, {{2, 5}, {4, 2}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
