@@ -3,7 +3,10 @@
 
 #include <sstream>
 #include <iomanip>
+
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #include "DRAMAddr.hpp"
 
