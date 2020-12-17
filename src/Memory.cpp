@@ -8,7 +8,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "DramAnalyzer.hpp"
 #include "Fuzzer/BitFlip.hpp"

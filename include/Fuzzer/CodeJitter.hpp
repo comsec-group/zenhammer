@@ -29,10 +29,10 @@ class CodeJitter {
 #ifdef ENABLE_JITTING
 
   /// runtime for JIT code execution, can be reused by cleaning the function ptr (see cleanup method)
-    asmjit::JitRuntime runtime;
+  asmjit::JitRuntime runtime;
 
-    /// a logger that keeps track of the generated ASM instructions - useful for debugging
-    asmjit::StringLogger *logger = nullptr;
+  /// a logger that keeps track of the generated ASM instructions - useful for debugging
+  asmjit::StringLogger *logger = nullptr;
 #endif
 
   /// a function pointer to a function that takes no input (void) and returns an integer

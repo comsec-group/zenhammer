@@ -1,12 +1,14 @@
 include(CheckCXXCompilerFlag)
+
 cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
-set(ignoreMe "${CMAKE_C_COMPILER}")
 set(CMAKE_BUILD_TYPE DEBUG)
 
-option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." OFF)
+option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
+option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
+
 if (ENABLE_JSON)
     add_definitions(-DENABLE_JSON)
     find_package(nlohmann_json QUIET)
@@ -23,7 +25,6 @@ if (ENABLE_JSON)
     endif ()
 endif ()
 
-option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." OFF)
 if (ENABLE_JITTING)
     add_definitions(-DENABLE_JITTING)
     set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
@@ -56,7 +57,7 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/PatternAddressMapping.cpp
+        src/Fuzzer/PatternAddressMapping.cpp
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp

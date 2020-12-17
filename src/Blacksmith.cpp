@@ -185,7 +185,6 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   }
 
 #ifdef ENABLE_JSON
-
   // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
@@ -193,7 +192,6 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   json_export << arr;
   json_export.close();
 #endif
-
 }
 
 // Performs n-sided hammering.

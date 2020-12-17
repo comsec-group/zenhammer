@@ -2,7 +2,10 @@
 #define BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
 
 #include <random>
+
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #include "Fuzzer/Aggressor.hpp"
 #include "Fuzzer/AggressorAccessPattern.hpp"

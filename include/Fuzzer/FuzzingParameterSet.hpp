@@ -23,13 +23,15 @@ class FuzzingParameterSet {
 
   int base_period{};
 
-  Range<int> bank_no{};
+  int sync_frequency{};
 
   size_t total_acts_pattern{};
 
+  Range<int> bank_no{};
+
   Range<int> use_sequential_aggressors{};
 
-  Range<int> agg_inter_distance;
+  Range<int> agg_inter_distance{};
 
   Range<int> amplitude;
 

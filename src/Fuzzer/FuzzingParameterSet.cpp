@@ -79,32 +79,6 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
-
-  // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  //  == are randomized for each added aggressor ======
-
-  // [exported as part of AggressorAccessPattern]
-  amplitude = Range<int>(1, 8);
-
-  // [derivable from aggressors in AggressorAccessPattern]
-  // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
-  // be filled up
-//  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(2, 4, 2);
-
-  // == are randomized for each different set of addresses a pattern is probed with ======
-
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  agg_inter_distance = Range<int>(2, 64);
-
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  bank_no = Range<int>(0, NUM_BANKS - 1);
-
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  use_sequential_aggressors = Range<int>(0, 1);
-
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   // == are only randomized once when calling this function ======
@@ -119,12 +93,41 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
   num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
 
+  // sync_frequency = 1 means that we sync after every refresh interval
+  sync_frequency = Range<int>(1, num_refresh_intervals).get_random_number(gen);
+
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
   //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+
+  // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
+
+  // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
+
+  //  == are randomized for each added aggressor ======
+
+  // [derivable from aggressors in AggressorAccessPattern]
+  // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
+  // be filled up
+  //  N_sided = Range<int>(2, 2, 2);
+  N_sided = Range<int>(2, 4, 2);
+
+  // [exported as part of AggressorAccessPattern]
+  amplitude = Range<int>(1, base_period/N_sided.min);
+
+  // == are randomized for each different set of addresses a pattern is probed with ======
+
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  agg_inter_distance = Range<int>(2, 64);
+
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  bank_no = Range<int>(0, NUM_BANKS - 1);
+
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  use_sequential_aggressors = Range<int>(0, 1);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
