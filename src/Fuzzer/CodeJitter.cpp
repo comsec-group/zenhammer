@@ -6,7 +6,9 @@
 #include <string>
 
 CodeJitter::CodeJitter() {
+#ifdef ENABLE_JITTING
   logger = new asmjit::StringLogger;
+#endif
 }
 
 CodeJitter::~CodeJitter() {
@@ -14,6 +16,7 @@ CodeJitter::~CodeJitter() {
 }
 
 void CodeJitter::cleanup() {
+#ifdef ENABLE_JITTING
   if (fn!=nullptr) {
     runtime.release(fn);
     fn = nullptr;
@@ -22,6 +25,7 @@ void CodeJitter::cleanup() {
     delete logger;
     logger = nullptr;
   }
+#endif
 }
 
 std::string get_string(FENCING_STRATEGY strategy) {
@@ -83,7 +87,7 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   if (fencing_strategy!=FENCING_STRATEGY::LATEST_POSSIBLE && fencing_strategy!=FENCING_STRATEGY::OMIT_FENCING) {
     printf("jit_strict does not support given FENCING_STRATEGY (%s).\n", get_string(fencing_strategy).c_str());
   }
-
+#ifdef ENABLE_JITTING
   printf("[+] Creating ASM code for hammering.\n");
   fflush(stdout);
 
@@ -236,4 +240,8 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
 
   // uncomment the following line to see the jitted ASM code
   // printf("[DEBUG] asmjit logger content:\n%s\n", logger->data());
+#endif
+#ifndef ENABLE_JITTING
+  printf("[-] Cannot do code jitting. Set option ENABLE_JITTING to ON in CMakeLists.txt and do a rebuild.");
+#endif
 }

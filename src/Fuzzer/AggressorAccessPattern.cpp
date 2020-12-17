@@ -1,5 +1,7 @@
 #include "Fuzzer/AggressorAccessPattern.hpp"
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const AggressorAccessPattern &p) {
   j = nlohmann::json{{"frequency", p.frequency},
                      {"amplitude", p.amplitude},
@@ -16,3 +18,5 @@ void from_json(const nlohmann::json &j, AggressorAccessPattern &p) {
   j.at("aggressors").get_to(agg_ids);
   p.aggressors = Aggressor::create_aggressors(agg_ids);
 }
+
+#endif

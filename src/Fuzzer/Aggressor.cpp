@@ -7,6 +7,8 @@ std::string Aggressor::to_string() const {
   return ss.str();
 }
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const Aggressor &p) {
   j = nlohmann::json{{"id", p.id}};
 }
@@ -14,6 +16,8 @@ void to_json(nlohmann::json &j, const Aggressor &p) {
 void from_json(const nlohmann::json &j, Aggressor &p) {
   j.at("id").get_to(p.id);
 }
+
+#endif
 
 std::vector<AGGRESSOR_ID_TYPE> Aggressor::get_agg_ids(const std::vector<Aggressor> &aggressors) {
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;

@@ -1,10 +1,13 @@
-#include <GlobalDefines.hpp>
 #include <unordered_map>
 #include <sstream>
-#include <nlohmann/json.hpp>
-#include "Fuzzer/FuzzingParameterSet.hpp"
-#include <limits>
 #include <iostream>
+
+#ifdef ENABLE_JSON
+#include <nlohmann/json.hpp>
+#endif
+
+#include "GlobalDefines.hpp"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
   std::random_device rd;
@@ -42,14 +45,14 @@ void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
                                            std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
   size_t num_iterations = 0;
-  for (int i = 0; i <= range_N_sided.max; num_iterations++, i += range_N_sided.step) {
+  for (int i = 0; i <= range_N_sided.max; num_iterations++, i += 1) {
     dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int) 0);
   }
 
-  if (num_iterations < probabilities.size()) {
-    fprintf(stderr,
-            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
-  }
+//  if (num_iterations < probabilities.size()) {
+//    fprintf(stderr,
+//            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
+//  }
 
   N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }
@@ -113,7 +116,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 8).get_random_number(gen));  // {2^0,..,2^k}
+  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -138,7 +141,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  set_distribution(N_sided, {{2, 5}, {4, 2}});
+  set_distribution(N_sided, {{1, 10}, {2, 60}, {4, 30}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -151,10 +154,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
 std::string FuzzingParameterSet::get_dist_string() const {
   std::stringstream ss;
-  int total = 0;
+  double total = 0;
   std::vector<double> probs = N_sided_probabilities.probabilities();
   for (const auto &d : probs) total += d;
-  for (size_t i = N_sided.min; i < std::min(probs.size(), (size_t) N_sided.max); ++i) {
+  for (size_t i = 0; i < probs.size(); ++i) {
+    if (probs[i]==0) continue;
     ss << i << "-sided: " << probs[i] << "/" << total << ", ";
   }
   return ss.str();
@@ -178,10 +182,9 @@ int FuzzingParameterSet::get_random_N_sided() {
 
 int FuzzingParameterSet::get_random_N_sided(size_t upper_bound_max) {
   if ((size_t) N_sided.max > upper_bound_max) {
-    N_sided.reset_min_max(N_sided.min, upper_bound_max);
+    return Range<int>(N_sided.min, upper_bound_max).get_random_number(gen);
   }
   return get_random_N_sided();
-
 }
 
 bool FuzzingParameterSet::get_random_use_seq_addresses() {

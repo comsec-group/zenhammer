@@ -1,9 +1,9 @@
-#include <cassert>
-#include <GlobalDefines.hpp>
-#include <Utilities/Uuid.hpp>
-#include <Utilities/Range.hpp>
 #include <iostream>
-#include <Fuzzer/FuzzingParameterSet.hpp>
+
+#include "GlobalDefines.hpp"
+#include "Utilities/Uuid.hpp"
+#include "Utilities/Range.hpp"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
 
 PatternAddressMapping::PatternAddressMapping() : instance_id(uuid::gen_uuid()) { /* NOLINT */
@@ -54,13 +54,16 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
         auto last_addr = aggressor_to_addr.at(last_agg.id);
         cur_row = cur_row + (size_t) fuzzing_params.get_agg_intra_distance();
         size_t row = use_seq_addresses ? cur_row : (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance());
+        if (arm_mode) row = row%1024;
         aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, last_addr.col)});
       } else {
+        // this is a new aggressor pair - we can choose where to place it
         cur_row = cur_row + (size_t) agg_inter_distance;
         // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
         // and hammering spanning rows across multiple subarrays doesn't lead to bit flips
-        // TODO: Change this back?
-        size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 256).get_random_number(gen);
+        // TODO: Add this back?
+        size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 32).get_random_number(gen);
+        if (arm_mode) row = row%1024;
         aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
       }
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
@@ -72,8 +75,8 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
 
 void PatternAddressMapping::export_pattern_internal(
     std::vector<Aggressor> &aggressors, size_t base_period,
-    std::vector<volatile char *> *addresses,
-    std::vector<int> *rows) {
+    std::vector<volatile char *> &addresses,
+    std::vector<int> &rows) {
 
   bool invalid_aggs{false};
   std::stringstream stdout_str;
@@ -99,8 +102,8 @@ void PatternAddressMapping::export_pattern_internal(
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses->push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
-    rows->push_back(aggressor_to_addr.at(agg.id).row);
+    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    rows.push_back(aggressor_to_addr.at(agg.id).row);
     stdout_str << aggressor_to_addr.at(agg.id).row << " ";
   }
 
@@ -114,15 +117,30 @@ void PatternAddressMapping::export_pattern_internal(
 }
 
 void PatternAddressMapping::export_pattern(
-    std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char*> &addresses) {
+    std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses) {
   std::vector<int> dummy_vector;
-  export_pattern_internal(aggressors, base_period, &addresses, &dummy_vector);
+  export_pattern_internal(aggressors, base_period, addresses, dummy_vector);
 }
 
 void PatternAddressMapping::export_pattern(
     std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows) {
-  std::vector<volatile char*> dummy_vector;
-  export_pattern_internal(aggressors, base_period, &dummy_vector, &rows);
+  std::vector<volatile char *> dummy_vector;
+  export_pattern_internal(aggressors, base_period, dummy_vector, rows);
+}
+
+void PatternAddressMapping::export_pattern(
+    std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows) {
+  std::vector<int> rows_vector;
+  std::vector<volatile char *> dummy_vector;
+  export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
+
+  if (max_rows < rows_vector.size()) {
+    fprintf(stderr, "[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
+  }
+
+  for (size_t i = 0; i < std::min(rows_vector.size(), max_rows); ++i) {
+    rows[i] = rows_vector.at(i);
+  }
 }
 
 volatile char *PatternAddressMapping::get_lowest_address() const {
@@ -141,15 +159,33 @@ volatile char *PatternAddressMapping::get_highest_address() const {
   return highest_address;
 }
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const PatternAddressMapping &p) {
-  j = nlohmann::json{{"id", p.instance_id},
+  j = nlohmann::json{{"id", p.get_instance_id()},
                      {"aggressor_to_addr", p.aggressor_to_addr},
                      {"bit_flips", p.bit_flips},
   };
 }
 
 void from_json(const nlohmann::json &j, PatternAddressMapping &p) {
-  j.at("id").get_to(p.instance_id);
+  j.at("id").get_to(p.get_instance_id());
   j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
   j.at("bit_flips").get_to(p.bit_flips);
+}
+
+#endif
+
+const std::string &PatternAddressMapping::get_instance_id() const {
+  return instance_id;
+}
+
+std::string &PatternAddressMapping::get_instance_id() {
+  return instance_id;
+}
+
+PatternAddressMapping::PatternAddressMapping(bool arm_mode) : arm_mode(arm_mode) {
+  // initialize pointers for first and last address of address pool
+  highest_address = (volatile char *) nullptr;
+  lowest_address = (volatile char *) (~(0UL));
 }

@@ -85,7 +85,6 @@ MemConfiguration DRAMAddr::MemConfig;
 size_t DRAMAddr::base_msb;
 bool DRAMAddr::valid_memcfg;
 
-
 std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
     {(CHANS(1UL) | DIMMS(1UL) | RANKS(1UL) | BANKS(16UL)),
      {
@@ -234,6 +233,8 @@ DRAMAddr::DRAMAddr() {
 
 }
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const DRAMAddr &p) {
   j = {{"bank", p.bank},
        {"row", p.row},
@@ -246,3 +247,5 @@ void from_json(const nlohmann::json &j, DRAMAddr &p) {
   j.at("row").get_to(p.row);
   j.at("col").get_to(p.col);
 }
+
+#endif

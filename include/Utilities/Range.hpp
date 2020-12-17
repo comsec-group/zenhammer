@@ -20,13 +20,10 @@ struct Range {
 
   }
 
-  void reset_min_max(T new_min, T new_max) {
-    min = new_min;
-    max = new_max;
-    dist = std::uniform_int_distribution<T>(min, max);
-  }
-
   T get_random_number(std::mt19937 &gen) {
+    if (max < min) {
+      std::swap(max, min);
+    }
     if (step!=1) {
       return Range<T>(min/step, max/step).get_random_number(gen)*step;
     } else {

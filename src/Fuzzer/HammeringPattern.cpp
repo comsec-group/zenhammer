@@ -1,5 +1,7 @@
-#include <Fuzzer/FuzzingParameterSet.hpp>
+#include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
+
+#ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
   j = nlohmann::json{{"id", p.instance_id},
@@ -27,5 +29,7 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("agg_access_patterns").get_to<>(p.agg_access_patterns);
   j.at("address_mappings").get_to<>(p.address_mappings);
 }
+
+#endif
 
 HammeringPattern::HammeringPattern(size_t base_period) : instance_id(uuid::gen_uuid()), base_period(base_period) {}
