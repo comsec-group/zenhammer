@@ -1,7 +1,9 @@
 #ifndef PATTERNBUILDER
 #define PATTERNBUILDER
 
+#ifdef ENABLE_JITTING
 #include <asmjit/asmjit.h>
+#endif
 
 #include <algorithm>
 #include <iostream>
