@@ -10,10 +10,22 @@
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
 class PatternAddressMapping {
- public:
+ private:
+  void export_pattern_internal(std::vector<Aggressor> &aggressors,
+                               size_t base_period,
+                               std::vector<volatile char *> *addresses,
+                               std::vector<int> *rows);
+
+  // the lowest address among all aggressors
+  volatile char *lowest_address;
+
+  // the highest address among all aggressors
+  volatile char *highest_address;
+
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
+ public:
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
 
@@ -22,11 +34,6 @@ class PatternAddressMapping {
   // a randomization engine
   std::mt19937 gen;
 
-  // the lowest address of the
-  volatile char *lowest_address;
-
-  volatile char *highest_address;
-
   explicit PatternAddressMapping();
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
@@ -34,13 +41,13 @@ class PatternAddressMapping {
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            std::vector<AggressorAccessPattern> &agg_access_patterns);
 
-  // exports this pattern in a format that can be used by the CodeJitter
-  std::vector<volatile char *> export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
-                                                          size_t base_period);
-
   volatile char *get_lowest_address() const;
 
   volatile char *get_highest_address() const;
+
+  void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows);
+
+  void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses);
 };
 
 void to_json(nlohmann::json &j, const PatternAddressMapping &p);

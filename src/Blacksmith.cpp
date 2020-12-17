@@ -134,12 +134,16 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       PatternAddressMapping mapping;
       mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
-      // generate jitted hammering function
+      // now fill the pattern with these random addresses
+      std::vector<volatile char*> hammering_pattern_accesses;
+      mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
+
+      // now create instructions that follow this pattern (i.e., do jitting of code)
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
       code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_pattern.get_jittable_accesses_vector(mapping));
+                             hammering_pattern_accesses);
 
       // do hammering
       code_jitter.hammer_pattern();

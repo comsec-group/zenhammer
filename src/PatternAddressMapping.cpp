@@ -70,16 +70,16 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
   }
 }
 
-std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(std::vector<Aggressor> &aggressors,
-                                                                               size_t base_period) {
-  std::stringstream stdout_str;
-//  stdout_str << "Pattern (bank = " << aggressor_to_addr.at(aggressors.at(0).id).bank << "): " << std::endl;
+void PatternAddressMapping::export_pattern_internal(
+    std::vector<Aggressor> &aggressors, size_t base_period,
+    std::vector<volatile char *> *addresses,
+    std::vector<int> *rows) {
 
-  std::vector<volatile char *> address_pattern;
   bool invalid_aggs{false};
+  std::stringstream stdout_str;
 
   for (size_t i = 0; i < aggressors.size(); ++i) {
-    // for better visualization: add whitespace after each base period
+    // for better visualization: add blank line after each base period
     if (i!=0 && (i%base_period)==0) {
       stdout_str << std::endl;
     }
@@ -99,7 +99,8 @@ std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(s
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    address_pattern.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses->push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    rows->push_back(aggressor_to_addr.at(agg.id).row);
     stdout_str << aggressor_to_addr.at(agg.id).row << " ";
   }
 
@@ -110,7 +111,18 @@ std::vector<volatile char *> PatternAddressMapping::export_pattern_for_jitting(s
     printf("[-] Found at least an invalid aggressor in the pattern. "
            "These aggressors were NOT added but printed to visualize their position.\n");
   }
-  return address_pattern;
+}
+
+void PatternAddressMapping::export_pattern(
+    std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char*> &addresses) {
+  std::vector<int> dummy_vector;
+  export_pattern_internal(aggressors, base_period, &addresses, &dummy_vector);
+}
+
+void PatternAddressMapping::export_pattern(
+    std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows) {
+  std::vector<volatile char*> dummy_vector;
+  export_pattern_internal(aggressors, base_period, &dummy_vector, &rows);
 }
 
 volatile char *PatternAddressMapping::get_lowest_address() const {

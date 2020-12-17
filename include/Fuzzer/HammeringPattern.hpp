@@ -40,7 +40,6 @@ class HammeringPattern {
 
   explicit HammeringPattern(size_t base_period);
 
-  std::vector<volatile char *> get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping);
 };
 
 void to_json(nlohmann::json &j, const HammeringPattern &p);
