@@ -1,4 +1,4 @@
-#include <GlobalDefines.hpp>
+#include "GlobalDefines.hpp"
 #include "DRAMAddr.hpp"
 
 void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start_address) {
@@ -25,15 +25,24 @@ void DRAMAddr::set_base(void *buff) {
 // the configuration. You could also test it by checking if you can trigger bank conflcits
 void DRAMAddr::load_mem_config(mem_config_t cfg) {
   MemConfig = Configs[cfg];
+  valid_memcfg = true;
 }
 
 DRAMAddr::DRAMAddr(size_t bk, size_t r, size_t c) {
-  bank = bk & MemConfig.BK_MASK;
-  row = r & MemConfig.ROW_MASK;
-  col = c & MemConfig.COL_MASK;
+  valid_memcfg = false;
+  if (!valid_memcfg) {
+    bank = bk;
+    row = r;
+    col = c;
+  } else {
+    bank = bk & MemConfig.BK_MASK;
+    row = r & MemConfig.ROW_MASK;
+    col = c & MemConfig.COL_MASK;
+  }
 }
 
 DRAMAddr::DRAMAddr(void *addr) {
+  valid_memcfg = false;
   auto p = (size_t) addr;
   size_t res = 0;
   for (unsigned long i : MemConfig.DRAM_MTX) {
@@ -74,6 +83,9 @@ std::string DRAMAddr::to_string() {
 
 MemConfiguration DRAMAddr::MemConfig;
 size_t DRAMAddr::base_msb;
+bool DRAMAddr::valid_memcfg;
+
+
 std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
     {(CHANS(1UL) | DIMMS(1UL) | RANKS(1UL) | BANKS(16UL)),
      {
@@ -217,6 +229,10 @@ std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
              0b000000000000000010000000000000,
              0b000000000000000001000000000000}
      }}};
+
+DRAMAddr::DRAMAddr() {
+
+}
 
 void to_json(nlohmann::json &j, const DRAMAddr &p) {
   j = {{"bank", p.bank},

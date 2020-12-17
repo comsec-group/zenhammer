@@ -33,6 +33,7 @@ class DRAMAddr {
   // Class attributes
   static std::map<size_t, MemConfiguration> Configs;
   static MemConfiguration MemConfig;
+  static bool valid_memcfg;
   static size_t base_msb;
 
   size_t linearize() const;
@@ -53,7 +54,7 @@ class DRAMAddr {
   explicit DRAMAddr(void *addr);
 
   // must be DefaultConstructible for JSON (de-)serialization
-  DRAMAddr() = default;
+  DRAMAddr();
 
   void *to_virt();
 
