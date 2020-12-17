@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
