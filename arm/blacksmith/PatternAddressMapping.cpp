@@ -140,23 +140,6 @@ void PatternAddressMapping::export_pattern(
   }
 }
 
-volatile char *PatternAddressMapping::get_lowest_address() const {
-  if (lowest_address==nullptr) {
-    printf("[-] Cannot get lowest address because no address has been assigned.");
-    assert(1);
-  }
-  return lowest_address;
-}
-
-volatile char *PatternAddressMapping::get_highest_address() const {
-  if (lowest_address==nullptr) {
-    printf("[-] Cannot get highest address because no address has been assigned");
-    assert(1);
-  }
-  return highest_address;
-}
-
-
 const std::string &PatternAddressMapping::get_instance_id() const {
   return instance_id;
 }

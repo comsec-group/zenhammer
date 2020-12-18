@@ -43,10 +43,6 @@ class PatternAddressMapping {
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            std::vector<AggressorAccessPattern> &agg_access_patterns);
 
-  volatile char *get_lowest_address() const;
-
-  volatile char *get_highest_address() const;
-
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows);
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses);
