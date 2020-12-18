@@ -20,13 +20,13 @@ class HammeringPattern {
   std::string instance_id;
 
   // the base period this hammering pattern was generated for
-  size_t base_period{};
+  size_t base_period;
 
-  size_t max_period{};
+  size_t max_period;
 
-  size_t total_activations{};
+  size_t total_activations;
 
-  size_t num_refresh_intervals{};
+  size_t num_refresh_intervals;
 
   // the order in which accesses happen
   std::vector<Aggressor> accesses;
@@ -39,7 +39,7 @@ class HammeringPattern {
   // better because we need to foreign keys and can easily associate this HammeringPattern to N PatternAddressMappings
   std::vector<PatternAddressMapping> address_mappings;
 
-  HammeringPattern() : instance_id(uuid::gen_uuid()) {};
+  HammeringPattern();
 
   explicit HammeringPattern(size_t base_period);
 };

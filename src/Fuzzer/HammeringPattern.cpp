@@ -32,4 +32,16 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
 
 #endif
 
-HammeringPattern::HammeringPattern(size_t base_period) : instance_id(uuid::gen_uuid()), base_period(base_period) {}
+HammeringPattern::HammeringPattern(size_t base_period)
+    : instance_id(uuid::gen_uuid()),
+      base_period(base_period),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0) {}
+
+HammeringPattern::HammeringPattern()
+    : instance_id(uuid::gen_uuid()),
+      base_period(0),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0) {}
