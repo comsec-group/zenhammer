@@ -135,10 +135,6 @@ void PatternAddressMapping::export_pattern(
   std::vector<volatile char *> dummy_vector;
   export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
 
-  if (max_rows < rows_vector.size()) {
-    printf("[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
-  }
-
   for (size_t i = 0; i < std::min(rows_vector.size(), max_rows); ++i) {
     rows[i] = rows_vector.at(i);
   }

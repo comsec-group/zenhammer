@@ -10,7 +10,7 @@
 void bs_cpp() {
     printf("Hello from CPP!\n");
 }
-void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
+int bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   for (int i = 0; i < max_accesses; i++) {
     rows_to_access[i] = 0;
   }
@@ -38,7 +38,15 @@ void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses
   // choose random addresses for pattern
   PatternAddressMapping mapping(true);
   mapping.randomize_addresses(fuzzing_params, agg_access_patterns);
+
+  if (max_accesses < (int)accesses.size()) {
+    printf("[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
+    return -1;
+  }
+
   mapping.export_pattern(accesses, fuzzing_params.get_base_period(), rows_to_access, max_accesses);
 
   delete(pb);
+
+  return (int)accesses.size();
 }
