@@ -14,8 +14,8 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
   gen = std::mt19937(misc_get_us());  // standard mersenne_twister_engine seeded with some random data
 
   // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
-//num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
-  num_activations_per_tREFI = measured_num_acts_per_ref;
+num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
+//  num_activations_per_tREFI = measured_num_acts_per_ref;
 
   // call randomize_parameters once to initialize static values
   randomize_parameters(false);
@@ -86,7 +86,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
 //  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(2, 4, 2);
+  N_sided = Range<int>(2, 2, 2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -127,7 +127,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  set_distribution(N_sided, {{1, 10}, {2, 60}, {4, 30}});
+  set_distribution(N_sided, {{2, 1}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
