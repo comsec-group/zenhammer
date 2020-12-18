@@ -14,6 +14,6 @@ std::vector<AggressorAccessPattern> agg_access_patterns;
 const size_t MAX_TRIALS_PER_PATTERN = 5;
 size_t trials_per_pattern = 0;
 
-void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses);
+int generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses);
 
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
