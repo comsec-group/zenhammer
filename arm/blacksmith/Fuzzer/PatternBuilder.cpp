@@ -4,7 +4,7 @@
 #include "Fuzzer/PatternBuilder.hpp"
 #include "DramAnalyzer.hpp"
 
-PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern) : pattern(hammering_pattern) {
+PatternBuilder::PatternBuilder() {
   std::random_device rd;
   gen = std::mt19937(rd());
 }
@@ -61,23 +61,25 @@ void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, size_t &next_idx) 
   }
 };
 
-void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params) {
+void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params,
+                                                      std::vector<Aggressor> &accesses,
+                                                      std::vector<AggressorAccessPattern> &agg_access_patterns) {
   size_t last_agg_idx = 0;
   int pattern_length = fuzzing_params.get_total_acts_pattern();
   auto base_period = (size_t) fuzzing_params.get_base_period();
   size_t num_base_periods = fuzzing_params.get_total_acts_pattern()/fuzzing_params.get_base_period();
   size_t cur_period = 0;
-  pattern.accesses = std::vector<Aggressor>(fuzzing_params.get_total_acts_pattern(), Aggressor());
+  accesses = std::vector<Aggressor>(fuzzing_params.get_total_acts_pattern(), Aggressor());
 
   // find x that are powers of two s.t. x < num_base_periods
   std::vector<int> allowed_multiplicators;
   for (int i = 0; std::pow(2, i) <= num_base_periods; ++i) {
     allowed_multiplicators.push_back(std::pow(2, i));
   }
-  pattern.max_period = allowed_multiplicators.back()*base_period;
+//  pattern.max_period = allowed_multiplicators.back()*base_period;
 
   for (size_t k = 0; k < base_period; ++k) {
-    if (pattern.accesses[k].id!=ID_PLACEHOLDER_AGG) continue;
+    if (accesses[k].id!=ID_PLACEHOLDER_AGG) continue;
 
     std::vector<int> cur_multiplicators(allowed_multiplicators.begin(), allowed_multiplicators.end());
     auto cur_m = cur_multiplicators.at(get_random_gaussian(cur_multiplicators));
@@ -89,18 +91,18 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
 
     std::vector<Aggressor> aggressors;
     get_n_aggressors(num_aggressors, aggressors, last_agg_idx);
-    pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, k);
-    fill_slots(k, cur_period, cur_amplitude, aggressors, pattern.accesses, pattern_length);
+    agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, k);
+    fill_slots(k, cur_period, cur_amplitude, aggressors, accesses, pattern_length);
 
-    for (auto next_slot = all_slots_full(k, base_period, pattern_length, pattern.accesses);
+    for (auto next_slot = all_slots_full(k, base_period, pattern_length, accesses);
          next_slot!=-1;
-         next_slot = all_slots_full(k, base_period, pattern_length, pattern.accesses)) {
+         next_slot = all_slots_full(k, base_period, pattern_length, accesses)) {
       auto cur_m2 = cur_multiplicators.at(get_random_gaussian(cur_multiplicators));
       remove_smaller_than(cur_multiplicators, cur_m2);
       cur_period = base_period*cur_m2;
       get_n_aggressors(num_aggressors, aggressors, last_agg_idx);
-      pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, next_slot);
-      fill_slots(next_slot, cur_period, cur_amplitude, aggressors, pattern.accesses, pattern_length);
+      agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, next_slot);
+      fill_slots(next_slot, cur_period, cur_amplitude, aggressors, accesses, pattern_length);
     }
   }
 }

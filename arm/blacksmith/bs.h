@@ -3,10 +3,11 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
 void bs_cpp();
-void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses); 
+
+void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses);
 
 #ifdef __cplusplus
 }

@@ -1,14 +1,16 @@
 #ifndef BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
 #define BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
 
-#include "Fuzzer/HammeringPattern.hpp"
 #include "Memory.hpp"
 #include "DramAnalyzer.hpp"
 
-// (ugly hack) last created HammeringPattern
-HammeringPattern hammering_pattern;
+#include <vector>
+#include <Fuzzer/Aggressor.hpp>
+#include <Fuzzer/AggressorAccessPattern.hpp>
 
-// (ugly hack) last created HammeringPattern
+std::vector<Aggressor> accesses;
+std::vector<AggressorAccessPattern> agg_access_patterns;
+
 const size_t MAX_TRIALS_PER_PATTERN = 5;
 size_t trials_per_pattern = 0;
 

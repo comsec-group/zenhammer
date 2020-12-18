@@ -2,7 +2,6 @@
 #if 0
 #include "Blacksmith.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
-#include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
 #endif
@@ -23,7 +22,6 @@ void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
-  printf("Hoi\n");
   printf("[+] Randomizing fuzzing parameters.\n");
   fuzzing_params.randomize_parameters(true);
 
@@ -31,16 +29,18 @@ void bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses
     trials_per_pattern++;
   } else {
     trials_per_pattern = 0;
-    hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
+    accesses.clear();
+    agg_access_patterns.clear();
   }
 
-  printf("[+] Generating ARM hammering pattern %s.\n", hammering_pattern.instance_id.c_str());
-  PatternBuilder pattern_builder(hammering_pattern);
-  pattern_builder.generate_frequency_based_pattern(fuzzing_params);
+  printf("[+] Generating ARM hammering pattern...\n");
+  PatternBuilder pattern_builder();
+
+  pattern_builder.generate_frequency_based_pattern(fuzzing_params, accesses, agg_access_patterns);
 
   // choose random addresses for pattern
   PatternAddressMapping mapping(true);
-  mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
-  mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
+  mapping.randomize_addresses(fuzzing_params, agg_access_patterns);
+  mapping.export_pattern(accesses, fuzzing_params.get_base_period(), rows_to_access, max_accesses);
 #endif
 }

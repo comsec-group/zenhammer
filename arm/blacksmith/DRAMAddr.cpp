@@ -1,3 +1,4 @@
+#include <cassert>
 #include "GlobalDefines.hpp"
 #include "DRAMAddr.hpp"
 

@@ -109,14 +109,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //  if we map different aggressor ids to the same address
   num_aggressors = Range<int>(4, 64).get_random_number(gen);
 
-  // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
   num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
 
-  // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
-  // [included in HammeringPattern]
   //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
 

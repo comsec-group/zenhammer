@@ -9,19 +9,20 @@
 #include <iostream>
 #include <random>
 
-#include "Fuzzer/HammeringPattern.hpp"
 #include "Utilities/Range.hpp"
+#include "Aggressor.hpp"
+#include "AggressorAccessPattern.hpp"
 
 class PatternBuilder {
  private:
-  HammeringPattern &pattern;
   std::mt19937 gen;
 
  public:
   /// default constructor that randomizes fuzzing parameters
-  explicit PatternBuilder(HammeringPattern &hammering_pattern);
+  explicit PatternBuilder();
 
-  void generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params);
+  void generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params, std::vector<Aggressor> &accesses,
+                                        std::vector<AggressorAccessPattern> &agg_access_patterns);
 
   size_t get_random_gaussian(std::vector<int> &list);
 
