@@ -5,7 +5,10 @@
 #include <random>
 #include <unordered_map>
 #include <vector>
+
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #include "Fuzzer/AggressorAccessPattern.hpp"
 #include "Utilities/Range.hpp"
@@ -39,11 +42,14 @@ class HammeringPattern {
   HammeringPattern() : instance_id(uuid::gen_uuid()) {};
 
   explicit HammeringPattern(size_t base_period);
-
 };
+
+#ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const HammeringPattern &p);
 
 void from_json(const nlohmann::json &j, HammeringPattern &p);
+
+#endif
 
 #endif /* HAMMERING_PATTERN */
