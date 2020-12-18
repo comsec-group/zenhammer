@@ -4,9 +4,12 @@
 #include "Fuzzer/PatternBuilder.hpp"
 #include "DramAnalyzer.hpp"
 
+extern "C" {
+#include "rh_misc.h"
+}
+
 PatternBuilder::PatternBuilder() {
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  gen = std::mt19937(misc_get_us());
 }
 
 size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {

@@ -1,15 +1,16 @@
 #include <iostream>
-
 #include "GlobalDefines.hpp"
-#include "Utilities/Uuid.hpp"
-#include "Utilities/Range.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
 
-PatternAddressMapping::PatternAddressMapping() : instance_id(uuid::gen_uuid()) { /* NOLINT */
+extern "C" {
+#include "rh_misc.h"
+}
+
+PatternAddressMapping::PatternAddressMapping() : instance_id(0) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  gen = std::mt19937(misc_get_us());
+
 
   // initialize pointers for first and last address of address pool
   highest_address = (volatile char *) nullptr;
@@ -44,10 +45,10 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
         // a previous aggressor was known but this aggressor is not known -> this must never happen because we use
         // Aggressor objects only once (e.g., either 1-sided or within a 2-sided pair); reusing addresses is achieve by
         // mapping the different Aggressors to the same address
-        fprintf(stderr,
+        printf(
                 "[-] Something went wrong with the aggressor's address selection. "
                 "Only one address of an N-sided pair has been accessed before. That's strange!\n");
-        exit(1);
+        assert(1);
       } else if (i > 0) {
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
         Aggressor &last_agg = acc_pattern.aggressors.at(i - 1);
@@ -61,8 +62,8 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
         cur_row = cur_row + (size_t) agg_inter_distance;
         // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
         // and hammering spanning rows across multiple subarrays doesn't lead to bit flips
-        // TODO: Add this back?
-        size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 32).get_random_number(gen);
+	    // TODO: Add this back?
+    	size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 32).get_random_number(gen);
         if (arm_mode) row = row%1024;
         aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
       }
@@ -97,7 +98,7 @@ void PatternAddressMapping::export_pattern_internal(
 
     // check whether there exists a aggressor ID -> address mapping before trying to access it
     if (aggressor_to_addr.count(agg.id)==0) {
-      fprintf(stderr, "[-] Could not find a valid address mapping for aggressor with ID %d.\n", agg.id);
+      printf("[-] Could not find a valid address mapping for aggressor with ID %d.\n", agg.id);
       continue;
     }
 
@@ -135,7 +136,7 @@ void PatternAddressMapping::export_pattern(
   export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
 
   if (max_rows < rows_vector.size()) {
-    fprintf(stderr, "[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
+    printf("[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
   }
 
   for (size_t i = 0; i < std::min(rows_vector.size(), max_rows); ++i) {
@@ -145,16 +146,16 @@ void PatternAddressMapping::export_pattern(
 
 volatile char *PatternAddressMapping::get_lowest_address() const {
   if (lowest_address==nullptr) {
-    fprintf(stderr, "[-] Cannot get lowest address because no address has been assigned.");
-    exit(1);
+    printf("[-] Cannot get lowest address because no address has been assigned.");
+    assert(1);
   }
   return lowest_address;
 }
 
 volatile char *PatternAddressMapping::get_highest_address() const {
   if (lowest_address==nullptr) {
-    fprintf(stderr, "[-] Cannot get highest address because no address has been assigned");
-    exit(1);
+    printf("[-] Cannot get highest address because no address has been assigned");
+    assert(1);
   }
   return highest_address;
 }
@@ -173,3 +174,4 @@ PatternAddressMapping::PatternAddressMapping(bool arm_mode) : arm_mode(arm_mode)
   highest_address = (volatile char *) nullptr;
   lowest_address = (volatile char *) (~(0UL));
 }
+

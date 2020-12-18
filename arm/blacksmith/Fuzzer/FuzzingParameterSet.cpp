@@ -6,34 +6,34 @@
 #include "GlobalDefines.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
+extern "C" {
+  #include "rh_misc.h"
+}
+
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
-  std::random_device rd;
-  gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
+  gen = std::mt19937(misc_get_us());  // standard mersenne_twister_engine seeded with some random data
 
   // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
-  num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
+//num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
+  num_activations_per_tREFI = measured_num_acts_per_ref;
 
   // call randomize_parameters once to initialize static values
   randomize_parameters(false);
 }
 
 void FuzzingParameterSet::print_static_parameters() const {
-  printf(FBLUE);
   printf("Benchmark run parameters:\n");
   printf("    agg_intra_distance: %d\n", agg_intra_distance);
   printf("    N_sided dist.: %s\n", get_dist_string().c_str());
   printf("    hammering_total_num_activations: %d\n", hammering_total_num_activations);
-  printf(NONE);
 }
 
 void FuzzingParameterSet::print_semi_dynamic_parameters() const {
-  printf(FBLUE);
   printf("Pattern-specific fuzzing parameters:\n");
   printf("    num_aggressors: %d\n", num_aggressors);
   printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
   printf("    total_acts_pattern: %zu\n", total_acts_pattern);
   printf("    base_period: %d\n", base_period);
-  printf(NONE);
 }
 
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
@@ -45,7 +45,7 @@ void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
   }
 
 //  if (num_iterations < probabilities.size()) {
-//    fprintf(stderr,
+//    printf(
 //            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
 //  }
 

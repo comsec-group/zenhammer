@@ -11,7 +11,7 @@ void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start
   } else if (num_bank_rank_functions==4) {
     num_ranks = RANKS(1);
   } else {
-    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
+    printf("[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2.\n");
     assert(1);
   }
   DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
