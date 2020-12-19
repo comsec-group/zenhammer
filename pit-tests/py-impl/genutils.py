@@ -38,5 +38,6 @@ def log_file_name():
     return file_str
 
 
-    
+def col_green(sstr):
+    return f"\033[92m{sstr}\033[0m"    
 

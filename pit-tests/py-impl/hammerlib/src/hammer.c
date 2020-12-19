@@ -53,6 +53,8 @@ static void __attribute__((always_inline)) inline refresh_sync(char* addr) {
 	}
 }
 
+#ifdef NEW_IMPL
+
 
 // this version is not syncing with the various refreshes. it simply generates a pattern with a given freq
 // and hopes for the best
@@ -114,3 +116,46 @@ void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, siz
 //			}
 	}
 }	
+
+#else
+
+// this version is not syncing with the various refreshes. it simply generates a pattern with a given freq
+// and hopes for the best
+void hammer_func(unsigned char* sync_addr, unsigned char** patt, size_t len, size_t rounds, size_t acts_ref) {
+// ROUNDS 25000
+// NUM_REFS ~8
+// MAX_ACT ~170	
+	
+//	printf("sync: %p\n", sync_addr);
+//	printf("patt: ");
+//	for (size_t x = 0; x < 10; x++) {
+//	
+//		printf("%p, ", patt[x]);	
+//	}
+//	printf("\n");
+//	return;
+	// bring the pattern into the cache 
+		for (size_t j = 0; j < len; j++) {
+			 (volatile char*) patt[j];
+		}
+	
+	usleep(64); // sleep for a couple of tREFIs 
+	//sched_yield(); // to avoid preemption during hammering
+	
+	// sync_addr is an address mapping to a different back to avoid intereference
+	// REF is for all banks so this doesn't matter
+	refresh_sync(patt[0]);
+	// hammer the different addresses
+	// patt can be seen as a matrix where each row contains the activates to be done in that specific refresh interval 
+	// patt[num_refs][max_act_per_ref]	
+	for (size_t r = 0; r < rounds; ++r) {
+		for (size_t j = 0; j < len;) {
+			*(volatile char*) patt[j];
+		}	
+		for (size_t j = 0; j < len;) {
+			clflushopt(patt[j]);
+		}
+		mfence();
+	}
+}	
+#endif

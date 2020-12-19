@@ -7,6 +7,9 @@ import struct
 import ctypes
 import ctypes.util
 import functools
+import genutils
+
+
 
 @functools.total_ordering
 class DRAMAddr(ctypes.Structure):
@@ -97,6 +100,12 @@ class DRAMAddr(ctypes.Structure):
         return int(libref.to_addr(d))
 
 
+class AggrAddr(DRAMAddr):
+    def __repr__(s):
+        return s.__str__()
+
+    def __str__(s):
+        return genutils.col_green(f"{super().__str__()}")
 
 # 
 # init hammerlib native functions

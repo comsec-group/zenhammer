@@ -1,0 +1,88 @@
+# blacksmith.py
+
+In blacksmith.py I have the code generating the different kind of patterns
+blacksmith imports dramaddr.py, pattern.py and flip.py to generate the different patterns
+
+In pattern.py we define three classes
+
+PatternShape
+PatternPhasedShape(PatternShape)
+PatternInstance(PatternPhaseShaped) 
+
+The idea is that you define a hammering shape with a specific frequency/amplitude
+This generates a rowhammer pattern where you activate specific rows. 
+For instance in the shape below you hammer for a specific amplitude 
+
+	amplitude
+    _______________________                     ________________________
+   |                       |                   |                        |
+   |                       |___________________|                        |______
+   ^                                           ^
+   |                                           |
+					period (i.e., freq)
+
+
+  phase          amplitude
+          _______________________                     ________________________
+    |    |                       |                   |                        |
+____|____|                       |___________________|                        |______
+
+
+*PatternPhasedShape* simply rotates the pattern of a specific phase. The idea is to test
+if there's a connection between the different phases and bit flips. For instance 
+a specific pattern may be able to trigger flips only if shifted of a specific phase 
+cause it then aligns with the TRR sampler.
+
+
+*PatternInstance*: an instance is simply a PatternPhasedShape with where we fill in 
+addresses. 
+This is done to test for spatial dependency between TRR and bit flips. For instance, 
+it may be that even with the same phase shape you may trigger bit flips on a row
+and not on another because the sampler uses some kind of locality to sample the rows. 
+
+
+By tweaking these parameters:
+- amplitude
+- frequency
+- phase
+- location 
+
+We can test which one plays a role in the hammering process. 
+
+
+# TODOs
+
+The ideal scenario would be to do post processing of effective patterns.
+For instance, if we find a pattern which trigger bit flips we want to test if hammering a different pair of aggressors works as well.
+We then want to test if the phase has any impact on the flips
+and finally we want to test if we can increase/decrease the frequency and still detect 
+flips 
+
+This would allow to generate some kind of model of the sampler for the specific module.
+Once we have that we could possibly build more effective access patterns for 
+exploitation instead of randomly testing stuff.
+
+
+
+# gen-mat.py
+This script is a WIP to generate the matrices used for DRAM Addressing. 
+It basically generate a direct and inverse matrix that we can multiply against
+a DRAMAddr or a physical address (in our case since we rely on 1GB hugepage)
+we can assume we can apply it to virtual addresses too. 
+
+
+A   * phys_addr = DRAMAddr 
+A-1 * DRAMAddr = phys_addr 
+
+@TODOs
+The goal is to reverse engineer all the different possible configurations and build a
+database of these. 
+Once we have this database we can simply plug it in on every system and test for RH
+without much effort anymore. We simply need to call "dmidecode -t memory"
+parse the output and identify the current memory configuration we want to upload. 
+The rest becomes fully transparent to the user. 
+
+We could bring it to a level of granularity where we take into account Rank Mirroring
+channel functions and in-DRAM row remapping. but at the moment we don't really care 
+about any of that because we can assume worst case scenario we simply miss some flips 
+

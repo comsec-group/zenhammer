@@ -83,6 +83,8 @@ class PatternShape():
     def max_phase(self):
         return self.period() - len(self.patt())
 
+
+
     """
     check if the properties of the Pattern are acceptable
     e.g., if the pattern fits in the period
@@ -148,6 +150,7 @@ class PhasedPatternShape(PatternShape):
         signal = [None]*self.period()   
         signal[0:len(self.patt())] = self.patt()
         return shift(signal,self.phase) 
+    
 
     """
     check also if the phase fits within the period 
@@ -180,7 +183,7 @@ class PatternInstance(PhasedPatternShape):
         res.amplitude 	        = shape.amplitude 
         res.frequency 	        = shape.frequency 
         res.phase               = shape.phase 
-        res.aggr_tuple          = tuple(DRAMAddr(d.bank, d.row+x, d.col) for x in shape.aggr_tuple) 
+        res.aggr_tuple          = tuple(AggrAddr(d.bank, d.row+x, d.col) for x in shape.aggr_tuple) 
         return res
     
     def padded_signal(self):
@@ -208,9 +211,10 @@ class PatternInstance(PhasedPatternShape):
         return signal
     
     def hammer(self):
+        print([x if isinstance(x[1], AggrAddr) else None for x in enumerate(self.padded_signal())])
         signal = list(map(lambda x:x.to_addr(), self.padded_signal()))
         scan_range = (self.aggr_tuple[0] - 5, self.aggr_tuple[1] + 5) 
-        sync_addr = self.aggr_tuple[0] + DRAMAddr(1,0,0) # sync on a different bank
+        sync_addr = self.aggr_tuple[0] + DRAMAddr(0,10,0) # sync on a different row 
         sync_addr = (ctypes.c_size_t)(sync_addr.to_addr())
         patt = (ctypes.c_void_p * len(signal))(*signal) 
         rounds = (ctypes.c_size_t)(int(4*EXPECTED_ACT/len(signal)))
