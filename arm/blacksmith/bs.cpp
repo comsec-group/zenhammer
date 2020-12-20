@@ -4,6 +4,10 @@
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
 
+extern "C" {
+#include "rh_misc.h"
+}
+
 
 #include <iostream>
 
@@ -31,22 +35,36 @@ int bs_generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses)
   }
 
   printf("[+] Generating ARM hammering pattern...\n");
-  PatternBuilder *pb = new PatternBuilder();
 
+  printf("[%lu] [%s] new PatternBuilder()\n", misc_get_us(), __func__);
+  PatternBuilder *pb = new PatternBuilder();
+  printf("[%lu] [%s] new PatternBuilder() done\n", misc_get_us(), __func__);
+
+  printf("[%lu] [%s] generate_frequency_based_pattern\n", misc_get_us(), __func__);
   pb->generate_frequency_based_pattern(fuzzing_params, accesses, agg_access_patterns);
+  printf("[%lu] [%s] generate_frequency_based_pattern done\n", misc_get_us(), __func__);
 
   // choose random addresses for pattern
+  printf("[%lu] [%s] mapping(true)\n", misc_get_us(), __func__);
   PatternAddressMapping mapping(true);
+  printf("[%lu] [%s] mapping(true) done\n", misc_get_us(), __func__);
+
+  printf("[%lu] [%s] randomize_addresses\n", misc_get_us(), __func__);
   mapping.randomize_addresses(fuzzing_params, agg_access_patterns);
+  printf("[%lu] [%s] randomize_addresses done\n", misc_get_us(), __func__);
 
   if (max_accesses < (int)accesses.size()) {
     printf("[-] Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
     return -1;
   }
 
+  printf("[%lu] [%s] export_pattern\n", misc_get_us(), __func__);
   mapping.export_pattern(accesses, fuzzing_params.get_base_period(), rows_to_access, max_accesses);
+  printf("[%lu] [%s] export_pattern done\n", misc_get_us(), __func__);
 
+  printf("[%lu] [%s] delete(pb)\n", misc_get_us(), __func__);
   delete(pb);
+  printf("[%lu] [%s] delete(pb) done\n", misc_get_us(), __func__);
 
   return (int)accesses.size();
 }

@@ -82,6 +82,7 @@ void PatternAddressMapping::export_pattern_internal(
   bool invalid_aggs{false};
   std::stringstream stdout_str;
 
+  printf("[%lu] [%s] loop over aggressors\n", misc_get_us(), __func__);
   for (size_t i = 0; i < aggressors.size(); ++i) {
     // for better visualization: add blank line after each base period
     if (i!=0 && (i%base_period)==0) {
@@ -107,9 +108,13 @@ void PatternAddressMapping::export_pattern_internal(
     rows.push_back(aggressor_to_addr.at(agg.id).row);
     stdout_str << aggressor_to_addr.at(agg.id).row << " ";
   }
+  printf("[%lu] [%s] loop over aggressors done\n", misc_get_us(), __func__);
 
+  /* TODO XXX SLOW DOWN HERE */
+  printf("[%lu] [%s] print string representation\n", misc_get_us(), __func__);
   // print string representation of pattern
-  std::cout << stdout_str.str() << std::endl;
+//std::cout << stdout_str.str() << std::endl;
+  printf("[%lu] [%s] print string representation done\n", misc_get_us(), __func__);
 
   if (invalid_aggs) {
     printf("[-] Found at least an invalid aggressor in the pattern. "
@@ -133,11 +138,16 @@ void PatternAddressMapping::export_pattern(
     std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows) {
   std::vector<int> rows_vector;
   std::vector<volatile char *> dummy_vector;
-  export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
 
+  printf("[%lu] [%s] export_pattern_internal\n", misc_get_us(), __func__);
+  export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
+  printf("[%lu] [%s] export_pattern_internal done\n", misc_get_us(), __func__);
+
+  printf("[%lu] [%s] many rows_vector.at calls\n", misc_get_us(), __func__);
   for (size_t i = 0; i < std::min(rows_vector.size(), max_rows); ++i) {
     rows[i] = rows_vector.at(i);
   }
+  printf("[%lu] [%s] many rows_vector.at calls done\n", misc_get_us(), __func__);
 }
 
 const std::string &PatternAddressMapping::get_instance_id() const {
