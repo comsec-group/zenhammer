@@ -1,5 +1,7 @@
 #include "Fuzzer/Aggressor.hpp"
 
+#include <unordered_map>
+
 std::string Aggressor::to_string() const {
   if (id==ID_PLACEHOLDER_AGG) return "EMPTY";
   std::stringstream ss;
@@ -7,17 +9,6 @@ std::string Aggressor::to_string() const {
   return ss.str();
 }
 
-#ifdef ENABLE_JSON
-
-void to_json(nlohmann::json &j, const Aggressor &p) {
-  j = nlohmann::json{{"id", p.id}};
-}
-
-void from_json(const nlohmann::json &j, Aggressor &p) {
-  j.at("id").get_to(p.id);
-}
-
-#endif
 
 std::vector<AGGRESSOR_ID_TYPE> Aggressor::get_agg_ids(const std::vector<Aggressor> &aggressors) {
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;

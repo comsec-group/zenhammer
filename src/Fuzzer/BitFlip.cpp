@@ -1,5 +1,7 @@
 #include "Fuzzer/BitFlip.hpp"
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const BitFlip &p) {
   j = nlohmann::json{{"dram_addr", p.address},
                      {"bitmask", p.bitmask},
@@ -12,6 +14,8 @@ void from_json(const nlohmann::json &j, BitFlip &p) {
   j.at("bitmask").get_to(p.bitmask);
   j.at("data").get_to(p.data);
 }
+
+#endif
 
 BitFlip::BitFlip(const DRAMAddr &address, uint8_t bitmask, uint8_t data)
     : address(address), bitmask(bitmask), data(data) {}

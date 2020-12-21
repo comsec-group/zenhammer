@@ -1,9 +1,10 @@
 #ifndef BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
 #define BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
 
+#include <unordered_map>
+
 #include <random>
 #include "Utilities/Range.hpp"
-#include "CodeJitter.hpp"
 
 class FuzzingParameterSet {
  private:
@@ -23,23 +24,17 @@ class FuzzingParameterSet {
 
   int base_period{};
 
-  int sync_frequency{};
+  Range<int> bank_no{};
 
   size_t total_acts_pattern{};
 
-  Range<int> bank_no{};
-
   Range<int> use_sequential_aggressors{};
 
-  Range<int> agg_inter_distance{};
+  Range<int> agg_inter_distance;
 
   Range<int> amplitude;
 
   Range<int> N_sided;
-
-  FLUSHING_STRATEGY flushing_strategy;
-
-  FENCING_STRATEGY fencing_strategy;
 
   std::discrete_distribution<int> N_sided_probabilities;
 

@@ -1,5 +1,7 @@
-#include <Fuzzer/FuzzingParameterSet.hpp>
+#include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
+
+#ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const HammeringPattern &p) {
   j = nlohmann::json{{"id", p.instance_id},
@@ -28,8 +30,18 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("address_mappings").get_to<>(p.address_mappings);
 }
 
-std::vector<volatile char *> HammeringPattern::get_jittable_accesses_vector(PatternAddressMapping &pattern_address_mapping) {
-  return pattern_address_mapping.export_pattern_for_jitting(accesses, base_period);
-}
+#endif
 
-HammeringPattern::HammeringPattern(size_t base_period) : instance_id(uuid::gen_uuid()), base_period(base_period) {}
+HammeringPattern::HammeringPattern(size_t base_period)
+    : instance_id(uuid::gen_uuid()),
+      base_period(base_period),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0) {}
+
+HammeringPattern::HammeringPattern()
+    : instance_id(uuid::gen_uuid()),
+      base_period(0),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0) {}

@@ -1,14 +1,9 @@
 #ifndef AGGRESSOR
 #define AGGRESSOR
 
+#include <vector>
 #include <sstream>
 #include <iomanip>
-
-#ifdef ENABLE_JSON
-#include <nlohmann/json.hpp>
-#endif
-
-#include "DRAMAddr.hpp"
 
 const int ID_PLACEHOLDER_AGG = -1;
 
@@ -30,9 +25,5 @@ class Aggressor {
 
   static std::vector<Aggressor> create_aggressors(const std::vector<AGGRESSOR_ID_TYPE> &agg_ids);
 };
-
-void to_json(nlohmann::json &j, const Aggressor &p);
-
-void from_json(const nlohmann::json &j, Aggressor &p);
 
 #endif /* AGGRESSOR */

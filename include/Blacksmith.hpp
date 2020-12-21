@@ -1,10 +1,32 @@
 #ifndef BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
 #define BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
 
+#include "Fuzzer/HammeringPattern.hpp"
+#include "Memory.hpp"
+#include "DramAnalyzer.hpp"
+
+// (ugly hack) last created HammeringPattern
+HammeringPattern hammering_pattern;
+
+// (ugly hack) last created HammeringPattern
+const size_t MAX_TRIALS_PER_PATTERN = 5;
+size_t trials_per_pattern = 0;
+
 int main(int argc, char **argv);
 
 void print_metadata();
 
-size_t count_acts_per_ref(std::vector<std::vector<volatile char *>> &banks);
+void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses);
+
+void hammer(std::vector<volatile char *> &aggressors);
+
+void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
+                 volatile char *d1, volatile char *d2);
+
+void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts);
+
+void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts);
+
+size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks);
 
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_

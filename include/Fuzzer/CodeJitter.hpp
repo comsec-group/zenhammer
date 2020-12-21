@@ -1,7 +1,9 @@
 #ifndef CODEJITTER
 #define CODEJITTER
 
+#ifdef ENABLE_JITTING
 #include <asmjit/asmjit.h>
+#endif
 
 #include <unordered_map>
 #include <vector>
@@ -24,11 +26,14 @@ std::string get_string(FENCING_STRATEGY strategy);
 
 class CodeJitter {
  private:
+#ifdef ENABLE_JITTING
+
   /// runtime for JIT code execution, can be reused by cleaning the function ptr (see cleanup method)
   asmjit::JitRuntime runtime;
 
   /// a logger that keeps track of the generated ASM instructions - useful for debugging
   asmjit::StringLogger *logger = nullptr;
+#endif
 
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;

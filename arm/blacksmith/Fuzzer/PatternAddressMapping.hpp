@@ -3,13 +3,9 @@
 
 #include <random>
 
-#ifdef ENABLE_JSON
-#include <nlohmann/json.hpp>
-#endif
-
+#include "DRAMAddr.hpp"
 #include "Fuzzer/Aggressor.hpp"
 #include "Fuzzer/AggressorAccessPattern.hpp"
-#include "BitFlip.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
 class PatternAddressMapping {
@@ -34,7 +30,6 @@ class PatternAddressMapping {
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
 
-  std::vector<BitFlip> bit_flips;
 
   // a randomization engine
   std::mt19937 gen;
@@ -48,10 +43,6 @@ class PatternAddressMapping {
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            std::vector<AggressorAccessPattern> &agg_access_patterns);
 
-  volatile char *get_lowest_address() const;
-
-  volatile char *get_highest_address() const;
-
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows);
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses);
@@ -63,8 +54,6 @@ class PatternAddressMapping {
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 };
 
-void to_json(nlohmann::json &j, const PatternAddressMapping &p);
 
-void from_json(const nlohmann::json &j, PatternAddressMapping &p);
 
 #endif //BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_

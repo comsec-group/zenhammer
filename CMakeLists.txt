@@ -1,10 +1,40 @@
 include(CheckCXXCompilerFlag)
+
 cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
-set(ignoreMe "${CMAKE_C_COMPILER}")
 set(CMAKE_BUILD_TYPE DEBUG)
+
+option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
+option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
+
+if (ENABLE_JSON)
+    add_definitions(-DENABLE_JSON)
+    find_package(nlohmann_json QUIET)
+    if (NOT nlohmann_json_FOUND)
+        message("Library nlohmann/json not found. Downloading nlohmann_json...")
+        include(FetchContent)
+        set(JSON_BuildTests OFF CACHE INTERNAL "")
+        set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+        FetchContent_Declare(
+                nlohmann_json
+                GIT_REPOSITORY https://github.com/nlohmann/json.git
+                GIT_TAG v3.7.3)
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif ()
+endif ()
+
+if (ENABLE_JITTING)
+    add_definitions(-DENABLE_JITTING)
+    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
+    find_package(AsmJit)
+    if (NOT ASMJIT_FOUND)
+        message("Install asmjit manually: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
+        message("or set ENABLE_JITTING=OFF in the CMakeLists.txt prior building.")
+        return()
+    endif ()
+endif ()
 
 # Add some compiler options if they are supported
 function(enable_cxx_compiler_flag_if_supported flag)
@@ -19,34 +49,7 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
-
-##############################
-# Check if asmjit is installed
-##############################
-
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
-find_package(AsmJit)
-if (NOT ASMJIT_FOUND)
-    message("Trying to download and install asmjit, if this fails use this one-liner: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
-    return()
-endif ()
-
-##############################
-# Download and install nlohmann-json if required
-##############################
-
-find_package(nlohmann_json QUIET)
-if (NOT nlohmann_json_FOUND)
-    message("Downloading nlohmann_json")
-    include(FetchContent)
-    set(JSON_BuildTests OFF CACHE INTERNAL "")
-    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
-    FetchContent_Declare(
-            nlohmann_json
-            GIT_REPOSITORY https://github.com/nlohmann/json.git
-            GIT_TAG v3.7.3)
-    FetchContent_MakeAvailable(nlohmann_json)
-endif ()
+enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
 
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
@@ -54,7 +57,7 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/PatternAddressMapping.cpp
+        src/Fuzzer/PatternAddressMapping.cpp
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
@@ -67,9 +70,16 @@ set(HEADER_ONLY
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
-target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include ${ASMJIT_INCLUDE_DIR})
-target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
-target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
+target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
+if (ENABLE_JITTING)
+    target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
+    target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
+endif()
+
+if (ENABLE_JSON)
+    target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
+endif ()
 
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})

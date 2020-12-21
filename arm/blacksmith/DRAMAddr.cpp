@@ -1,3 +1,4 @@
+#include <cassert>
 #include "GlobalDefines.hpp"
 #include "DRAMAddr.hpp"
 
@@ -10,8 +11,8 @@ void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start
   } else if (num_bank_rank_functions==4) {
     num_ranks = RANKS(1);
   } else {
-    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-    exit(0);
+    printf("[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2.\n");
+    assert(1);
   }
   DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
   DRAMAddr::set_base((void *) start_address);
@@ -233,19 +234,3 @@ DRAMAddr::DRAMAddr() {
 
 }
 
-#ifdef ENABLE_JSON
-
-void to_json(nlohmann::json &j, const DRAMAddr &p) {
-  j = {{"bank", p.bank},
-       {"row", p.row},
-       {"col", p.col}
-  };
-}
-
-void from_json(const nlohmann::json &j, DRAMAddr &p) {
-  j.at("bank").get_to(p.bank);
-  j.at("row").get_to(p.row);
-  j.at("col").get_to(p.col);
-}
-
-#endif

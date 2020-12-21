@@ -14,13 +14,11 @@
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
-#include "DramAnalyzer.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
-#include "Memory.hpp"
 
 /// the number of rounds to hammer
 /// this is controllable via the first (unnamed) program parameter
@@ -94,17 +92,41 @@ void hammer_sync(std::vector<volatile char *> &aggressors, int acts,
   }
 }
 
+void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
+  FuzzingParameterSet fuzzing_params(acts);
+  fuzzing_params.print_static_parameters();
+
+  printf("[+] Randomizing fuzzing parameters.\n");
+  fuzzing_params.randomize_parameters(true);
+
+  if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
+    trials_per_pattern++;
+  } else {
+    trials_per_pattern = 0;
+    hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
+  }
+
+  printf("[+] Generating ARM hammering pattern %s.\n", hammering_pattern.instance_id.c_str());
+  PatternBuilder pattern_builder(hammering_pattern);
+  pattern_builder.generate_frequency_based_pattern(fuzzing_params);
+
+  // choose random addresses for pattern
+  PatternAddressMapping mapping(true);
+  mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
+  mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
+}
+
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   printf("Starting frequency-based hammering.\n");
-
-//  std::vector<HammeringPattern> hammering_patterns;
 
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
   CodeJitter code_jitter;
 
+#ifdef ENABLE_JSON
   nlohmann::json arr = nlohmann::json::array();
+#endif
 
   auto get_timestamp_sec = []() -> long {
     return std::chrono::duration_cast<std::chrono::seconds>(
@@ -134,12 +156,16 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       PatternAddressMapping mapping;
       mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
-      // generate jitted hammering function
+      // now fill the pattern with these random addresses
+      std::vector<volatile char *> hammering_pattern_accesses;
+      mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
+
+      // now create instructions that follow this pattern (i.e., do jitting of code)
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
       code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_pattern.get_jittable_accesses_vector(mapping));
+                             hammering_pattern_accesses);
 
       // do hammering
       code_jitter.hammer_pattern();
@@ -148,22 +174,24 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
       // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapping);
+
+#ifdef ENABLE_JSON
       arr.push_back(hammering_pattern);
+#endif
 
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
   }
 
-
+#ifdef ENABLE_JSON
   // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
   json_export.open("raw_data.json");
-//  nlohmann::json j = hammering_patterns;
-//  json_export << j;
   json_export << arr;
   json_export.close();
+#endif
 }
 
 // Performs n-sided hammering.
@@ -317,9 +345,24 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
 }
 
 int main(int argc, char **argv) {
-  if (cmdOptionExists(argv, argv + argc, "-runtime_limit")) {
+  const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
+  if (cmdOptionExists(argv, argv + argc, ARG_GENERATE_PATTERN)) {
+    size_t acts = strtoul(getCmdOption(argv, argv + argc, ARG_GENERATE_PATTERN), nullptr, 10);
+    const size_t MAX_NUM_REFRESH_INTERVALS = 32; // this parameter is defined in FuzzingParameterSet
+    const size_t MAX_ACCESSES = acts*MAX_NUM_REFRESH_INTERVALS;
+    void *rows_to_access = calloc(MAX_ACCESSES, sizeof(int));
+    if (rows_to_access==nullptr) {
+      fprintf(stderr, "Allocation of rows_to_access failed!\n");
+      exit(1);
+    }
+    generate_pattern_for_ARM(acts, static_cast<int *>(rows_to_access), MAX_ACCESSES);
+    return 0;
+  }
+
+  const std::string ARG_RUNTIME_LIMIT = "-runtime_limit";
+  if (cmdOptionExists(argv, argv + argc, ARG_RUNTIME_LIMIT)) {
     // parse the program arguments
-    RUN_TIME_LIMIT = strtol(getCmdOption(argv, argv + argc, "-runtime_limit"), nullptr, 10);
+    RUN_TIME_LIMIT = strtol(getCmdOption(argv, argv + argc, ARG_RUNTIME_LIMIT), nullptr, 10);
   } else {
     RUN_TIME_LIMIT = 120; // 2 minutes
   }
@@ -359,7 +402,7 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "Invalid combination of program control-flow arguments given. "
             "Note that fuzzing is only supported with synchronized hammering.");
-    exit(1);
+    return 1;
   }
 
   return 0;
