@@ -67,9 +67,15 @@ class AggressorAccessPattern():
     def to_pandas_entry(self, max_period):
         def label(tup):
             return "-".join([f"{x.row}" for x in sorted(tup, key=attrgetter("row"), reverse=True)])
+        pdEntry = namedtuple("pdEntry", ['period', 'frequency', 'amplitude', 'phase', 'flips', 'label'])
+        return pdEntry(**{"period": self.period, "frequency": int(max_period / self.period), "amplitude": self.amplitude, "phase": self.phase, "flips": True if self.flips else False, "label": label(self.aggr_tuple)})
 
-        return {"period": self.period, "frequency": int(max_period / self.period), "amplitude": self.amplitude,
-                "phase": self.phase, "flips": True if self.flips else False, "label": label(self.aggr_tuple)}
+
+    def to_pandas_unlabeled(self, max_period):
+        def label(tup):
+            return "-".join([f"{x.row}" for x in sorted(tup, key=attrgetter("row"), reverse=True)])
+        pdEntry = namedtuple("pdEntry", ['period', 'frequency', 'amplitude', 'phase', 'flips', 'max_period'])
+        return pdEntry(**{"period": self.period, "frequency": int(max_period / self.period), "amplitude": self.amplitude, "phase": self.phase, "flips": True if self.flips else False, 'max_period': max_period})
 
     # TODO figure out how to draw this in a music-sheet-like format 
     def to_time_plot(self, ax, max_period, lwidth=2):
@@ -346,3 +352,6 @@ class HammeringPatternInstance():
             plt.savefig(os.path.join(dest_filepath, "plot_freq_phase.png"), dpi=180)
 
         plt.close(fig)
+
+    def extract_effective_agg_patt(self):
+        return [x.to_pandas_unlabeled(self.max_period) for x in self.aggr_list if x.flips]
