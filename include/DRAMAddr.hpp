@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #define CHANS(x) ((x) << (8UL * 3UL))
 #define DIMMS(x) ((x) << (8UL * 2UL))

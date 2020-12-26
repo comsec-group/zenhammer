@@ -3,7 +3,10 @@
 
 #include <unordered_map>
 #include <utility>
+
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #include "Fuzzer/Aggressor.hpp"
 
