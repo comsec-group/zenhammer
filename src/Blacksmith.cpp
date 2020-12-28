@@ -101,8 +101,10 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
 
   if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
     trials_per_pattern++;
+    hammering_pattern.accesses.clear();
   } else {
     trials_per_pattern = 0;
+    hammering_pattern.accesses.clear();
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
   }
 

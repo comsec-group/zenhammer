@@ -14,7 +14,7 @@ class DramAnalyzer {
 
   std::vector<uint64_t> bank_rank_functions;
 
-  uint64_t row_function{};
+  uint64_t row_function;
 
   volatile char *start_address;
 

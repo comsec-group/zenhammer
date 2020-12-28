@@ -10,28 +10,28 @@ class FuzzingParameterSet {
   std::mt19937 gen;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
-  int num_refresh_intervals{};
+  int num_refresh_intervals;
 
   /// The numbers of aggressors to be picked from during random pattern generation.
-  int num_aggressors{};
+  int num_aggressors;
 
-  int agg_intra_distance{};
+  int agg_intra_distance;
 
-  int num_activations_per_tREFI{};
+  int num_activations_per_tREFI;
 
-  int hammering_total_num_activations{};
+  int hammering_total_num_activations;
 
-  int base_period{};
+  int base_period;
 
-  int sync_frequency{};
+  int sync_frequency;
 
-  size_t total_acts_pattern{};
+  size_t total_acts_pattern;
 
-  Range<int> bank_no{};
+  Range<int> bank_no;
 
-  Range<int> use_sequential_aggressors{};
+  Range<int> use_sequential_aggressors;
 
-  Range<int> agg_inter_distance{};
+  Range<int> agg_inter_distance;
 
   Range<int> amplitude;
 
