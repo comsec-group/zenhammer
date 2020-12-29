@@ -20,4 +20,4 @@ void from_json(const nlohmann::json &j, BitFlip &p) {
 BitFlip::BitFlip(const DRAMAddr &address, uint8_t bitmask, uint8_t data)
     : address(address), bitmask(bitmask), data(data) {}
 
-BitFlip::BitFlip() = default;
+BitFlip::BitFlip(): address(DRAMAddr()), bitmask(0), data(0) {}

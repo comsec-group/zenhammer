@@ -14,7 +14,7 @@ class BitFlip {
   // data containing the bit flips
   uint8_t data;
 
-  BitFlip() : address(DRAMAddr()), bitmask(0), data(0) {};
+  BitFlip();
 
   BitFlip(const DRAMAddr &address, uint8_t bitmask, uint8_t data);
 };

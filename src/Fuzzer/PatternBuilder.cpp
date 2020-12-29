@@ -103,4 +103,11 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
       fill_slots(next_slot, cur_period, cur_amplitude, aggressors, pattern.accesses, pattern_length);
     }
   }
+
+  std::stringstream ss;
+  for (size_t i = 0; i < pattern.accesses.size(); ++i) {
+    if ((i%base_period)==0 && i > 0) ss << std::endl;
+    ss << std::setfill('0') << std::setw(2) << pattern.accesses.at(i).id << " ";
+  }
+  Logger::log_data(ss.str());
 }

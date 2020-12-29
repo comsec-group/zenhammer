@@ -40,7 +40,7 @@ uint64_t DramAnalyzer::get_row_increment() const {
   for (size_t i = 0; i < 64; i++) {
     if (row_function & BIT_SET(i)) return BIT_SET(i);
   }
-  printf("[-] No bit set for row function\n");
+  Logger::log_error("No bit set for row function.");
   return 0;
 }
 
@@ -132,12 +132,16 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 //    exit(1);
 //  }
 
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function, get_row_increment(), bank_rank_functions.size());
+  Logger::log_info("Found bank/rank and row function:");
+  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
+  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+
+  std::stringstream ss;
+  ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (size_t j = 0; j < bank_rank_functions.size(); j++) {
-    printf("0x%" PRIx64 " ", bank_rank_functions[j]);
-    if (j==(bank_rank_functions.size() - 1)) printf("\n");
+    ss << "0x" << std::hex << bank_rank_functions[j] << " ";
   }
+  Logger::log_data(ss.str());
 }
 
 uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank) {
@@ -192,18 +196,18 @@ void DramAnalyzer::find_bank_conflicts() {
       nr_banks_cur++;
     }
     if (remaining_tries==0) {
-      fprintf(stderr,
-              "[-] Could not find all bank/rank functions. Is the number of banks (%d) defined correctly?\n",
-              (int) NUM_BANKS);
+      Logger::log_error(string_format(
+          "Could not find all bank/rank functions. Is the number of banks (%d) defined correctly?",
+          (int) NUM_BANKS));
       exit(1);
     }
   }
 
-  printf("[+] Found bank conflicts.\n");
+  Logger::log_info("Found bank conflicts.");
   for (auto &bank : banks) {
     find_targets(bank, NUM_TARGETS);
   }
-  printf("[+] Populated addresses from different banks.\n");
+  Logger::log_info("Populated addresses from different banks.");
 }
 
 void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_t size) {

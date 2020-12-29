@@ -4,6 +4,7 @@
 #include <set>
 #include <map>
 #include <string>
+#include <Utilities/Logger.hpp>
 
 CodeJitter::CodeJitter() {
 #ifdef ENABLE_JITTING
@@ -47,11 +48,10 @@ std::string get_string(FLUSHING_STRATEGY strategy) {
 
 int CodeJitter::hammer_pattern() {
   if (fn==nullptr) {
-    printf("[-] Skipping hammering pattern as pattern could not be created successfully.\n");
+    Logger::log_error("Skipping hammering pattern as pattern could not be created successfully.");
     return -1;
   }
-  printf("[+] Hammering pattern.\n");
-  fflush(stdout);
+  Logger::log_info("Hammering the last generated pattern.");
   int ret = fn();
   return ret;
 }
@@ -68,28 +68,28 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   // check whether the NUM_TIMED_ACCESSES value works at all - otherwise just return from this function
   // this is safe as hammer_pattern checks whether there's a valid function
   if (NUM_TIMED_ACCESSES > aggressor_pairs.size()) {
-    printf("[-] NUM_TIMED_ACCESSES (%d) is larger than #aggressor_pairs (%zu).\n",
-           NUM_TIMED_ACCESSES,
-           aggressor_pairs.size());
+    Logger::log_error(string_format("NUM_TIMED_ACCESSES (%d) is larger than #aggressor_pairs (%zu).",
+                                    NUM_TIMED_ACCESSES,
+                                    aggressor_pairs.size()));
     return;
   }
 
   // some sanity checks
   if (fn!=nullptr) {
-    printf(
-        "[-] Function pointer is not NULL, cannot continue jitting code without leaking memory. "
-        "Did you forget to call cleanup() before?\n");
+    Logger::log_error(
+        "Function pointer is not NULL, cannot continue jitting code without leaking memory. Did you forget to call cleanup() before?");
     exit(1);
   }
   if (flushing_strategy!=FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-    printf("jit_strict does not support given FLUSHING_STRATEGY (%s).\n", get_string(flushing_strategy).c_str());
+    Logger::log_info(string_format("jit_strict does not support given FLUSHING_STRATEGY (%s).",
+                                   get_string(flushing_strategy).c_str()));
   }
   if (fencing_strategy!=FENCING_STRATEGY::LATEST_POSSIBLE && fencing_strategy!=FENCING_STRATEGY::OMIT_FENCING) {
-    printf("jit_strict does not support given FENCING_STRATEGY (%s).\n", get_string(fencing_strategy).c_str());
+    Logger::log_info(string_format("jit_strict does not support given FENCING_STRATEGY (%s).",
+                                   get_string(fencing_strategy).c_str()));
   }
 #ifdef ENABLE_JITTING
-  printf("[+] Creating ASM code for hammering.\n");
-  fflush(stdout);
+  Logger::log_info("Creating ASM code for hammering.");
 
   asmjit::CodeHolder code;
   code.init(runtime.environment());
@@ -235,13 +235,12 @@ void CodeJitter::jit_strict(size_t hammering_total_num_activations,
   asmjit::Error err = runtime.add(&fn, &code);
   if (err) throw std::runtime_error("[-] Error occurred while jitting code. Aborting execution!");
 
-  printf("[+] Successfully created jitted hammering code.\n");
-  fflush(stdout);
+  Logger::log_info("Successfully created jitted hammering code.");
 
   // uncomment the following line to see the jitted ASM code
   // printf("[DEBUG] asmjit logger content:\n%s\n", logger->data());
 #endif
 #ifndef ENABLE_JITTING
-  printf("[-] Cannot do code jitting. Set option ENABLE_JITTING to ON in CMakeLists.txt and do a rebuild.");
+  Logger::log_error("Cannot do code jitting. Set option ENABLE_JITTING to ON in CMakeLists.txt and do a rebuild.");
 #endif
 }

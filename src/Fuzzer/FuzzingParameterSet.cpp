@@ -22,24 +22,20 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
 }
 
 void FuzzingParameterSet::print_static_parameters() const {
-  printf(FBLUE);
-  printf("Benchmark run parameters:\n");
-  printf("    agg_intra_distance: %d\n", agg_intra_distance);
-  printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
-  printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
-  printf("    N_sided dist.: %s\n", get_dist_string().c_str());
-  printf("    hammering_total_num_activations: %d\n", hammering_total_num_activations);
-  printf(NONE);
+  Logger::log_info("Printing static hammering parameters:");
+  Logger::log_data(string_format("agg_intra_distance: %d", agg_intra_distance));
+  Logger::log_data(string_format("flushing_strategy: %s", get_string(flushing_strategy).c_str()));
+  Logger::log_data(string_format("fencing_strategy: %s", get_string(fencing_strategy).c_str()));
+  Logger::log_data(string_format("N_sided dist.: %s", get_dist_string().c_str()));
+  Logger::log_data(string_format("hammering_total_num_activations: %d", hammering_total_num_activations));
 }
 
 void FuzzingParameterSet::print_semi_dynamic_parameters() const {
-  printf(FBLUE);
-  printf("Pattern-specific fuzzing parameters:\n");
-  printf("    num_aggressors: %d\n", num_aggressors);
-  printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
-  printf("    total_acts_pattern: %zu\n", total_acts_pattern);
-  printf("    base_period: %d\n", base_period);
-  printf(NONE);
+  Logger::log_info("Printing pattern-specific fuzzing parameters:");
+  Logger::log_data(string_format("num_aggressors: %d", num_aggressors));
+  Logger::log_data(string_format("num_refresh_intervals: %d", num_refresh_intervals));
+  Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
+  Logger::log_data(string_format("base_period: %d", base_period));
 }
 
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
@@ -49,11 +45,6 @@ void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
   for (int i = 0; i <= range_N_sided.max; num_iterations++, i += 1) {
     dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int) 0);
   }
-
-//  if (num_iterations < probabilities.size()) {
-//    fprintf(stderr,
-//            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
-//  }
 
   N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }

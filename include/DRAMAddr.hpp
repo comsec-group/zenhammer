@@ -63,6 +63,10 @@ class DRAMAddr {
   [[gnu::unused]] std::string to_string();
 
   static void initialize(uint64_t num_bank_rank_functions, volatile char *start_address);
+
+  std::string to_string_compact() const;
+
+  void *to_virt() const;
 };
 
 void to_json(nlohmann::json &j, const DRAMAddr &p);

@@ -25,8 +25,8 @@ void Memory::allocate_memory(size_t mem_size) {
     // allocate memory using super pages
     fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
     if (fp==nullptr) {
-      fprintf(stderr, "[-] Could not mount superpage from %s.\n", hugetlbfs_mountpoint.c_str());
-      perror("fopen");
+      Logger::log_info(string_format("Could not mount superpage from %s. Error:", hugetlbfs_mountpoint.c_str()));
+      Logger::log_data(std::strerror(errno));
       exit(-1);
     }
     target = (volatile char *) mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
@@ -43,12 +43,12 @@ void Memory::allocate_memory(size_t mem_size) {
     assert(ret==0);
     memset((char *) target, 'A', MEM_SIZE);
     // for khugepaged
-    printf("[+] Waiting for khugepaged.\n");
+    Logger::log_info("Waiting for khugepaged.");
     sleep(10);
   }
 
   if (target!=start_address) {
-    printf("[-] Could not create mmap area at address %p, instead using %p.\n", start_address, target);
+    Logger::log_error(string_format("Could not create mmap area at address %p, instead using %p.", start_address, target));
     start_address = target;
   }
 
@@ -57,7 +57,7 @@ void Memory::allocate_memory(size_t mem_size) {
 }
 
 void Memory::initialize() {
-  printf("[+] Initializing memory with pseudorandom sequence.\n");
+  Logger::log_info("Initializing memory with pseudorandom sequence.");
   // for each page in the address space [start, end]
   for (uint64_t i = 0; i < size; i += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
@@ -77,7 +77,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           size_t check_offset,
                           PatternAddressMapping &mapping) {
   if (start==nullptr || end==nullptr) {
-    printf("[-] Function mem_values called with invalid arguments\n");
+    Logger::log_error("Function mem_values called with invalid arguments.");
     exit(1);
   }
 
@@ -91,7 +91,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
   auto end_offset = start_offset + (uint64_t) (end - start);
   end_offset = (end_offset/getpagesize())*getpagesize();
 
-  printf("[+] Checking if any bit flips occurred.\n");
+  Logger::log_info("Checking if any bit flips occurred.");
 
   // for each page in the address space [start, end]
   for (uint64_t i = start_offset; i < end_offset; i += getpagesize()) {
@@ -120,14 +120,11 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       for (unsigned long c = 0; c < sizeof(int); c++) {
         volatile char *flipped_address = start_address + offset + c;
         if (*((char *) flipped_address)!=((char *) &rand_val)[c]) {
-          printf(FRED "[!] Flip %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu" NONE "\n",
-                 flipped_address,
-                 dram_analyzer.get_row_index(flipped_address),
-                 offset%getpagesize(),
-                 ((unsigned char *) &rand_val)[c],
-                 *(unsigned char *) flipped_address,
-                 (unsigned long) time(nullptr));
-
+          Logger::log_bitflip(flipped_address, dram_analyzer.get_row_index(flipped_address),
+                              offset%getpagesize(),
+                              ((unsigned char *) &rand_val)[c],
+                              *(unsigned char *) flipped_address,
+                              (unsigned long) time(nullptr));
           uint8_t bitmask = ((unsigned char *) &rand_val)[c] ^(*(unsigned char *) flipped_address);
           mapping.bit_flips
               .emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
@@ -158,8 +155,8 @@ Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
 
 Memory::~Memory() {
   if (munmap((void *) start_address, size)==-1) {
-    fprintf(stderr, "munmap failed with error:");
-    perror("mmap");
+    Logger::log_error(string_format("munmap failed with error:"));
+    Logger::log_data(std::strerror(errno));
   }
 }
 

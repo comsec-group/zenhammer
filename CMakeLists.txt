@@ -49,7 +49,14 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
-enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
+#enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
+enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
+
+execute_process(
+        COMMAND git rev-parse HEAD
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
@@ -62,7 +69,8 @@ set(SOURCES
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
-        src/Fuzzer/BitFlip.cpp)
+        src/Fuzzer/BitFlip.cpp
+        src/Utilities/Logger.cpp)
 
 set(HEADER_ONLY
         include/Fuzzer/PatternAddressMapping.hpp
@@ -83,3 +91,4 @@ endif ()
 
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})
+target_compile_definitions(blacksmith PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
