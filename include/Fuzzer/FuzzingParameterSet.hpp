@@ -2,8 +2,10 @@
 #define BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
 
 #include <random>
+#include <unordered_map>
+
 #include "Utilities/Range.hpp"
-#include "CodeJitter.hpp"
+#include "Utilities/Enums.hpp"
 
 class FuzzingParameterSet {
  private:
@@ -23,7 +25,7 @@ class FuzzingParameterSet {
 
   int base_period;
 
-  int sync_frequency;
+  Range<int> sync_each_ref;
 
   size_t total_acts_pattern;
 
@@ -80,6 +82,10 @@ class FuzzingParameterSet {
   int get_random_even_divisior(int n, int min_value);
 
   int get_random_N_sided(size_t upper_bound_max);
+
+  bool get_sync_each_ref();
+
+  int get_num_activations_per_t_refi() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

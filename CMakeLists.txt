@@ -74,7 +74,7 @@ set(SOURCES
 
 set(HEADER_ONLY
         include/Fuzzer/PatternAddressMapping.hpp
-        include/GlobalDefines.hpp)
+        include/GlobalDefines.hpp include/Utilities/Enums.hpp)
 
 set(LIBRARY_NAME libblacksmith)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})

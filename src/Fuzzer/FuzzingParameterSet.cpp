@@ -70,6 +70,8 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
+  Logger::log_info("Randomizing fuzzing parameters.");
+
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   // == are only randomized once when calling this function ======
@@ -83,9 +85,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
   num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
-
-  // sync_frequency = 1 means that we sync after every refresh interval
-  sync_frequency = Range<int>(1, num_refresh_intervals).get_random_number(gen);
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -107,6 +106,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   N_sided = Range<int>(2, 4, 2);
 
   // [exported as part of AggressorAccessPattern]
+  // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
   amplitude = Range<int>(1, base_period/N_sided.min);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
@@ -119,6 +119,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
   use_sequential_aggressors = Range<int>(0, 1);
+
+  // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
+  // the whole pattern (which may consists of more than one REF interval)
+  sync_each_ref = Range<int>(0, 1);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -205,4 +209,13 @@ int FuzzingParameterSet::get_random_inter_distance() {
 int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
+
+bool FuzzingParameterSet::get_sync_each_ref() {
+  return (bool) (sync_each_ref.get_random_number(gen));
+}
+
+int FuzzingParameterSet::get_num_activations_per_t_refi() const {
+  return num_activations_per_tREFI;
+}
+
 

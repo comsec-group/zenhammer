@@ -9,7 +9,6 @@
 #include <iostream>
 #include <random>
 
-#include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Utilities/Range.hpp"
 
@@ -36,6 +35,8 @@ class PatternBuilder {
                          std::vector<Aggressor> &aggressors,
                          std::vector<Aggressor> &accesses,
                          size_t pattern_length);
+
+  void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors);
 };
 
 #endif /* PATTERNBUILDER */

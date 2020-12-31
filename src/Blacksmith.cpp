@@ -101,7 +101,6 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
-  Logger::log_info("Randomizing fuzzing parameters.");
   fuzzing_params.randomize_parameters(true);
 
   if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
@@ -113,7 +112,6 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
   }
 
-  Logger::log_info(string_format("Generating ARM hammering pattern %s.", hammering_pattern.instance_id.c_str()));
   PatternBuilder pattern_builder(hammering_pattern);
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
@@ -145,14 +143,11 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   int cur_round = 0;
   while (get_timestamp_sec() < limit) {
     cur_round++;
-    Logger::log_info("Randomizing fuzzing parameters.");
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
-    Logger::log_info(string_format("Generating hammering pattern %s.",
-                                   hammering_pattern.instance_id.c_str()));
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // then test this pattern with 5 different address sets
@@ -173,10 +168,11 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
       // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
-      code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
+      code_jitter.jit_strict(fuzzing_params,
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_pattern_accesses);
+                             hammering_pattern_accesses,
+                             fuzzing_params.get_sync_each_ref());
 
       // do hammering
       code_jitter.hammer_pattern();
@@ -196,7 +192,6 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   }
 
 #ifdef ENABLE_JSON
-  // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
   json_export.open("raw_data.json");
@@ -331,7 +326,8 @@ size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks
   }
 
   auto activations = (running_sum/acts.size());
-  Logger::log_info(string_format("Counted %lu activations per refresh interval.", activations));
+  Logger::log_info("Determined the number of possible ACTs per refresh interval.");
+  Logger::log_data(string_format("num_acts_per_tREFI: %lu", activations));
 
   return activations;
 }

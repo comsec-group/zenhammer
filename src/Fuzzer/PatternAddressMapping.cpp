@@ -33,20 +33,22 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
   // however, we will consider mapping multiple aggressors to the same address to simulate hammering an aggressor of
   // a pair more frequently, for that we just choose a random row
   for (auto &acc_pattern : agg_access_patterns) {
-    bool known_agg = false;
+//    bool known_agg = false;
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
       Aggressor &current_agg = acc_pattern.aggressors[i];
-      if (aggressor_to_addr.count(current_agg.id) > 0) {
-        // this indicates that all following aggressors must also have known addresses, otherwise there's something
-        // wrong with this pattern
-        known_agg = true;
-      } else if (known_agg) {
-        // a previous aggressor was known but this aggressor is not known -> this must never happen because we use
-        // Aggressor objects only once (e.g., either 1-sided or within a 2-sided pair); reusing addresses is achieve by
-        // mapping the different Aggressors to the same address
-        Logger::log_error("Something went wrong during the aggressor's address selection. "
-                          "Only one address of an N-sided pair has been accessed before. That's strange!");
-      } else if (i > 0) {
+//      if (aggressor_to_addr.count(current_agg.id) > 0) {
+//        // this indicates that all following aggressors must also have known addresses, otherwise there's something
+//        // wrong with this pattern
+//        known_agg = true;
+//      } else if (known_agg) {
+//        // a previous aggressor was known but this aggressor is not known -> this must never happen because we use
+//        // Aggressor objects only once (e.g., either 1-sided or within a 2-sided pair); reusing addresses is achieve by
+//        // mapping the different Aggressors to the same address
+//        Logger::log_error("Something went wrong during the aggressor's address selection. "
+//                          "Only one address of an N-sided pair has been accessed before. That's strange!");
+//      } else
+
+      if (i > 0) {
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
         Aggressor &last_agg = acc_pattern.aggressors.at(i - 1);
         auto last_addr = aggressor_to_addr.at(last_agg.id);
@@ -69,6 +71,8 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
       if (cur_addr > highest_address) highest_address = cur_addr;
     }
   }
+
+  Logger::log_info(string_format("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
 void PatternAddressMapping::export_pattern_internal(
@@ -77,7 +81,6 @@ void PatternAddressMapping::export_pattern_internal(
     std::vector<int> &rows) {
 
   bool invalid_aggs = false;
-
   std::stringstream pattern_str;
   for (size_t i = 0; i < aggressors.size(); ++i) {
     // for better visualization: add blank line after each base period
@@ -106,8 +109,7 @@ void PatternAddressMapping::export_pattern_internal(
   }
 
   // print string representation of pattern
-  Logger::log_info("Abstract pattern based on aggressor IDs:");
-  Logger::log_data(pattern_str.str());
+//  Logger::log_data(pattern_str.str());
 
   if (invalid_aggs) {
     Logger::log_error(
@@ -115,7 +117,7 @@ void PatternAddressMapping::export_pattern_internal(
   }
 
   // writes the agg_id -> DRAMAddr mapping into the log file
-  Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
+  Logger::log_info("Aggressor ID to DRAM address mapping, given as 'id : (bank, rank, column)':");
   std::stringstream mapping_str;
   mapping_str << "{ ";
   size_t cnt = 0;
