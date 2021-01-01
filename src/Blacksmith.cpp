@@ -411,8 +411,21 @@ int main(int argc, char **argv) {
   // initialize the DRAMAddr class
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
-  // count the number of possible activations per refresh interval
-  int act = count_acts_per_ref(dram_analyzer.get_banks());
+  int act;
+  const std::string ARG_ACTS_PER_REF = "-acts_per_ref";
+  if (cmdOptionExists(argv, argv + argc, ARG_ACTS_PER_REF)) {
+    // parse the program arguments
+    size_t tmp = strtol(getCmdOption(argv, argv + argc, ARG_ACTS_PER_REF), nullptr, 10);
+    if (tmp > ((size_t) INT16_MAX)) {
+      Logger::log_error("");
+      exit(1);
+    }
+    act = (int) tmp;
+  } else {
+    // count the number of possible activations per refresh interval
+    act = count_acts_per_ref(dram_analyzer.get_banks());
+  }
+
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     n_sided_frequency_based_hammering(memory, dram_analyzer, act);
