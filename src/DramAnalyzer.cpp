@@ -138,8 +138,8 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
-  for (size_t j = 0; j < bank_rank_functions.size(); j++) {
-    ss << "0x" << std::hex << bank_rank_functions[j] << " ";
+  for (unsigned long bank_rank_function : bank_rank_functions) {
+    ss << "0x" << std::hex << bank_rank_function << " ";
   }
   Logger::log_data(ss.str());
 }
