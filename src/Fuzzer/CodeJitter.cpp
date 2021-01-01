@@ -243,7 +243,7 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
     // access
     assembler.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
-    assembler.dec(asmjit::x86::rsi);
+//    assembler.dec(asmjit::x86::rsi);
     // update counter that counts the number of activation in the trailing synchronization
     assembler.inc(asmjit::x86::edx);
   }
