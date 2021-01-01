@@ -51,6 +51,7 @@ enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
 #enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
 enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
+enable_cxx_compiler_flag_if_supported("-Wno-format-security")
 
 execute_process(
         COMMAND git rev-parse HEAD
