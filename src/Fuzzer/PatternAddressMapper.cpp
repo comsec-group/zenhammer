@@ -1,8 +1,8 @@
+#include "Fuzzer/PatternAddressMapper.hpp"
+
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
-#include "Fuzzer/FuzzingParameterSet.hpp"
-#include "Fuzzer/PatternAddressMapper.hpp"
 
 PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
@@ -30,40 +30,26 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   // addresses for all of them as we must have accessed all of them together before
   // however, we will consider mapping multiple aggressors to the same address to simulate hammering an aggressor of
   // a pair more frequently, for that we just choose a random row
+  size_t row;
   for (auto &acc_pattern : agg_access_patterns) {
-//    bool known_agg = false;
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
       Aggressor &current_agg = acc_pattern.aggressors[i];
-//      if (aggressor_to_addr.count(current_agg.id) > 0) {
-//        // this indicates that all following aggressors must also have known addresses, otherwise there's something
-//        // wrong with this pattern
-//        known_agg = true;
-//      } else if (known_agg) {
-//        // a previous aggressor was known but this aggressor is not known -> this must never happen because we use
-//        // Aggressor objects only once (e.g., either 1-sided or within a 2-sided pair); reusing addresses is achieve by
-//        // mapping the different Aggressors to the same address
-//        Logger::log_error("Something went wrong during the aggressor's address selection. "
-//                          "Only one address of an N-sided pair has been accessed before. That's strange!");
-//      } else
-
       if (i > 0) {
         // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
-        Aggressor &last_agg = acc_pattern.aggressors.at(i - 1);
-        auto last_addr = aggressor_to_addr.at(last_agg.id);
+        auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
         cur_row = cur_row + (size_t) fuzzing_params.get_agg_intra_distance();
-        size_t row = use_seq_addresses ? cur_row : (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance());
-        if (arm_mode) row = row%1024;
-        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, last_addr.col)});
+        row = use_seq_addresses ? cur_row :
+              (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance());
       } else {
         // this is a new aggressor pair - we can choose where to place it
         cur_row = cur_row + (size_t) agg_inter_distance;
-        // pietro suggested to consider the first 512 rows only because hassan found out that they are in a subarray
-        // and hammering spanning rows across multiple subarrays doesn't lead to bit flips
-        // TODO: Add this back?
-        size_t row = use_seq_addresses ? cur_row : Range<int>(start_row, start_row + 32).get_random_number(gen);
-        if (arm_mode) row = row%1024;
-        aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
+        row = use_seq_addresses ? cur_row : Range<int>(fuzzing_params.get_start_row(),
+                                                       fuzzing_params.get_start_row() + 32).get_random_number(gen);
       }
+
+      if (arm_mode) row = row%1024;
+      aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
+
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
       if (cur_addr < lowest_address) lowest_address = cur_addr;
       if (cur_addr > highest_address) highest_address = cur_addr;

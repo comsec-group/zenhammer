@@ -9,7 +9,7 @@
 
 #include "Fuzzer/Aggressor.hpp"
 #include "Fuzzer/AggressorAccessPattern.hpp"
-#include "BitFlip.hpp"
+#include "Fuzzer/BitFlip.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
 class PatternAddressMapper {
