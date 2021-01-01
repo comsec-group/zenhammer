@@ -22,3 +22,4 @@ build/*
 .DS_Store
 visualize/venv/
 visualize/data/*
+/cmake-build-*

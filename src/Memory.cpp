@@ -3,7 +3,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <Fuzzer/PatternAddressMapper.hpp>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
