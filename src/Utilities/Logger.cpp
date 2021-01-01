@@ -13,7 +13,7 @@ void Logger::initialize() {
 
   std::string logfile_filename = "stdout.log";
   std::cout << "Writing into logfile \e[1m" << logfile_filename << "\e[0m." << std::endl;
-  instance.logfile.open(logfile_filename, std::ios::out | std::ios::trunc);
+  instance.logfile.open(logfile_filename, std::ios::out);
 }
 
 void Logger::close() {
