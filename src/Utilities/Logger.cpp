@@ -44,12 +44,15 @@ void Logger::log_bitflip(volatile char *flipped_address,
                          unsigned char expected_value,
                          unsigned long timestamp,
                          bool newline) {
+
   instance.logfile << FGREEN "[!] "
-                   << "[!] Flip " << flipped_address << ", "
-                   << "row " << row_no << ", "
-                   << "page offset: " << page_offset << ", "
-                   << "from " << expected_value << " to " << actual_value << ", "
-                   << "detected at t=" << timestamp << std::endl;
+                   << string_format("Flip at %p, row %lu, page offset: %lu, from %x to %x detected at t=%lu.",
+                                    flipped_address,
+                                    row_no,
+                                    page_offset,
+                                    actual_value,
+                                    expected_value,
+                                    timestamp);
   instance.logfile << NONE;
   if (newline) instance.logfile << std::endl;
 }
