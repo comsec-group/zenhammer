@@ -12,7 +12,7 @@
 
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
   std::random_device rd;
-  gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
+  gen = std::mt19937_64(rd());  // standard mersenne_twister_engine seeded with some random data
 
   // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
   num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;

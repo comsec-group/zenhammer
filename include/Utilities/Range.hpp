@@ -20,7 +20,7 @@ struct Range {
 
   }
 
-  T get_random_number(std::mt19937 &gen) {
+  T get_random_number(std::mt19937_64 &gen) {
     if (max < min) {
       std::swap(max, min);
     }
@@ -31,7 +31,7 @@ struct Range {
     }
   }
 
-  T get_random_number(int upper_bound, std::mt19937 &gen) {
+  T get_random_number(int upper_bound, std::mt19937_64 &gen) {
     if (max > upper_bound) dist = std::uniform_int_distribution<>(min, upper_bound);
     if (step!=1) {
       return Range<T>(min/step, upper_bound/step).get_random_number(gen)*step;

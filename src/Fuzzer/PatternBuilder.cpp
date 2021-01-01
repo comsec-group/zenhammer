@@ -6,7 +6,7 @@
 
 PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern) : pattern(hammering_pattern) {
   std::random_device rd;
-  gen = std::mt19937(rd());
+  gen = std::mt19937_64(rd());
 }
 
 size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
