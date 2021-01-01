@@ -176,7 +176,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25, mapping);
+      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25UL, mapping);
 
       // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapping);
