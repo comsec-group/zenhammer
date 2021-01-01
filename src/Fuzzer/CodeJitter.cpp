@@ -188,7 +188,10 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
 
     if (sync_each_ref
         && ((total_activations%fuzzing_params.get_num_activations_per_t_refi())==0)) {
-      sync_ref(aggressor_pairs, NUM_TIMED_ACCESSES, a);
+      std::vector<volatile char *> aggs(aggressor_pairs.begin() + i,
+                                        std::min(aggressor_pairs.begin() + i + NUM_TIMED_ACCESSES,
+                                                 aggressor_pairs.end()));
+      sync_ref(aggs, a);
     }
   }
 
@@ -196,7 +199,8 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   a.mfence();
 
   // ------- part 3: synchronize with the end  -----------------------------------------------------------------------
-  sync_ref(aggressor_pairs, NUM_TIMED_ACCESSES, a);
+  std::vector<volatile char *> last_aggs(aggressor_pairs.end() - NUM_TIMED_ACCESSES, aggressor_pairs.end());
+  sync_ref(last_aggs, a);
 
   a.jmp(for_begin);
   a.bind(for_end);
@@ -217,9 +221,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
 #endif
 }
 
-void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs,
-                          const int NUM_TIMED_ACCESSES,
-                          asmjit::x86::Assembler &assembler) {// synchronize with the end of the refresh interval: while (true) { ... }
+void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler) {
   asmjit::Label wbegin = assembler.newLabel();
   asmjit::Label wend = assembler.newLabel();
 
@@ -234,13 +236,12 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs,
   assembler.lfence();
   assembler.pop(asmjit::x86::edx);
 
-  // access last NUM_TIMED_ACCESSES aggressors
-  for (size_t idx = aggressor_pairs.size() - NUM_TIMED_ACCESSES; idx < aggressor_pairs.size(); idx++) {
+  for (auto agg : aggressor_pairs) {
     // flush
-    assembler.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
+    assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
     // access
-    assembler.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
+    assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
     assembler.dec(asmjit::x86::rsi);
     // update counter that counts the number of activation in the trailing synchronization
