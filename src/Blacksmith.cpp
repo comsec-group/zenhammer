@@ -1,17 +1,15 @@
 #include <cinttypes>
-#include <climits>
-#include <cstdio>
 #include <cstdlib>
-#include <sys/mman.h>
-#include <sys/resource.h>
 #include <ctime>
-#include <unistd.h>
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
 #include <fstream>
 #include <chrono>
-#include <Utilities/Logger.hpp>
+
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
@@ -20,6 +18,7 @@
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 #include "Fuzzer/PatternAddressMapping.hpp"
+#include "Utilities/Logger.hpp"
 
 #ifndef GIT_COMMIT_HASH
 #define GIT_COMMIT_HASH "INVALID REPOSITORY."
