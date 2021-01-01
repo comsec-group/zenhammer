@@ -137,7 +137,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
 //  sync_each_ref = Range<int>(0, 1);
-  sync_each_ref = Range<int>(1, 1);   // COMMENT: SAMSUNG parameters
+  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
