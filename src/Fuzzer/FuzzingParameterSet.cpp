@@ -78,13 +78,15 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
   // mapped to the same DRAM address]
-  // TODO: Think whether we should make agg_id->address unique because now this parameter does not really have a meaning
-  //  if we map different aggressor ids to the same address
-  num_aggressors = Range<int>(4, 64).get_random_number(gen);
+  // TODO: In AddressCodeMapper ensure that each address is only taken once, otherwise we cannot ensure that
+  //  num_aggressors holds (IDs could be mapped to the same address)
+//  num_aggressors = Range<int>(4, 64).get_random_number(gen);
+   num_aggressors = Range<int>(4, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
+//  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
+  num_refresh_intervals = std::pow(2, Range<int>(0, 4).get_random_number(gen));  // COMMENT: SAMSUNG parameters
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -102,17 +104,19 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  //  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(2, 4, 2);
+//  N_sided = Range<int>(2, 4, 2);
+    N_sided = Range<int>(2, 2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
-  amplitude = Range<int>(1, base_period/N_sided.min);
+//  amplitude = Range<int>(1, base_period/N_sided.min);
+  amplitude = Range<int>(1, 8);  // COMMENT: SAMSUNG parameters
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  agg_inter_distance = Range<int>(2, 64);
+//  agg_inter_distance = Range<int>(2, 64);
+  agg_inter_distance = Range<int>(2, 16);   // COMMENT: SAMSUNG parameters
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
   bank_no = Range<int>(0, NUM_BANKS - 1);
@@ -122,7 +126,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
-  sync_each_ref = Range<int>(0, 1);
+//  sync_each_ref = Range<int>(0, 1);
+  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -140,7 +145,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  set_distribution(N_sided, {{1, 10}, {2, 60}, {4, 30}});
+  set_distribution(N_sided, {{2, 100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
