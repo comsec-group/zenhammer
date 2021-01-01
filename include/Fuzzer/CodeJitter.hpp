@@ -45,8 +45,8 @@ class CodeJitter {
   /// cleaning up is required to release memory before jit_strict can be called again
   void cleanup();
 
-  static void sync_ref(const std::vector<volatile char *> &aggressor_pairs,
-                       const int NUM_TIMED_ACCESSES,
+  void sync_ref(const std::vector<volatile char *> &aggressor_pairs,
+                       int NUM_TIMED_ACCESSES,
                        asmjit::x86::Assembler &assembler);
 };
 
