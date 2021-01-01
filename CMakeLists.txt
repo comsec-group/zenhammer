@@ -77,8 +77,8 @@ set(SOURCES
         src/Utilities/Logger.cpp)
 
 set(HEADER_ONLY
-        include/Fuzzer/PatternAddressMapper.hpp
-        include/GlobalDefines.hpp include/Utilities/Enums.hpp)
+        include/GlobalDefines.hpp
+        include/Utilities/Enums.hpp)
 
 set(LIBRARY_NAME bs)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
