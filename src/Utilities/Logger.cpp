@@ -12,7 +12,7 @@ void Logger::initialize() {
   instance.logfile = std::ofstream();
 
   std::string logfile_filename = "stdout.log";
-  std::cout << "Writing stdout/stderr into logfile \e[1m" << logfile_filename << "\e[0m." << std::endl;
+  std::cout << "Writing into logfile \e[1m" << logfile_filename << "\e[0m." << std::endl;
   instance.logfile.open(logfile_filename, std::ios::out | std::ios::trunc);
 }
 
