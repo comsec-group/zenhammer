@@ -53,11 +53,14 @@ enable_cxx_compiler_flag_if_supported("-Wextra")
 enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
 enable_cxx_compiler_flag_if_supported("-Wno-format-security")
 
+execute_process(COMMAND "git status 1>/dev/null 2>&1" RESULT_VARIABLE ret)
+if(ret EQUAL "0")
 execute_process(
         COMMAND git rev-parse HEAD
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_COMMIT_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
 
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
