@@ -36,6 +36,14 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   Logger::log_data(string_format("num_refresh_intervals: %d", num_refresh_intervals));
   Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
   Logger::log_data(string_format("base_period: %d", base_period));
+  Logger::log_data(string_format("start_row: %d", start_row));
+}
+
+void FuzzingParameterSet::print_dynamic_parameters(const int bank, const int inter_dist, bool seq_addresses) {
+  Logger::log_info("Printing DRAM address-related fuzzing parameters:");
+  Logger::log_data(string_format("bank_no: %d", bank));
+  Logger::log_data(string_format("agg_inter_distance: %d", inter_dist));
+  Logger::log_data(string_format("use_seq_addresses: %s", (seq_addresses ? "true" : "false")));
 }
 
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
@@ -94,6 +102,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [included in HammeringPattern]
   //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+
+  start_row = Range<int>(0, 8192).get_random_number(gen);
 
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
@@ -154,6 +164,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   hammering_total_num_activations = 5000000;
 
   if (print) print_semi_dynamic_parameters();
+}
+
+int FuzzingParameterSet::get_start_row() const {
+  return start_row;
 }
 
 std::string FuzzingParameterSet::get_dist_string() const {

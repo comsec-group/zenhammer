@@ -20,9 +20,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   const int bank_no = fuzzing_params.get_random_bank_no();
   const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
   bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
+  FuzzingParameterSet::print_dynamic_parameters(bank_no, agg_inter_distance, use_seq_addresses);
 
-  int start_row = Range<int>(0, 8192).get_random_number(gen);
-  size_t cur_row = start_row;
+  size_t cur_row = fuzzing_params.get_start_row();
 
   // we can make use here of the fact that each aggressor (identified by its ID) has a fixed N, that means, is
   // either accessed individually (N=1) or in a group of multiple aggressors (N>1; e.g., N=2 for double sided)
