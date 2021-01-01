@@ -17,7 +17,7 @@
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Fuzzer/PatternAddressMapping.hpp"
+#include "Fuzzer/PatternAddressMapper.hpp"
 #include "Utilities/Logger.hpp"
 
 #ifndef GIT_COMMIT_HASH
@@ -115,7 +115,7 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
   // choose random addresses for pattern
-  PatternAddressMapping mapping(true);
+  PatternAddressMapper mapping(true);
   mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
   mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
 }
@@ -158,7 +158,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                                      5 - trials_per_pattern));
 
       // choose random addresses for pattern
-      PatternAddressMapping mapping;
+      PatternAddressMapper mapping;
       mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses

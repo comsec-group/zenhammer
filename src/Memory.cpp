@@ -3,7 +3,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <Fuzzer/PatternAddressMapping.hpp>
+#include <Fuzzer/PatternAddressMapper.hpp>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -75,7 +75,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           const volatile char *start,
                           const volatile char *end,
                           size_t check_offset,
-                          PatternAddressMapping &mapping) {
+                          PatternAddressMapper &mapping) {
   if (start==nullptr || end==nullptr) {
     Logger::log_error("Function mem_values called with invalid arguments.");
     exit(1);
@@ -146,7 +146,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           const volatile char *end,
                           size_t check_offset) {
   // create a "fake" pattern mapping to keep this method for backward compatibility
-  PatternAddressMapping pattern_mapping;
+  PatternAddressMapper pattern_mapping;
   check_memory(dram_analyzer, start, end, check_offset, pattern_mapping);
 }
 

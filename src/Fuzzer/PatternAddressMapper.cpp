@@ -2,9 +2,9 @@
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
-#include "Fuzzer/PatternAddressMapping.hpp"
+#include "Fuzzer/PatternAddressMapper.hpp"
 
-PatternAddressMapping::PatternAddressMapping() : instance_id(uuid::gen_uuid()) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937_64(rd());
@@ -14,8 +14,8 @@ PatternAddressMapping::PatternAddressMapping() : instance_id(uuid::gen_uuid()) {
   lowest_address = (volatile char *) (~(0UL));
 }
 
-void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_params,
-                                                std::vector<AggressorAccessPattern> &agg_access_patterns) {
+void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
+                                               std::vector<AggressorAccessPattern> &agg_access_patterns) {
   aggressor_to_addr.clear();
   const int bank_no = fuzzing_params.get_random_bank_no();
   const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
@@ -73,7 +73,7 @@ void PatternAddressMapping::randomize_addresses(FuzzingParameterSet &fuzzing_par
   Logger::log_info(string_format("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
-void PatternAddressMapping::export_pattern_internal(
+void PatternAddressMapper::export_pattern_internal(
     std::vector<Aggressor> &aggressors, size_t base_period,
     std::vector<volatile char *> &addresses,
     std::vector<int> &rows) {
@@ -128,19 +128,19 @@ void PatternAddressMapping::export_pattern_internal(
   Logger::log_data(mapping_str.str());
 }
 
-void PatternAddressMapping::export_pattern(
+void PatternAddressMapper::export_pattern(
     std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses) {
   std::vector<int> dummy_vector;
   export_pattern_internal(aggressors, base_period, addresses, dummy_vector);
 }
 
-void PatternAddressMapping::export_pattern(
+void PatternAddressMapper::export_pattern(
     std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows) {
   std::vector<volatile char *> dummy_vector;
   export_pattern_internal(aggressors, base_period, dummy_vector, rows);
 }
 
-void PatternAddressMapping::export_pattern(
+void PatternAddressMapper::export_pattern(
     std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows) {
   std::vector<int> rows_vector;
   std::vector<volatile char *> dummy_vector;
@@ -155,7 +155,7 @@ void PatternAddressMapping::export_pattern(
   }
 }
 
-volatile char *PatternAddressMapping::get_lowest_address() const {
+volatile char *PatternAddressMapper::get_lowest_address() const {
   if (lowest_address==nullptr) {
     Logger::log_error("Cannot get lowest address because no address has been assigned.");
     exit(1);
@@ -163,7 +163,7 @@ volatile char *PatternAddressMapping::get_lowest_address() const {
   return lowest_address;
 }
 
-volatile char *PatternAddressMapping::get_highest_address() const {
+volatile char *PatternAddressMapper::get_highest_address() const {
   if (lowest_address==nullptr) {
     Logger::log_error("Cannot get highest address because no address has been assigned.");
     exit(1);
@@ -173,14 +173,14 @@ volatile char *PatternAddressMapping::get_highest_address() const {
 
 #ifdef ENABLE_JSON
 
-void to_json(nlohmann::json &j, const PatternAddressMapping &p) {
+void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
   j = nlohmann::json{{"id", p.get_instance_id()},
                      {"aggressor_to_addr", p.aggressor_to_addr},
                      {"bit_flips", p.bit_flips},
   };
 }
 
-void from_json(const nlohmann::json &j, PatternAddressMapping &p) {
+void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("id").get_to(p.get_instance_id());
   j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
   j.at("bit_flips").get_to(p.bit_flips);
@@ -188,15 +188,15 @@ void from_json(const nlohmann::json &j, PatternAddressMapping &p) {
 
 #endif
 
-const std::string &PatternAddressMapping::get_instance_id() const {
+const std::string &PatternAddressMapper::get_instance_id() const {
   return instance_id;
 }
 
-std::string &PatternAddressMapping::get_instance_id() {
+std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
-PatternAddressMapping::PatternAddressMapping(bool arm_mode) : arm_mode(arm_mode) {
+PatternAddressMapper::PatternAddressMapper(bool arm_mode) : arm_mode(arm_mode) {
   // initialize pointers for first and last address of address pool
   highest_address = (volatile char *) nullptr;
   lowest_address = (volatile char *) (~(0UL));

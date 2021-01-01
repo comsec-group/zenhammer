@@ -68,7 +68,7 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/Fuzzer/PatternAddressMapping.cpp
+        src/Fuzzer/PatternAddressMapper.cpp
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
@@ -77,7 +77,7 @@ set(SOURCES
         src/Utilities/Logger.cpp)
 
 set(HEADER_ONLY
-        include/Fuzzer/PatternAddressMapping.hpp
+        include/Fuzzer/PatternAddressMapper.hpp
         include/GlobalDefines.hpp include/Utilities/Enums.hpp)
 
 set(LIBRARY_NAME bs)

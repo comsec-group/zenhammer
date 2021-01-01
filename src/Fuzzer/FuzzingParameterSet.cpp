@@ -114,26 +114,26 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
 //  agg_inter_distance = Range<int>(2, 64);
   agg_inter_distance = Range<int>(2, 16);   // COMMENT: SAMSUNG parameters
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   bank_no = Range<int>(0, NUM_BANKS - 1);
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   use_sequential_aggressors = Range<int>(0, 1);
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
 //  sync_each_ref = Range<int>(0, 1);
-  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
+  sync_each_ref = Range<int>(1, 1);   // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   // == fix values/formulas that must be configured before running this program ======
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_intra_distance = 2;
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]

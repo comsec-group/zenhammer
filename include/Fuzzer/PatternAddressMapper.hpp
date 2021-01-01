@@ -12,7 +12,7 @@
 #include "BitFlip.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
-class PatternAddressMapping {
+class PatternAddressMapper {
  private:
   void export_pattern_internal(std::vector<Aggressor> &aggressors,
                                size_t base_period,
@@ -39,9 +39,9 @@ class PatternAddressMapping {
   // a randomization engine
   std::mt19937_64 gen;
 
-  explicit PatternAddressMapping();
+  explicit PatternAddressMapper();
 
-  explicit PatternAddressMapping(bool arm_mode);
+  explicit PatternAddressMapper(bool arm_mode);
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   // TODO: add bool allow_same_address_aggressors=false to control reuse of addresses for aggressors with different IDs
@@ -63,8 +63,8 @@ class PatternAddressMapping {
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 };
 
-void to_json(nlohmann::json &j, const PatternAddressMapping &p);
+void to_json(nlohmann::json &j, const PatternAddressMapper &p);
 
-void from_json(const nlohmann::json &j, PatternAddressMapping &p);
+void from_json(const nlohmann::json &j, PatternAddressMapper &p);
 
 #endif //BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
