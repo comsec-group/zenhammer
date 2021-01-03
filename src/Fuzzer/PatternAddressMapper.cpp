@@ -93,6 +93,7 @@ void PatternAddressMapper::export_pattern_internal(
   }
 
   // print string representation of pattern
+//  Logger::log_info("Pattern filled by random DRAM rows:");
 //  Logger::log_data(pattern_str.str());
 
   if (invalid_aggs) {
@@ -101,7 +102,7 @@ void PatternAddressMapper::export_pattern_internal(
   }
 
   // writes the agg_id -> DRAMAddr mapping into the log file
-  Logger::log_info("Aggressor ID to DRAM address mapping, given as 'id : (bank, rank, column)':");
+  Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
   std::stringstream mapping_str;
   mapping_str << "{ ";
   size_t cnt = 0;

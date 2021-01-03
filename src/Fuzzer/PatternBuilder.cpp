@@ -124,6 +124,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     }
   }
 
+  Logger::log_info("Abstract pattern based on aggressor IDs:");
   std::stringstream ss;
   for (size_t i = 0; i < pattern.accesses.size(); ++i) {
     if ((i%base_period)==0 && i > 0) ss << std::endl;
