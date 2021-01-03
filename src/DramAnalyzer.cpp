@@ -4,13 +4,11 @@
 #include <cinttypes>
 #include <cstdlib>
 #include <algorithm>
-#include <cmath>
 #include <vector>
 #include <unordered_set>
-#include <DRAMAddr.hpp>
+#include <sstream>
 
 #include "GlobalDefines.hpp"
-#include "Utilities/AsmPrimitives.hpp"
 
 volatile char *DramAnalyzer::normalize_addr_to_bank(volatile char *cur_addr, size_t bank_no) {
   volatile char *normalized_addr = cur_addr;

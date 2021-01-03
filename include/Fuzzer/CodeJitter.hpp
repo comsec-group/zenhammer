@@ -1,14 +1,15 @@
 #ifndef CODEJITTER
 #define CODEJITTER
 
+#include <unordered_map>
+#include <vector>
+
+#include "Utilities/Enums.hpp"
+#include "Fuzzer/FuzzingParameterSet.hpp"
+
 #ifdef ENABLE_JITTING
 #include <asmjit/asmjit.h>
 #endif
-
-#include <unordered_map>
-#include <vector>
-#include "Utilities/Enums.hpp"
-#include "FuzzingParameterSet.hpp"
 
 class CodeJitter {
  private:
