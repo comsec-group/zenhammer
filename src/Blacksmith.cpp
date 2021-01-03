@@ -149,13 +149,12 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
-    // then test this pattern with 5 different address sets
-    trials_per_pattern = 5;
-    while (trials_per_pattern--) {
+    // then test this pattern with N different address sets
+    while (trials_per_pattern++ < MAX_TRIALS_PER_PATTERN) {
       Logger::log_info(string_format("Running for pattern %d (%s) with address set %d.",
                                      cur_round,
                                      hammering_pattern.instance_id.c_str(),
-                                     5 - trials_per_pattern));
+                                     trials_per_pattern));
 
       // choose random addresses for pattern
       PatternAddressMapper mapping;
@@ -188,6 +187,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
+    trials_per_pattern = 0;
   }
 
 #ifdef ENABLE_JSON
