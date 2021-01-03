@@ -228,7 +228,7 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
 
-bool FuzzingParameterSet::get_sync_each_ref() {
+bool FuzzingParameterSet::get_random_sync_each_ref() {
   return (bool) (sync_each_ref.get_random_number(gen));
 }
 

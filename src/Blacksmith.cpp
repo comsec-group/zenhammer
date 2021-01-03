@@ -170,7 +170,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
                              hammering_pattern_accesses,
-                             fuzzing_params.get_sync_each_ref());
+                             fuzzing_params.get_random_sync_each_ref());
 
       // do hammering
       code_jitter.hammer_pattern();

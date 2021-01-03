@@ -39,6 +39,8 @@ class FuzzingParameterSet {
 
   Range<int> N_sided;
 
+  Range<int> sync_each_ref;
+
   FLUSHING_STRATEGY flushing_strategy;
 
   FENCING_STRATEGY fencing_strategy;
@@ -83,11 +85,11 @@ class FuzzingParameterSet {
 
   int get_random_N_sided(size_t upper_bound_max);
 
-  bool get_sync_each_ref();
-
   int get_num_activations_per_t_refi() const;
 
-  static void print_dynamic_parameters(const int bank, const int inter_dist, bool seq_addresses) ;
+  bool get_random_sync_each_ref();
+
+  static void print_dynamic_parameters(int bank, int inter_dist, bool seq_addresses) ;
 
   int get_start_row() const;
 };
