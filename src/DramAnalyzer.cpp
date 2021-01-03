@@ -35,6 +35,9 @@ volatile char *DramAnalyzer::normalize_addr_to_bank(volatile char *cur_addr, siz
 }
 
 uint64_t DramAnalyzer::get_row_increment() const {
+  // FIXME
+  return 0x20000;
+
   for (size_t i = 0; i < 64; i++) {
     if (row_function & BIT_SET(i)) return BIT_SET(i);
   }
@@ -130,13 +133,24 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 //    exit(1);
 //  }
 
+  // FIXME!
+  row_function = 0x3ffe0000;
+
+  // FIXME:
+  bank_rank_functions.clear();
+  bank_rank_functions.resize(4);
+  bank_rank_functions[0] = 0x2040;
+  bank_rank_functions[1] = 0x24000;
+  bank_rank_functions[2] = 0x48000;
+  bank_rank_functions[3] = 0x90000;
+
   Logger::log_info("Found bank/rank and row function:");
   Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
   Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
 
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
-  for (unsigned long bank_rank_function : bank_rank_functions) {
+  for (auto bank_rank_function : bank_rank_functions) {
     ss << "0x" << std::hex << bank_rank_function << " ";
   }
   Logger::log_data(ss.str());
@@ -158,7 +172,7 @@ uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<v
 void DramAnalyzer::find_bank_conflicts() {
   srand(time(nullptr));
   int nr_banks_cur = 0;
-  int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
+  int remaining_tries = NUM_BANKS*256;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS && remaining_tries > 0) {
     reset:
     remaining_tries--;
