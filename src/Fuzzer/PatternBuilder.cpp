@@ -54,22 +54,17 @@ void PatternBuilder::fill_slots(size_t start_period,
 }
 
 void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors) {
-  size_t max_possible_start_id = max_num_aggressors - 1 - N;
-  int first_idx;
+  // start aggressor ID
+  auto agg_id = Range<size_t>(0, max_num_aggressors-1).get_random_number(gen);
 
-  if (max_possible_start_id <= 0) {
-    Logger::log_error(string_format(
-        "The calculated start ID for the aggressors is %d, which is not smaller-equal to 0. "
-        "Using start ID = 0 to allow picking the largest possible number of aggressors (though, still smaller as N).",
-        max_possible_start_id));
-    first_idx = 0;
-  } else {
-    first_idx = Range<int>(0, max_possible_start_id).get_random_number(gen);
-  }
-
+  // clean any existing aggressors
   aggs.clear();
-  for (size_t i = 0; i < std::min(N, (size_t) max_num_aggressors); ++i) {
-    aggs.emplace_back(first_idx++);
+
+  // increment the ID cyclically until we added N aggressors
+  size_t counter = 0;
+  for (size_t i = agg_id; counter < N; i= ((i+1)%max_num_aggressors)) {
+    aggs.emplace_back((int)i);
+    counter++;
   }
 };
 
