@@ -364,6 +364,7 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
 int main(int argc, char **argv) {
   Logger::initialize();
 
+  // process parameter '-generate_patterns'
   const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
   if (cmdOptionExists(argv, argv + argc, ARG_GENERATE_PATTERN)) {
     size_t acts = strtoul(getCmdOption(argv, argv + argc, ARG_GENERATE_PATTERN), nullptr, 10);
@@ -378,6 +379,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  // process parameter '-runtime_limit'
   const std::string ARG_RUNTIME_LIMIT = "-runtime_limit";
   if (cmdOptionExists(argv, argv + argc, ARG_RUNTIME_LIMIT)) {
     // parse the program arguments
@@ -407,9 +409,7 @@ int main(int argc, char **argv) {
   // determine the bank/rank masks
   dram_analyzer.find_bank_rank_masks();
 
-  // initialize the DRAMAddr class
-  DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
-
+  // process parameter '-acts_per_ref'
   int act;
   const std::string ARG_ACTS_PER_REF = "-acts_per_ref";
   if (cmdOptionExists(argv, argv + argc, ARG_ACTS_PER_REF)) {
@@ -424,6 +424,9 @@ int main(int argc, char **argv) {
     // count the number of possible activations per refresh interval
     act = count_acts_per_ref(dram_analyzer.get_banks());
   }
+
+  // initialize the DRAMAddr class
+  DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {

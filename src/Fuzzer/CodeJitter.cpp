@@ -236,14 +236,18 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
   assembler.lfence();
   assembler.pop(asmjit::x86::edx);
 
-  for (size_t idx = 0; idx < aggressor_pairs.size(); idx++) {
+  for (auto agg : aggressor_pairs) {
     // flush
-    assembler.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
+    assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+
     // access
-    assembler.mov(asmjit::x86::rax, (uint64_t) aggressor_pairs[idx]);
+    assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
-//    assembler.dec(asmjit::x86::rsi);
+
+    // we do not deduct the sync accesses from the total number of activations
+    // assembler.dec(asmjit::x86::rsi);
+
     // update counter that counts the number of activation in the trailing synchronization
     assembler.inc(asmjit::x86::edx);
   }

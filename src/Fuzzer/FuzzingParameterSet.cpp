@@ -48,8 +48,7 @@ void FuzzingParameterSet::print_dynamic_parameters(const int bank, const int int
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
                                            std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
-  size_t num_iterations = 0;
-  for (int i = 0; i <= range_N_sided.max; num_iterations++, i += 1) {
+  for (int i = 0; i <= range_N_sided.max; i += 1) {
     dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int) 0);
   }
 
@@ -78,6 +77,7 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
   Logger::log_info("Randomizing fuzzing parameters.");
+  // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
