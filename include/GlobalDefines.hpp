@@ -25,12 +25,14 @@ uint64_t static inline GB(uint64_t value) {
 }
 
 // font colors
-#define FRED "\e[0;31m"
-#define FGREEN "\e[0;32m"
-#define FYELLOW "\e[0;33m"
-#define FBLUE "\e[0;34m"
-#define FCYAN "\e[0;36m"
-#define NONE "\e[0m" // end coloring, revert to default color
+#define FC_RED "\e[0;31m"
+#define FC_GREEN "\e[0;32m"
+#define FC_YELLOW "\e[0;33m"
+#define FC_BLUE "\e[0;34m"
+#define FC_CYAN "\e[0;36m"
+// font faces
+#define FF_BOLD "\e[1m"
+#define F_RESET "\e[0m" // reset to default font face/color
 
 // ########################################################
 // ################### CONFIG PARAMETERS ##################

@@ -75,7 +75,7 @@ void PatternAddressMapper::export_pattern_internal(
     // check whether this is a valid aggressor, i.e., the aggressor's ID != -1
     auto agg = aggressors[i];
     if (agg.id==ID_PLACEHOLDER_AGG) {
-      pattern_str << FRED << "-1" << NONE;
+      pattern_str << FC_RED << "-1" << F_RESET;
       invalid_aggs = true;
       continue;
     }

@@ -43,6 +43,7 @@ class Logger {
                           unsigned long timestamp,
                           bool newline = true);
 
+  static void log_debug(const std::string &message, bool newline = true);
 };
 
 #endif //BLACKSMITH_INCLUDE_LOGGER_HPP_
