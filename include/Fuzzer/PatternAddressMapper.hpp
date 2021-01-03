@@ -37,7 +37,7 @@ class PatternAddressMapper {
   std::vector<BitFlip> bit_flips;
 
   // a randomization engine
-  std::mt19937_64 gen;
+  std::mt19937 gen;
 
   explicit PatternAddressMapper();
 

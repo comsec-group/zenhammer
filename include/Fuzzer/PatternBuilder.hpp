@@ -15,7 +15,7 @@
 class PatternBuilder {
  private:
   HammeringPattern &pattern;
-  std::mt19937_64 gen;
+  std::mt19937 gen;
 
  public:
   /// default constructor that randomizes fuzzing parameters

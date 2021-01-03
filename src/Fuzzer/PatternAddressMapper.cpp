@@ -7,7 +7,7 @@
 PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
-  gen = std::mt19937_64(rd());
+  gen = std::mt19937(rd());
 
   // initialize pointers for first and last address of address pool
   highest_address = (volatile char *) nullptr;

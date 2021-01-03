@@ -12,7 +12,7 @@
 
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
   std::random_device rd;
-  gen = std::mt19937_64(rd());  // standard mersenne_twister_engine seeded with some random data
+  gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
 
   // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
   num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
@@ -89,7 +89,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // TODO: In AddressCodeMapper ensure that each address is only taken once, otherwise we cannot ensure that
   //  num_aggressors holds (IDs could be mapped to the same address)
 //  num_aggressors = Range<int>(4, 64).get_random_number(gen);
-   num_aggressors = Range<int>(4, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
+  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
@@ -126,7 +126,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
 //  agg_inter_distance = Range<int>(2, 64);
-  agg_inter_distance = Range<int>(2, 16);   // COMMENT: SAMSUNG parameters
+  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   bank_no = Range<int>(0, NUM_BANKS - 1);

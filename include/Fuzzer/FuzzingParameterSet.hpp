@@ -9,7 +9,7 @@
 
 class FuzzingParameterSet {
  private:
-  std::mt19937_64 gen;
+  std::mt19937 gen;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals;

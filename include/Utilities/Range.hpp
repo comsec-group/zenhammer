@@ -20,8 +20,10 @@ struct Range {
 
   }
 
-  T get_random_number(std::mt19937_64 &gen) {
-    if (max < min) {
+  T get_random_number(std::mt19937 &gen) {
+    if (min==max) {
+      return min;
+    } else if (max < min) {
       std::swap(max, min);
     }
     if (step!=1) {
