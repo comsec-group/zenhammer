@@ -25,7 +25,7 @@ class FuzzingParameterSet {
 
   int base_period;
 
-  Range<int> sync_each_ref;
+  int start_row;
 
   size_t total_acts_pattern;
 
@@ -90,8 +90,6 @@ class FuzzingParameterSet {
   static void print_dynamic_parameters(const int bank, const int inter_dist, bool seq_addresses) ;
 
   int get_start_row() const;
-
-  int start_row;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
