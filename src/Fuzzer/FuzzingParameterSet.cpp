@@ -111,6 +111,12 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 //  sync_each_ref = Range<int>(0, 1);
   sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
+//  wait_until_start_hammering_microseconds = Range<int>(100, 200);
+  wait_until_start_hammering_microseconds = Range<int>(0, 0);
+
+//  num_aggressors_for_sync = Range<int>(1, 3);
+  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
+
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   // == fix values/formulas that must be configured before running this program ======
@@ -233,12 +239,20 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
 
+int FuzzingParameterSet::get_random_wait_until_start_hammering_microseconds() {
+  return wait_until_start_hammering_microseconds.get_random_number(gen);
+}
+
 bool FuzzingParameterSet::get_random_sync_each_ref() {
   return (bool) (sync_each_ref.get_random_number(gen));
 }
 
 int FuzzingParameterSet::get_num_activations_per_t_refi() const {
   return num_activations_per_tREFI;
+}
+
+int FuzzingParameterSet::get_random_num_aggressors_for_sync() {
+  return num_aggressors_for_sync.get_random_number(gen);
 }
 
 

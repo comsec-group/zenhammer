@@ -29,6 +29,8 @@ class FuzzingParameterSet {
 
   int max_row_no;
 
+  Range<int> num_aggressors_for_sync;
+
   size_t total_acts_pattern;
 
   Range<int> bank_no;
@@ -42,6 +44,8 @@ class FuzzingParameterSet {
   Range<int> N_sided;
 
   Range<int> sync_each_ref;
+
+  Range<int> wait_until_start_hammering_microseconds;
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -95,6 +99,14 @@ class FuzzingParameterSet {
   static void print_dynamic_parameters(int bank, int inter_dist, bool seq_addresses);
 
   int get_max_row_no() const;
+
+  int get_random_num_aggressors_for_sync();
+
+  int get_random_wait_until_start_hammering_microseconds();
+
+  static void print_dynamic_parameters2(bool sync_at_each_ref,
+                                 int wait_until_hammering_us,
+                                 int num_aggs_for_sync);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
