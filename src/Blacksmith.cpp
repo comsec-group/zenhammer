@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <chrono>
+#include <thread>
 
 #include <sys/mman.h>
 #include <sys/resource.h>
@@ -165,13 +166,20 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
-      // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
+      bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
+      int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
       code_jitter.jit_strict(fuzzing_params,
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
                              hammering_pattern_accesses,
-                             fuzzing_params.get_random_sync_each_ref());
+                             sync_at_each_ref,
+                             num_aggs_for_sync);
 
+      auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
+      fuzzing_params.print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
+
+      // wait for a random time
+      std::this_thread::sleep_for(std::chrono::milliseconds(wait_until_hammering_us));
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
