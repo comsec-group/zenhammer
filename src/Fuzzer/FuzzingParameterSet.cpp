@@ -79,32 +79,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   Logger::log_info("Randomizing fuzzing parameters.");
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
-  // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  // == are only randomized once when calling this function ======
-
-  // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
-  // mapped to the same DRAM address]
-  // TODO: In AddressCodeMapper ensure that each address is only taken once, otherwise we cannot ensure that
-  //  num_aggressors holds (IDs could be mapped to the same address)
-//  num_aggressors = Range<int>(4, 64).get_random_number(gen);
-  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
-
-  // [included in HammeringPattern]
-  // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-//  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
-  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
-
-  // [included in HammeringPattern]
-  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
-
-  // [included in HammeringPattern]
-//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
-  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
-
-  start_row = Range<int>(0, 8192).get_random_number(gen);
-
-
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   //  == are randomized for each added aggressor ======
@@ -164,7 +138,36 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //    num_activations_per_tREFI: ≈100                       => 10,000 * 100 = 1M activations * 5 = 5M ACTs
   hammering_total_num_activations = 5000000;
 
+  max_row_no = 8192;
+
+  // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
+
+  // == are only randomized once when calling this function ======
+
+  // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
+  // mapped to the same DRAM address]
+//  num_aggressors = Range<int>(4, 64).get_random_number(gen);
+  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
+
+  // [included in HammeringPattern]
+  // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
+//  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
+  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
+
+  // [included in HammeringPattern]
+  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
+
+  // [included in HammeringPattern]
+//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
+
+  start_row = Range<int>(0, max_row_no).get_random_number(gen);
+
   if (print) print_semi_dynamic_parameters();
+}
+
+int FuzzingParameterSet::get_max_row_no() const {
+  return max_row_no;
 }
 
 int FuzzingParameterSet::get_start_row() const {

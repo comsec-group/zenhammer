@@ -27,6 +27,8 @@ class FuzzingParameterSet {
 
   int start_row;
 
+  int max_row_no;
+
   size_t total_acts_pattern;
 
   Range<int> bank_no;
@@ -52,11 +54,6 @@ class FuzzingParameterSet {
  public:
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
 
-  void randomize_parameters(bool print = true);
-
-  void set_distribution(Range<int> range_N_sided,
-                               std::unordered_map<int, int> probabilities);
-
   int get_random_bank_no();
 
   int get_hammering_total_num_activations() const;
@@ -67,19 +64,11 @@ class FuzzingParameterSet {
 
   int get_random_N_sided();
 
-  bool get_random_use_seq_addresses();
-
-  size_t get_total_acts_pattern() const;
-
   int get_base_period() const;
 
   int get_agg_intra_distance() const;
 
   int get_random_inter_distance();
-
-  void print_static_parameters() const;
-
-  void print_semi_dynamic_parameters() const;
 
   int get_random_even_divisior(int n, int min_value);
 
@@ -87,11 +76,25 @@ class FuzzingParameterSet {
 
   int get_num_activations_per_t_refi() const;
 
+  int get_start_row() const;
+
+  size_t get_total_acts_pattern() const;
+
+  bool get_random_use_seq_addresses();
+
   bool get_random_sync_each_ref();
 
-  static void print_dynamic_parameters(int bank, int inter_dist, bool seq_addresses) ;
+  void print_static_parameters() const;
 
-  int get_start_row() const;
+  void print_semi_dynamic_parameters() const;
+
+  void randomize_parameters(bool print = true);
+
+  void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
+
+  static void print_dynamic_parameters(int bank, int inter_dist, bool seq_addresses);
+
+  int get_max_row_no() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
