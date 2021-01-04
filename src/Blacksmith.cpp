@@ -121,6 +121,10 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
 }
 
+long get_timestamp_sec() {
+  return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+};
+
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   Logger::log_info("Starting frequency-based hammering.");
 
@@ -133,15 +137,10 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   nlohmann::json arr = nlohmann::json::array();
 #endif
 
-  auto get_timestamp_sec = []() -> long {
-    return std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-  };
-
-  long limit = get_timestamp_sec() + RUN_TIME_LIMIT;
+  long execution_time_limit = get_timestamp_sec() + RUN_TIME_LIMIT;
 
   int cur_round = 0;
-  while (get_timestamp_sec() < limit) {
+  while (get_timestamp_sec() < execution_time_limit) {
     cur_round++;
     fuzzing_params.randomize_parameters(true);
 
@@ -214,9 +213,9 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
 
   auto ts_start = std::chrono::high_resolution_clock::now();
   ts_start.time_since_epoch().count();
-  auto limit = ts_start.time_since_epoch().count() + RUN_TIME_LIMIT;
+  auto limit = get_timestamp_sec() + RUN_TIME_LIMIT;
 
-  while (std::chrono::high_resolution_clock::now().time_since_epoch().count() < limit) {
+  while (get_timestamp_sec() < limit) {
     srand(time(nullptr));
 
     // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
@@ -439,7 +438,7 @@ int main(int argc, char **argv) {
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     n_sided_frequency_based_hammering(memory, dram_analyzer, act);
-  } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+  } else if (!USE_FREQUENCY_BASED_FUZZING) {
     n_sided_hammer(memory, dram_analyzer, act);
   } else {
     Logger::log_error("Invalid combination of program control-flow arguments given. "
