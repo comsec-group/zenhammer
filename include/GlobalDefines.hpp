@@ -48,7 +48,8 @@ uint64_t static inline GB(uint64_t value) {
 #define HAMMER_ROUNDS 1000000
 
 // threshold to distinguish between cache miss (t > THRESH) and cache hit (t < THRESH)
-#define THRESH 430
+#define THRESH 495  // worked best on DIMM 6
+//#define THRESH 430  // worked best on DIMM 18
 
 // number of conflicting addresses to be determined for each bank
 #define NUM_TARGETS 10

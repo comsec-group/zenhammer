@@ -11,7 +11,7 @@ void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start
     num_ranks = RANKS(1);
   } else {
     Logger::log_error("Could not initialize DRAMAddr as #ranks seems not to be 1 or 2.");
-    exit(0);
+    exit(1);
   }
   DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
   DRAMAddr::set_base((void *) start_address);
