@@ -59,6 +59,8 @@ class DramAnalyzer {
   void find_bank_rank_masks();
 
   std::vector<uint64_t> get_bank_rank_functions();
+
+  void load_known_functions(int num_ranks);
 };
 
 #endif /* DRAMANALYZER */

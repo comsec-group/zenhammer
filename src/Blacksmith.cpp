@@ -26,7 +26,6 @@
 #endif
 
 /// the number of rounds to hammer
-/// this is controllable via the first (unnamed) program parameter
 static long RUN_TIME_LIMIT{0};
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
@@ -395,6 +394,16 @@ int main(int argc, char **argv) {
     RUN_TIME_LIMIT = 120; // 2 minutes
   }
 
+  // process parameter '-num_ranks'
+  const std::string ARG_NUM_RANKS = "-num_ranks";
+  bool param_num_ranks_given = false;
+  int num_ranks;
+  if (cmdOptionExists(argv, argv + argc, ARG_NUM_RANKS)) {
+    // parse the program arguments
+    num_ranks = (int)strtol(getCmdOption(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
+    param_num_ranks_given = true;
+  }
+
   // prints the current git commit and some metadata
   print_metadata();
 
@@ -411,8 +420,13 @@ int main(int argc, char **argv) {
   DramAnalyzer dram_analyzer(memory.get_starting_address());
   // find address sets that create bank conflicts
   dram_analyzer.find_bank_conflicts();
-  // determine the row and bank/rank functions
-  dram_analyzer.find_functions(use_superpage);
+
+  if (param_num_ranks_given) {
+    dram_analyzer.load_known_functions(num_ranks);
+  } else {
+    // determine the row and bank/rank functions
+    dram_analyzer.find_functions(use_superpage);
+  }
   // determine the bank/rank masks
   dram_analyzer.find_bank_rank_masks();
 

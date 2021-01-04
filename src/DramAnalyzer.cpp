@@ -297,3 +297,25 @@ std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
   return bank_rank_functions;
 }
 
+void DramAnalyzer::load_known_functions(int num_ranks) {
+  if (num_ranks==1) {
+    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x24000, 0x48000, 0x90000});
+    row_function = 0x3ffe0000;
+  } else if (num_ranks==2) {
+    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x44000, 0x88000, 0x110000, 0x220000});
+    row_function = 0x3ffc0000;
+  } else {
+    Logger::log_error("Cannot load bank/rank and row function if num_ranks is not 1 or 2.");
+    exit(1);
+  }
+
+  Logger::log_info("Loaded bank/rank and row function:");
+  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
+  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+  std::stringstream ss;
+  ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
+  for (auto bank_rank_function : bank_rank_functions) {
+    ss << "0x" << std::hex << bank_rank_function << " ";
+  }
+  Logger::log_data(ss.str());
+}
