@@ -96,36 +96,37 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-//  N_sided = Range<int>(1, 6);
-  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
+  N_sided = Range<int>(1, 6);
+//  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
-//  amplitude = Range<int>(1, base_period/N_sided.min);
-  amplitude = Range<int>(1, 6);  // COMMENT: SAMSUNG parameters
+  amplitude = Range<int>(1, base_period/N_sided.min);
+//  amplitude = Range<int>(1, 6);  // COMMENT: SAMSUNG parameters
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-//  agg_inter_distance = Range<int>(2, 64);
-  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
+  agg_inter_distance = Range<int>(2, 16);
+//  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   bank_no = Range<int>(0, NUM_BANKS - 1);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  use_sequential_aggressors = Range<int>(1, 1);
+  use_sequential_aggressors = Range<int>(0, 1);
+//  use_sequential_aggressors = Range<int>(1, 1);   // COMMENT: SAMSUNG parameters
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
-//  sync_each_ref = Range<int>(0, 1);
-  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
+  sync_each_ref = Range<int>(0, 1);
+//  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
-//  wait_until_start_hammering_microseconds = Range<int>(100, 200);
-  wait_until_start_hammering_microseconds = Range<int>(0, 0);
+//  wait_until_start_hammering_microseconds = Range<int>(0, 0);    // COMMENT: SAMSUNG parameters
+  wait_until_start_hammering_microseconds = Range<int>(0, 200);
 
-//  num_aggressors_for_sync = Range<int>(1, 3);
-  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
+  num_aggressors_for_sync = Range<int>(1, 3);
+//  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -146,7 +147,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
 //  set_distribution(N_sided, {{1, 10}, {2, 40}, {3, 10}, {4, 30}, {5, 10}, {6, 20}});
-  set_distribution(N_sided, {{2, 100}});   // COMMENT: SAMSUNG parameters
+  set_distribution(N_sided, {{1,10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
+//  set_distribution(N_sided, {{2,100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -163,21 +165,22 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
   // mapped to the same DRAM address]
 //  num_aggressors = Range<int>(4, 64).get_random_number(gen);
-  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
+//  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
+  num_aggressors = Range<int>(24, 72).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-//  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
-  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
+//  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
+  num_refresh_intervals = std::pow(2, Range<int>(0, 9).get_random_number(gen));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
-  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
 
-  start_row = Range<int>(0, max_row_no).get_random_number(gen);
+  start_row = Range<int>(0, 1024).get_random_number(gen);
 
   if (print) print_semi_dynamic_parameters();
 }
