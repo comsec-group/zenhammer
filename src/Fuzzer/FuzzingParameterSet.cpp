@@ -96,8 +96,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-//  N_sided = Range<int>(2, 4, 2);
-  N_sided = Range<int>(2, 4);  // COMMENT: SAMSUNG parameters
+//  N_sided = Range<int>(1, 6);
+  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
@@ -145,8 +145,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-//  set_distribution(N_sided, {{1, 70}, {2, 30}});   // COMMENT: SAMSUNG parameters
-  N_sided_probabilities = std::discrete_distribution<int>({0, 50, 50});
+//  set_distribution(N_sided, {{1, 10}, {2, 40}, {3, 10}, {4, 30}, {5, 10}, {6, 20}});
+  set_distribution(N_sided, {{2, 100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
