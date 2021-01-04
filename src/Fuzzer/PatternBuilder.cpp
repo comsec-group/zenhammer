@@ -57,7 +57,7 @@ void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, in
   // start aggressor ID
   auto agg_id = Range<size_t>(0, max_num_aggressors-1).get_random_number(gen);
 
-  // clean any existing aggressors
+  // clean any existing aggressors in the given vector
   aggs.clear();
 
   // increment the ID cyclically until we added N aggressors

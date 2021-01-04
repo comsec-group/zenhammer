@@ -115,7 +115,7 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
   // choose random addresses for pattern
-  PatternAddressMapper mapping(true);
+  PatternAddressMapper mapping;
   mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
   mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
 }
