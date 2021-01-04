@@ -1,3 +1,4 @@
+#include <set>
 #include "Fuzzer/PatternAddressMapper.hpp"
 
 #include "GlobalDefines.hpp"
@@ -16,38 +17,60 @@ PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
                                                std::vector<AggressorAccessPattern> &agg_access_patterns) {
+  // clear any already existing mapping
   aggressor_to_addr.clear();
+
+  // retrieve and then store randomized values as they should be the same for all added addresses
   const int bank_no = fuzzing_params.get_random_bank_no();
   const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
   bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   FuzzingParameterSet::print_dynamic_parameters(bank_no, agg_inter_distance, use_seq_addresses);
 
-  int start_row = fuzzing_params.get_start_row();
-  size_t cur_row = start_row;
+  //
+  size_t cur_row = fuzzing_params.get_start_row();
+
+  // a set of DRAM rows that are already assigned to aggressors
+  std::set<int> occupied_rows;
 
   // we can make use here of the fact that each aggressor (identified by its ID) has a fixed N, that means, is
   // either accessed individually (N=1) or in a group of multiple aggressors (N>1; e.g., N=2 for double sided)
   // => if we already know the address of any aggressor in an aggressor access pattern, we already must know
   // addresses for all of them as we must have accessed all of them together before
-  // however, we will consider mapping multiple aggressors to the same address to simulate hammering an aggressor of
-  // a pair more frequently, for that we just choose a random row
   size_t row;
+  int assignment_trial_cnt = 0;
+
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
+      retry:
       Aggressor &current_agg = acc_pattern.aggressors[i];
       if (i > 0) {
-        // if this aggressor has any partners, we need to add the appropriate distance and cannot choose randomly
+        // if this aggressor has any partners (N>1), we need to add the appropriate distance and cannot choose randomly
         auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
-        cur_row = cur_row + (size_t) fuzzing_params.get_agg_intra_distance();
-        row = use_seq_addresses ? cur_row :
-              (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance());
+        // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
+        cur_row = (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance())%fuzzing_params.get_max_row_no();;
+        row = cur_row;
       } else {
         // this is a new aggressor pair - we can choose where to place it
-        cur_row = cur_row + (size_t) agg_inter_distance;
-        row = use_seq_addresses ? cur_row : Range<int>(start_row, 8192).get_random_number(gen);
+        // if use_seq_addresses is true, we use the last address and add the agg_inter_distance on top -> this is the
+        //   row of the next aggressor
+        // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
+        cur_row = (cur_row + (size_t) agg_inter_distance)%fuzzing_params.get_max_row_no();
+        row = use_seq_addresses ?
+              cur_row :
+              Range<int>(fuzzing_params.get_start_row(), fuzzing_params.get_max_row_no()).get_random_number(gen);
       }
 
-      if (arm_mode) row = row%1024;
+      // check that we haven't assigned this address yet to another aggressor ID
+      // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
+      // around the address range once (because of the modulo operator) so that retrying doesn't make sense
+      if (!use_seq_addresses && occupied_rows.count(row) > 0) {
+        assignment_trial_cnt++;
+        if (assignment_trial_cnt < 3) goto retry;
+        Logger::log_info(string_format(
+            "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
+            current_agg.id));
+      }
+      occupied_rows.insert(row);
       aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
 
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
@@ -183,8 +206,3 @@ std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
-PatternAddressMapper::PatternAddressMapper(bool arm_mode) : arm_mode(arm_mode) {
-  // initialize pointers for first and last address of address pool
-  highest_address = (volatile char *) nullptr;
-  lowest_address = (volatile char *) (~(0UL));
-}

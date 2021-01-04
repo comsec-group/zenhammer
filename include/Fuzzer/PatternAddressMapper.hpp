@@ -28,8 +28,6 @@ class PatternAddressMapper {
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
-  bool arm_mode{false};
-
  public:
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
@@ -41,10 +39,7 @@ class PatternAddressMapper {
 
   explicit PatternAddressMapper();
 
-  explicit PatternAddressMapper(bool arm_mode);
-
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
-  // TODO: add bool allow_same_address_aggressors=false to control reuse of addresses for aggressors with different IDs
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            std::vector<AggressorAccessPattern> &agg_access_patterns);
 
@@ -63,8 +58,12 @@ class PatternAddressMapper {
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 };
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const PatternAddressMapper &p);
 
 void from_json(const nlohmann::json &j, PatternAddressMapper &p);
+
+#endif
 
 #endif //BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
