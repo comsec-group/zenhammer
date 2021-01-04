@@ -26,7 +26,6 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   FuzzingParameterSet::print_dynamic_parameters(bank_no, agg_inter_distance, use_seq_addresses);
 
-  //
   size_t cur_row = fuzzing_params.get_start_row();
 
   // a set of DRAM rows that are already assigned to aggressors
@@ -41,13 +40,12 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
-      retry:
       Aggressor &current_agg = acc_pattern.aggressors[i];
       if (i > 0) {
         // if this aggressor has any partners (N>1), we need to add the appropriate distance and cannot choose randomly
         auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
         // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
-        cur_row = (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance())%fuzzing_params.get_max_row_no();;
+        cur_row = (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance())%fuzzing_params.get_max_row_no();
         row = cur_row;
       } else {
         // this is a new aggressor pair - we can choose where to place it
@@ -55,27 +53,44 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         //   row of the next aggressor
         // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
         cur_row = (cur_row + (size_t) agg_inter_distance)%fuzzing_params.get_max_row_no();
+
+        retry:
         row = use_seq_addresses ?
               cur_row :
-              Range<int>(fuzzing_params.get_start_row(), fuzzing_params.get_max_row_no()).get_random_number(gen);
+              (Range<int>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen) % fuzzing_params.get_max_row_no());
+
+        // check that we haven't assigned this address yet to another aggressor ID
+        // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
+        // around the address range once (because of the modulo operator) so that retrying doesn't make sense
+        if (!use_seq_addresses && occupied_rows.count(row) > 0) {
+          assignment_trial_cnt++;
+          if (assignment_trial_cnt < 7) goto retry;
+          Logger::log_info(string_format(
+              "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
+              current_agg.id));
+        }
       }
 
-      // check that we haven't assigned this address yet to another aggressor ID
-      // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
-      // around the address range once (because of the modulo operator) so that retrying doesn't make sense
-      if (!use_seq_addresses && occupied_rows.count(row) > 0) {
-        assignment_trial_cnt++;
-        if (assignment_trial_cnt < 3) goto retry;
-        Logger::log_info(string_format(
-            "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
-            current_agg.id));
-      }
+      assignment_trial_cnt = 0;
       occupied_rows.insert(row);
       aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
 
       auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
       if (cur_addr < lowest_address) lowest_address = cur_addr;
       if (cur_addr > highest_address) highest_address = cur_addr;
+    }
+  }
+
+  victim_rows.clear();
+  for (auto &acc_pattern : agg_access_patterns) {
+    for (auto &agg : acc_pattern.aggressors) {
+      auto dram_addr = aggressor_to_addr.at(agg.id);
+      for (int i = -5; i <= 5; ++i) {
+        auto cur_row_candidate = dram_addr.row + i;
+        if (i != 0 && occupied_rows.count(cur_row_candidate)==0) {
+          victim_rows.push_back((volatile char *) DRAMAddr(dram_addr.bank, cur_row_candidate, dram_addr.col).to_virt());
+        }
+      }
     }
   }
 
@@ -206,3 +221,6 @@ std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
+const std::vector<volatile char *> &PatternAddressMapper::get_victim_rows() const {
+  return victim_rows;
+}

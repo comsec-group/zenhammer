@@ -47,7 +47,9 @@ void Memory::allocate_memory(size_t mem_size) {
   }
 
   if (target!=start_address) {
-    Logger::log_error(string_format("Could not create mmap area at address %p, instead using %p.", start_address, target));
+    Logger::log_error(string_format("Could not create mmap area at address %p, instead using %p.",
+                                    start_address,
+                                    target));
     start_address = target;
   }
 
@@ -70,13 +72,21 @@ void Memory::initialize() {
   }
 }
 
+void Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping) {
+  Logger::log_info("Checking if any bit flips occurred.");
+  auto row_increment = dram_analyzer.get_row_increment();
+  for (const auto &victim_row : mapping.get_victim_rows()) {
+    check_memory(dram_analyzer, victim_row, victim_row + row_increment, 0, mapping);
+  }
+}
+
 void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           const volatile char *start,
                           const volatile char *end,
                           size_t check_offset,
                           PatternAddressMapper &mapping) {
   if (start==nullptr || end==nullptr) {
-    Logger::log_error("Function mem_values called with invalid arguments.");
+    Logger::log_error("Function check_memory called with invalid arguments.");
     exit(1);
   }
 
@@ -90,54 +100,59 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
   auto end_offset = start_offset + (uint64_t) (end - start);
   end_offset = (end_offset/getpagesize())*getpagesize();
 
-  Logger::log_info("Checking if any bit flips occurred.");
-
-  // for each page in the address space [start, end]
+  // for each page (4K) in the address space [start, end]
   for (uint64_t i = start_offset; i < end_offset; i += getpagesize()) {
+
     // reseed rand to have a sequence of reproducible numbers, using this we can
     // compare the initialized values with those after hammering to see whether
     // bit flips occurred
     srand(i*getpagesize());
+
+    // iterate over blocks of 4 bytes (=sizeof(int))
     for (uint64_t j = 0; j < (uint64_t) getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
-      int rand_val = rand();
+      volatile char *cur_addr = start_address + offset;
+      int expected_rand_value = rand();
 
       // make sure that we do not access an address out of the allocated memory area
-      if ((start_address + offset + sizeof(int) - 1) > (start_address + size)) {
+      if ((cur_addr + sizeof(int) - 1) > (start_address + size)) {
         return;
       }
 
-      clflushopt(start_address + offset);
+      // clear the cache to make sure we do not access a cached value
+      clflushopt(cur_addr);
       mfence();
 
-      // the bit did not flip
-      if (*((int *) (start_address + offset))==rand_val) {
+      // if the bit did not flip -> continue checking next row
+      if (*((int *) cur_addr)==expected_rand_value) {
         continue;
       }
 
-      // the bit flipped, now compare byte per byte
+      // if the bit flipped -> compare byte per byte
       for (unsigned long c = 0; c < sizeof(int); c++) {
-        volatile char *flipped_address = start_address + offset + c;
-        if (*((char *) flipped_address)!=((char *) &rand_val)[c]) {
+        volatile char *flipped_address = cur_addr + c;
+
+        if (*((char *) flipped_address)!=((char *) &expected_rand_value)[c]) {
           Logger::log_bitflip(flipped_address, dram_analyzer.get_row_index(flipped_address),
                               offset%getpagesize(),
-                              ((unsigned char *) &rand_val)[c],
+                              ((unsigned char *) &expected_rand_value)[c],
                               *(unsigned char *) flipped_address,
                               (unsigned long) time(nullptr));
-          uint8_t bitmask = ((unsigned char *) &rand_val)[c] ^(*(unsigned char *) flipped_address);
-          mapping.bit_flips
-              .emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
+          uint8_t bitmask = ((unsigned char *) &expected_rand_value)[c] ^(*(unsigned char *) flipped_address);
+          mapping.bit_flips.emplace_back(DRAMAddr((void *) flipped_address),
+                                         bitmask,
+                                         *(unsigned char *) flipped_address);
         }
       }
 
       // restore original (unflipped) value
-      *((int *) (start_address + offset)) = rand_val;
+      *((int *) cur_addr) = expected_rand_value;
 
-      clflushopt(start_address + offset);
+      // flush this address os that future accesses see the new value
+      clflushopt(cur_addr);
       mfence();
     }
   }
-  fflush(stdout);
 }
 
 void Memory::check_memory(DramAnalyzer &dram_analyzer,

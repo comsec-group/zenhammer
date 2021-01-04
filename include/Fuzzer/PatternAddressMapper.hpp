@@ -25,6 +25,8 @@ class PatternAddressMapper {
   // the highest address among all aggressors
   volatile char *highest_address{nullptr};
 
+  std::vector<volatile char*> victim_rows;
+
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
@@ -56,6 +58,9 @@ class PatternAddressMapper {
   std::string &get_instance_id();
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
+
+  const std::vector<volatile char *> &get_victim_rows() const;
+
 };
 
 #ifdef ENABLE_JSON

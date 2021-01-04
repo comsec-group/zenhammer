@@ -156,12 +156,12 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                                      trials_per_pattern));
 
       // choose random addresses for pattern
-      PatternAddressMapper mapping;
-      mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
+      PatternAddressMapper mapper;
+      mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses
       std::vector<volatile char *> hammering_pattern_accesses;
-      mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
+      mapper.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
       bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
@@ -174,17 +174,17 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                              num_aggs_for_sync);
 
       auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
-      fuzzing_params.print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
+      FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
 
       // wait for a random time
       std::this_thread::sleep_for(std::chrono::milliseconds(wait_until_hammering_us));
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25UL, mapping);
+      memory.check_memory(dram_analyzer, mapper);
 
-      // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
-      hammering_pattern.address_mappings.push_back(mapping);
+      // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
+      hammering_pattern.address_mappings.push_back(mapper);
 
 #ifdef ENABLE_JSON
       arr.push_back(hammering_pattern);
@@ -253,7 +253,6 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
       }
       Logger::log_data(ss.str());
 
-      // TODO: make USE_SYNC a program parameter (not a define)
       if (!USE_SYNC) {
         Logger::log_info(string_format("Hammering %d aggressors with v=%d d=%d on bank %d",
                                        aggressor_rows_size,
@@ -400,7 +399,7 @@ int main(int argc, char **argv) {
   int num_ranks;
   if (cmdOptionExists(argv, argv + argc, ARG_NUM_RANKS)) {
     // parse the program arguments
-    num_ranks = (int)strtol(getCmdOption(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
+    num_ranks = (int) strtol(getCmdOption(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
     param_num_ranks_given = true;
   }
 
@@ -437,7 +436,7 @@ int main(int argc, char **argv) {
     // parse the program arguments
     size_t tmp = strtol(getCmdOption(argv, argv + argc, ARG_ACTS_PER_REF), nullptr, 10);
     if (tmp > ((size_t) INT16_MAX)) {
-      Logger::log_error("");
+      Logger::log_error(string_format("Given parameter value %lu for %s is invalid!", tmp, ARG_ACTS_PER_REF.c_str()));
       exit(1);
     }
     act = (int) tmp;

@@ -42,6 +42,8 @@ class Memory {
                     volatile const char *end,
                     size_t check_offset,
                     PatternAddressMapper &mapping);
+
+  void check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_
