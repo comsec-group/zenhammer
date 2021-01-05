@@ -1,10 +1,12 @@
+#! /usr/bin/python3
+
 from hammerlib import initlib
 initlib(init_mem=False)
 
 from dramaddr import *
 from flip import *
 from pattern import *
-import genutils 
+import bsutils 
 from params import *
 import pprint as pp
 import pickle

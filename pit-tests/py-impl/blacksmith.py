@@ -6,7 +6,8 @@ initlib(init_mem=True)
 from dramaddr import *
 from flip import *
 from pattern import *
-import genutils 
+import bsutils 
+import sys, os
 from params import *
 import pprint as pp
 import pickle
@@ -26,20 +27,22 @@ ro respect the EXPECTED_ACT value
 #        print(f"Golden ratio: {total_acts_per_period}/{EXPECTED_ACT_PER_MAX_PERIOD}")
 
 
-inst_exports = []
-export_file = os.path.join("data",genutils.log_file_name())
 
 if __name__ == "__main__":
-    aggr_tuple = AggressorTuple([0,2])
-    shapes = (PatternShape(MAX_REFS, MAX_ACT_PER_REF, aggr_tuple, *genutils.gen_ampl_freq(aggr_tuple)) for i in range(MAX_TEST_SHAPE))
+
+    inst_exports = []
+    export_file = os.path.join("data",bsutils.log_file_name())
 
     
+    # TESTING WITHOUT DIFFERENT SHAPES TO sEE IF IT WORKS
+    aggr_tuple = AggressorTuple([0,2])
+    shapes = (PatternShape(MAX_REFS, MAX_ACT_PER_REF, aggr_tuple, *bsutils.gen_ampl_freq(aggr_tuple)) for i in range(MAX_TEST_SHAPE))
     for shape in shapes:
-        for phase in (genutils.rnd(shape.max_phase()) for s in range(MAX_TEST_PHASE)):
+        for phase in (bsutils.rnd(shape.max_phase()) for s in range(MAX_TEST_PHASE)):
 
             phased_shape = PhasedPatternShape.from_shape(shape, phase)
 
-            instances = (PatternInstance.from_phased_shape(phased_shape, DRAMAddr(genutils.rnd(16), genutils.rnd(512))) for loc in range(MAX_TEST_INSTANCE))
+            instances = (PatternInstance.from_phased_shape(phased_shape, DRAMAddr(bsutils.rnd(16), bsutils.rnd(512))) for loc in range(MAX_TEST_INSTANCE))
 
             print(f"{phased_shape}")
             for inst in instances:

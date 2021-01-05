@@ -34,15 +34,15 @@ class FlipScanner():
     # 
     # init hammerlib native functions
     #
-    libref.scan.restype = FlipList
-    libref.scan.argstype = [ctypes.c_size_t, ctypes.c_size_t]
+    libref().scan.restype = FlipList
+    libref().scan.argstype = [ctypes.c_size_t, ctypes.c_size_t]
 
     @classmethod
     def scan(cls, d_begin, d_end):
         base_addr = d_begin.to_addr()
         end_addr = d_end.to_addr()
         chunk_size = end_addr - base_addr
-        res = libref.scan(ctypes.c_size_t(base_addr), ctypes.c_size_t(end_addr))
+        res = libref().scan(ctypes.c_size_t(base_addr), ctypes.c_size_t(end_addr))
         flips = res.flips[:res.cnt]
         return flips
 

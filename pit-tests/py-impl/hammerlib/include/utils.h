@@ -2,6 +2,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <time.h>
+
+
+// taken from https://github.com/cloudflare/cloudflare-blog/tree/master/2018-11-memory-refresh
+
+#define TIMESPEC_NSEC(ts) ((ts)->tv_sec * 1000000000ULL + (ts)->tv_nsec)
+static inline __attribute__((always_inline)) uint64_t realtime_now() {
+	struct timespec now_ts;
+	clock_gettime(CLOCK_MONOTONIC, &now_ts);
+	return TIMESPEC_NSEC(&now_ts);
+}
 
 static inline __attribute__((always_inline)) uint64_t rdtscp(void) {
 	uint64_t lo, hi;
@@ -40,9 +51,5 @@ static inline __attribute__((always_inline)) size_t rand64() {
 }
 
 uint64_t median(uint64_t* vals, size_t size); 
-
-size_t time_access(unsigned char* a1, unsigned char* a2, size_t rounds); 
-
-size_t time_patt(unsigned char** patt, size_t len, size_t rounds); 
 
 unsigned char* rand_addr(unsigned char* base, size_t len); 

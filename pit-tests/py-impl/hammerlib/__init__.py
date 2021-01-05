@@ -1,16 +1,20 @@
 import os
 import ctypes
 
-libref = None
+librefobj = None
 
 def initlib(init_mem=False):
-    global libref
+    global librefobj
     path = os.path.dirname(os.path.abspath(__file__))
-    libref = ctypes.CDLL(os.path.join(path, "libhammer.so"))
+    librefobj = ctypes.CDLL(os.path.join(path, "libhammer.so"))
     
     if init_mem:
-        if libref.init() != 0:
+        if librefobj.init() != 0:
             raise Exception("Couldn't initialize the library!") 
 
 
-
+def libref():
+    global librefobj
+    if librefobj == None:
+        raise Exception("You didn't initialize the C library.\n from hammerlib import *\n hammerlib.initlib(init_mem=bool)")
+    return librefobj

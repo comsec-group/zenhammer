@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
 from hammerlib import libref 
-import os
-import sys
 import struct
 import ctypes
 import ctypes.util
 import functools
-import genutils
+import bsutils
 
 
 
@@ -20,7 +18,7 @@ class DRAMAddr(ctypes.Structure):
     @classmethod
     def from_addr(cls, addr): 
         if isinstance(addr, int):
-            return libref.to_dram(addr) 
+            return libref().to_dram(addr) 
         else:
             return NotImplemented
 
@@ -97,7 +95,7 @@ class DRAMAddr(ctypes.Structure):
 
 
     def to_addr(d):
-        return int(libref.to_addr(d))
+        return int(libref().to_addr(d))
 
 
 class AggrAddr(DRAMAddr):
@@ -105,14 +103,14 @@ class AggrAddr(DRAMAddr):
         return s.__str__()
 
     def __str__(s):
-        return genutils.col_green(f"{super().__str__()}")
+        return bsutils.col_green(f"{super().__str__()}")
 
 # 
 # init hammerlib native functions
 #
 
-libref.to_addr.restype = ctypes.c_size_t
-libref.to_addr.argtypes = [DRAMAddr]
-libref.to_dram.restype = DRAMAddr 
-libref.to_dram.argtypes = [ctypes.c_size_t]
+libref().to_addr.restype = ctypes.c_size_t
+libref().to_addr.argtypes = [DRAMAddr]
+libref().to_dram.restype = DRAMAddr 
+libref().to_dram.argtypes = [ctypes.c_size_t]
 

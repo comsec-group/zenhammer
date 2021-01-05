@@ -106,8 +106,16 @@ class PhasedPatternShape(PatternShape):
     phase:          delta from the start of the max_period 
     """
 
-    def __init__(self):
-        self.phase = None
+    #def __init__(self):
+    #    self.phase = None
+
+    def __init__(self, max_period, act_per_ref, aggr_tuple, amplitude, frequency,  phase):
+        self.max_period     = max_period 
+        self.act_per_ref    = act_per_ref 
+        self.amplitude 	    = amplitude 
+        self.frequency 	    = frequency 
+        self.aggr_tuple     = aggr_tuple 
+        self.phase          = phase 
 
     #def __init__(self, num_refs:int, max_act:int, aggr_tuple:AggressorTuple, ampl:int, freq:int, phase:int):
     #    super().__init__(num_refs,max_act,aggr_tuple,ampl,freq)
@@ -119,13 +127,13 @@ class PhasedPatternShape(PatternShape):
         if not isinstance(shape, PatternShape):
             raise Exception("Requires PhasedPatternShape as arg")
         
-        res = cls()
-        res.max_period 	        = shape.max_period 
-        res.act_per_ref 	= shape.act_per_ref 
-        res.amplitude 	        = shape.amplitude 
-        res.frequency 	        = shape.frequency 
-        res.aggr_tuple 	        = shape.aggr_tuple 
-        res.phase               = phase 
+        res = cls(**vars(shape),phase=phase)
+        #res.max_period 	        = shape.max_period 
+        #res.act_per_ref 	= shape.act_per_ref 
+        #res.amplitude 	        = shape.amplitude 
+        #res.frequency 	        = shape.frequency 
+        #res.aggr_tuple 	        = shape.aggr_tuple 
+        #res.phase               = phase 
 
         res._check()
         return res
@@ -176,13 +184,13 @@ class PatternInstance(PhasedPatternShape):
             raise Exception("Requires PhasedPatternShape as arg")
         if not isinstance(d, DRAMAddr):
             raise Exception("Requires DRAMAddr as arg")
-
-        res = cls()
-        res.max_period 	        = shape.max_period 
-        res.act_per_ref 	= shape.act_per_ref 
-        res.amplitude 	        = shape.amplitude 
-        res.frequency 	        = shape.frequency 
-        res.phase               = shape.phase 
+        
+        res = cls(**vars(shape))
+        #res.max_period 	        = shape.max_period 
+        #res.act_per_ref 	= shape.act_per_ref 
+        #res.amplitude 	        = shape.amplitude 
+        #res.frequency 	        = shape.frequency 
+        #res.phase               = shape.phase 
         res.aggr_tuple          = tuple(AggrAddr(d.bank, d.row+x, d.col) for x in shape.aggr_tuple) 
         return res
     
@@ -211,7 +219,6 @@ class PatternInstance(PhasedPatternShape):
         return signal
     
     def hammer(self):
-        print([x if isinstance(x[1], AggrAddr) else None for x in enumerate(self.padded_signal())])
         signal = list(map(lambda x:x.to_addr(), self.padded_signal()))
         scan_range = (self.aggr_tuple[0] - 5, self.aggr_tuple[1] + 5) 
         sync_addr = self.aggr_tuple[0] + DRAMAddr(0,10,0) # sync on a different row 
@@ -219,13 +226,13 @@ class PatternInstance(PhasedPatternShape):
         patt = (ctypes.c_void_p * len(signal))(*signal) 
         rounds = (ctypes.c_size_t)(int(4*EXPECTED_ACT/len(signal)))
         act_ref = (ctypes.c_size_t)(int(self.act_per_ref))
-        libref.hammer_func(sync_addr, patt, len(patt), rounds,  act_ref ) 
+        libref().hammer_func(sync_addr, patt, len(patt), rounds,  act_ref ) 
         flips = FlipScanner.scan(*scan_range)        
         return flips
     
 
-libref.hammer_func.restype = ctypes.c_void_p
-libref.hammer_func.argstype = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t] 
+libref().hammer_func.restype = ctypes.c_void_p
+libref().hammer_func.argstype = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t] 
 
 
 
