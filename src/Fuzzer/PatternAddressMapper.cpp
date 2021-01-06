@@ -88,6 +88,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
             && victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
           victim_rows.emplace_back((volatile char *) victim_start.to_virt(),
                                    (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
+          victim_addresses.insert((volatile char *) victim_start.to_virt());
         }
       }
     }
