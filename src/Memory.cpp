@@ -73,8 +73,9 @@ void Memory::initialize() {
 }
 
 void Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping) {
-  Logger::log_info("Checking if any bit flips occurred.");
-  for (const auto &victim_row : mapping.get_victim_rows()) {
+  auto victim_rows = mapping.get_victim_rows();
+  Logger::log_info(string_format("Checking if any bit flips occurred on %zu victims.", victim_rows.size()));
+  for (const auto &victim_row : victim_rows) {
     check_memory(dram_analyzer, victim_row.first, victim_row.second, 0, mapping);
   }
 }
