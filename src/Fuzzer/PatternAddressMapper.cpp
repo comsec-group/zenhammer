@@ -9,10 +9,6 @@ PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937(rd());
-
-  // initialize pointers for first and last address of address pool
-  highest_address = (volatile char *) nullptr;
-  lowest_address = (volatile char *) (~(0UL));
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
@@ -75,10 +71,6 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
       aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
-
-      auto cur_addr = (volatile char *) aggressor_to_addr.at(current_agg.id).to_virt();
-      if (cur_addr < lowest_address) lowest_address = cur_addr;
-      if (cur_addr > highest_address) highest_address = cur_addr;
     }
   }
 
@@ -186,23 +178,6 @@ void PatternAddressMapper::export_pattern(
     rows[i] = rows_vector.at(i);
   }
 }
-
-volatile char *PatternAddressMapper::get_lowest_address() const {
-  if (lowest_address==nullptr) {
-    Logger::log_error("Cannot get lowest address because no address has been assigned.");
-    exit(1);
-  }
-  return lowest_address;
-}
-
-volatile char *PatternAddressMapper::get_highest_address() const {
-  if (lowest_address==nullptr) {
-    Logger::log_error("Cannot get highest address because no address has been assigned.");
-    exit(1);
-  }
-  return highest_address;
-}
-
 #ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
