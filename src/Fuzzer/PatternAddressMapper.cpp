@@ -57,7 +57,8 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         retry:
         row = use_seq_addresses ?
               cur_row :
-              (Range<int>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen) % fuzzing_params.get_max_row_no());
+              (Range<int>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen)
+                  %fuzzing_params.get_max_row_no());
 
         // check that we haven't assigned this address yet to another aggressor ID
         // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
@@ -81,14 +82,20 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
     }
   }
 
+  // set to make sure we add victims only once
+  std::set<volatile char *> victim_addresses;
   victim_rows.clear();
   for (auto &acc_pattern : agg_access_patterns) {
     for (auto &agg : acc_pattern.aggressors) {
       auto dram_addr = aggressor_to_addr.at(agg.id);
       for (int i = -5; i <= 5; ++i) {
         auto cur_row_candidate = dram_addr.row + i;
-        if (i != 0 && occupied_rows.count(cur_row_candidate)==0) {
-          victim_rows.push_back((volatile char *) DRAMAddr(dram_addr.bank, cur_row_candidate, dram_addr.col).to_virt());
+        auto victim_start = DRAMAddr(dram_addr.bank, cur_row_candidate, 0);
+        // check that the current row is not an aggressor and we haven't added
+        if (occupied_rows.count(cur_row_candidate)==0
+            && victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
+          victim_rows.emplace_back((volatile char *) victim_start.to_virt(),
+                                   (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
         }
       }
     }
@@ -131,8 +138,8 @@ void PatternAddressMapper::export_pattern_internal(
   }
 
   // print string representation of pattern
-//  Logger::log_info("Pattern filled by random DRAM rows:");
-//  Logger::log_data(pattern_str.str());
+  Logger::log_info("Pattern filled by random DRAM rows:");
+  Logger::log_data(pattern_str.str());
 
   if (invalid_aggs) {
     Logger::log_error(
@@ -221,6 +228,6 @@ std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
-const std::vector<volatile char *> &PatternAddressMapper::get_victim_rows() const {
+const std::vector<std::pair<volatile char *, volatile char *>> &PatternAddressMapper::get_victim_rows() const {
   return victim_rows;
 }
