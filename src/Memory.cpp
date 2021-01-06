@@ -88,11 +88,9 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
 
   if ((start==nullptr || end==nullptr) || ((uint64_t) start >= (uint64_t) end)) {
     Logger::log_error("Function check_memory called with invalid arguments.");
-    Logger::log_data(string_format("Start addr: 0x%lx %s",
-                                   (uint64_t) start,
-                                   DRAMAddr((void *) start).to_string().c_str()));
-    Logger::log_data(string_format("End addr: 0x%lx %s", (uint64_t) end, DRAMAddr((void *) end).to_string().c_str()));
-    exit(1);
+    Logger::log_data(string_format("Start addr.: %s", DRAMAddr((void *) start).to_string().c_str()));
+    Logger::log_data(string_format("End addr.: %s", DRAMAddr((void *) end).to_string().c_str()));
+    return;
   }
 
   auto row_increment = dram_analyzer.get_row_increment();
@@ -144,7 +142,8 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                               *(unsigned char *) flipped_address,
                               (unsigned long) time(nullptr));
           uint8_t bitmask = ((unsigned char *) &expected_rand_value)[c] ^(*(unsigned char *) flipped_address);
-          mapping.bit_flips.emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
+          mapping.bit_flips
+              .emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
 //          Logger::log_data(string_format("Flip at %s", DRAMAddr((void *) flipped_address).to_string_compact().c_str()));
         }
       }

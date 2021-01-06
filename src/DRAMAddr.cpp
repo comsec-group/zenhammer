@@ -75,7 +75,7 @@ void *DRAMAddr::to_virt() const {
 
 std::string DRAMAddr::to_string() {
   char buff[1024];
-  sprintf(buff, "DRAMAddr(b:%4ld, r:%10ld, c:%10ld) = %p",
+  sprintf(buff, "DRAMAddr(b: %zu, r: %zu, c: %zu) = %p",
           this->bank,
           this->row,
           this->col,
