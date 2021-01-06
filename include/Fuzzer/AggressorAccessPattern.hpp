@@ -3,21 +3,25 @@
 
 #include <unordered_map>
 #include <utility>
+
+#ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#endif
 
 #include "Fuzzer/Aggressor.hpp"
 
 class AggressorAccessPattern {
  public:
-  size_t frequency{};
+  size_t frequency;
 
-  int amplitude{};
+  int amplitude;
 
-  size_t start_offset{};
+  size_t start_offset;
 
   std::vector<Aggressor> aggressors;
 
-  AggressorAccessPattern() = default;
+  AggressorAccessPattern()
+      : frequency(0), amplitude(0), start_offset(0) {};
 
   AggressorAccessPattern(size_t frequency,
                          int amplitude,

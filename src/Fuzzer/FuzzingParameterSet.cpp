@@ -1,5 +1,4 @@
 #include <unordered_map>
-#include <sstream>
 #include <iostream>
 #include <algorithm>
 
@@ -22,38 +21,46 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
 }
 
 void FuzzingParameterSet::print_static_parameters() const {
-  printf(FBLUE);
-  printf("Benchmark run parameters:\n");
-  printf("    agg_intra_distance: %d\n", agg_intra_distance);
-  printf("    flushing_strategy: %s\n", get_string(flushing_strategy).c_str());
-  printf("    fencing_strategy: %s\n", get_string(fencing_strategy).c_str());
-  printf("    N_sided dist.: %s\n", get_dist_string().c_str());
-  printf("    hammering_total_num_activations: %d\n", hammering_total_num_activations);
-  printf(NONE);
+  Logger::log_info("Printing static hammering parameters:");
+  Logger::log_data(string_format("agg_intra_distance: %d", agg_intra_distance));
+  Logger::log_data(string_format("flushing_strategy: %s", get_string(flushing_strategy).c_str()));
+  Logger::log_data(string_format("fencing_strategy: %s", get_string(fencing_strategy).c_str()));
+  Logger::log_data(string_format("N_sided dist.: %s", get_dist_string().c_str()));
+  Logger::log_data(string_format("hammering_total_num_activations: %d", hammering_total_num_activations));
+  Logger::log_data(string_format("max_row_no: %d", max_row_no));
 }
 
 void FuzzingParameterSet::print_semi_dynamic_parameters() const {
-  printf(FBLUE);
-  printf("Pattern-specific fuzzing parameters:\n");
-  printf("    num_aggressors: %d\n", num_aggressors);
-  printf("    num_refresh_intervals: %d\n", num_refresh_intervals);
-  printf("    total_acts_pattern: %zu\n", total_acts_pattern);
-  printf("    base_period: %d\n", base_period);
-  printf(NONE);
+  Logger::log_info("Printing pattern-specific fuzzing parameters:");
+  Logger::log_data(string_format("num_aggressors: %d", num_aggressors));
+  Logger::log_data(string_format("num_refresh_intervals: %d", num_refresh_intervals));
+  Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
+  Logger::log_data(string_format("base_period: %d", base_period));
+  Logger::log_data(string_format("start_row: %d", start_row));
+}
+
+void FuzzingParameterSet::print_dynamic_parameters(const int bank, const int inter_dist, bool seq_addresses) {
+  Logger::log_info("Printing DRAM address-related fuzzing parameters:");
+  Logger::log_data(string_format("bank_no: %d", bank));
+  Logger::log_data(string_format("agg_inter_distance: %d", inter_dist));
+  Logger::log_data(string_format("use_seq_addresses: %s", (seq_addresses ? "true" : "false")));
+}
+
+void FuzzingParameterSet::print_dynamic_parameters2(bool sync_at_each_ref,
+                                                    int wait_until_hammering_us,
+                                                    int num_aggs_for_sync) {
+  Logger::log_info("Printing code jitting-related fuzzing parameters:");
+  Logger::log_data(string_format("sync_each_ref: %s", (sync_at_each_ref ? "true" : "false")));
+  Logger::log_data(string_format("wait_until_start_hammering_microseconds: %d", wait_until_hammering_us));
+  Logger::log_data(string_format("num_aggressors_for_sync: %d", num_aggs_for_sync));
 }
 
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided,
                                            std::unordered_map<int, int> probabilities) {
   std::vector<int> dd;
-  size_t num_iterations = 0;
-  for (int i = 0; i <= range_N_sided.max; num_iterations++, i += 1) {
+  for (int i = 0; i <= range_N_sided.max; i += 1) {
     dd.push_back((probabilities.count(i) > 0) ? probabilities.at(i) : (int) 0);
   }
-
-//  if (num_iterations < probabilities.size()) {
-//    fprintf(stderr,
-//            "[-] Note that the vector of probabilities given for choosing N of N_sided is larger than the possibilities of different Ns.\n");
-//  }
 
   N_sided_probabilities = std::discrete_distribution<int>(dd.begin(), dd.end());
 }
@@ -79,30 +86,7 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  // == are only randomized once when calling this function ======
-
-  // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
-  // mapped to the same DRAM address]
-  // TODO: Think whether we should make agg_id->address unique because now this parameter does not really have a meaning
-  //  if we map different aggressor ids to the same address
-  num_aggressors = Range<int>(4, 64).get_random_number(gen);
-
-  // [included in HammeringPattern]
-  // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 5).get_random_number(gen));  // {2^0,..,2^k}
-
-  // sync_frequency = 1 means that we sync after every refresh interval
-  sync_frequency = Range<int>(1, num_refresh_intervals).get_random_number(gen);
-
-  // [included in HammeringPattern]
-  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
-
-  // [included in HammeringPattern]
-  //base_period = (num_activations_per_tREFI/4)*Range<int>(1, 1).get_random_number(gen);
-  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
-
+  Logger::log_info("Randomizing fuzzing parameters.");
   // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
 
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
@@ -112,28 +96,43 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  //  N_sided = Range<int>(2, 2, 2);
-  N_sided = Range<int>(2, 4, 2);
+  N_sided = Range<int>(1, 6);
+//  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
+  // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
   amplitude = Range<int>(1, base_period/N_sided.min);
+//  amplitude = Range<int>(1, 6);  // COMMENT: SAMSUNG parameters
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
-  agg_inter_distance = Range<int>(2, 64);
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
+  agg_inter_distance = Range<int>(2, 16);
+//  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   bank_no = Range<int>(0, NUM_BANKS - 1);
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   use_sequential_aggressors = Range<int>(0, 1);
+//  use_sequential_aggressors = Range<int>(1, 1);   // COMMENT: SAMSUNG parameters
+
+  // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
+  // the whole pattern (which may consists of more than one REF interval)
+  sync_each_ref = Range<int>(0, 1);
+//  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
+
+//  wait_until_start_hammering_microseconds = Range<int>(0, 0);    // COMMENT: SAMSUNG parameters
+  wait_until_start_hammering_microseconds = Range<int>(0, 200);
+
+  num_aggressors_for_sync = Range<int>(1, 3);
+//  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
   // == fix values/formulas that must be configured before running this program ======
 
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapping]
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_intra_distance = 2;
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
@@ -145,7 +144,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  set_distribution(N_sided, {{1, 10}, {2, 60}, {4, 30}});
+  // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
+  // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
+//  set_distribution(N_sided, {{1, 10}, {2, 40}, {3, 10}, {4, 30}, {5, 10}, {6, 20}});
+  set_distribution(N_sided, {{1,10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
+//  set_distribution(N_sided, {{2,100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -153,7 +156,41 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   //    num_activations_per_tREFI: ≈100                       => 10,000 * 100 = 1M activations * 5 = 5M ACTs
   hammering_total_num_activations = 5000000;
 
+  max_row_no = 8192;
+
+  // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
+
+  // == are only randomized once when calling this function ======
+
+  // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
+  // mapped to the same DRAM address]
+//  num_aggressors = Range<int>(4, 64).get_random_number(gen);
+//  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
+  num_aggressors = Range<int>(24, 72).get_random_number(gen);
+
+  // [included in HammeringPattern]
+  // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
+//  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
+  num_refresh_intervals = std::pow(2, Range<int>(0, 9).get_random_number(gen));
+
+  // [included in HammeringPattern]
+  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
+
+  // [included in HammeringPattern]
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
+
+  start_row = Range<int>(0, 1024).get_random_number(gen);
+
   if (print) print_semi_dynamic_parameters();
+}
+
+int FuzzingParameterSet::get_max_row_no() const {
+  return max_row_no;
+}
+
+int FuzzingParameterSet::get_start_row() const {
+  return start_row;
 }
 
 std::string FuzzingParameterSet::get_dist_string() const {
@@ -214,4 +251,21 @@ int FuzzingParameterSet::get_random_inter_distance() {
 int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
+
+int FuzzingParameterSet::get_random_wait_until_start_hammering_microseconds() {
+  return wait_until_start_hammering_microseconds.get_random_number(gen);
+}
+
+bool FuzzingParameterSet::get_random_sync_each_ref() {
+  return (bool) (sync_each_ref.get_random_number(gen));
+}
+
+int FuzzingParameterSet::get_num_activations_per_t_refi() const {
+  return num_activations_per_tREFI;
+}
+
+int FuzzingParameterSet::get_random_num_aggressors_for_sync() {
+  return num_aggressors_for_sync.get_random_number(gen);
+}
+
 

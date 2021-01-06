@@ -6,13 +6,13 @@
 class BitFlip {
  public:
   // the address where the bit flip was observed
-  DRAMAddr address{};
+  DRAMAddr address;
 
   // mask of the bits that flipped, i.e., positions where value == 1 flipped
-  uint8_t bitmask{};
+  uint8_t bitmask;
 
   // data containing the bit flips
-  uint8_t data{};
+  uint8_t data;
 
   BitFlip();
 

@@ -13,12 +13,16 @@ core
 
 # CLion-related files
 scripts/run_as_sudo.sh
-cmake-build-debug
 .idea
-cmake-build-debug*
+
+# build files
 CMakeFiles/*
 build/*
+cmake-build-*
 
+# OSX-related files
 .DS_Store
+
+# visualization scripts
 visualize/venv/
 visualize/data/*

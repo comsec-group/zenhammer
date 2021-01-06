@@ -6,7 +6,7 @@
 #include <string>
 
 #include "DramAnalyzer.hpp"
-#include "Fuzzer/PatternAddressMapping.hpp"
+#include "Fuzzer/PatternAddressMapper.hpp"
 
 class Memory {
  private:
@@ -41,7 +41,9 @@ class Memory {
                     volatile const char *start,
                     volatile const char *end,
                     size_t check_offset,
-                    PatternAddressMapping &mapping);
+                    PatternAddressMapper &mapping);
+
+  void check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

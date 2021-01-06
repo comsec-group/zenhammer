@@ -2,42 +2,49 @@
 #define RANGE
 
 #include <random>
+#include "Logger.hpp"
 
 template<typename T = int>
 struct Range {
   T min{0};
+
   T max{0};
+
   T step{1};
+
   std::uniform_int_distribution<T> dist;
 
   Range() = default;
 
-  Range(T min, T max) : min(min), max(max), dist(std::uniform_int_distribution<T>(min, max)) {
+  Range(T min, T max) : min(min), max(max), dist(std::uniform_int_distribution<T>(min, max)) {}
 
-  }
-
-  Range(T min, T max, T step) : min(min), max(max), step(step), dist(std::uniform_int_distribution<T>(min, max)) {
-
+  Range(T min, T max, T step) : min(min), max(max), step(step) {
+    if (min%step!=0 || max%step!=0) {
+      Logger::log_error(
+          string_format("Range(%d,%d,%d) failed: min and max must both be dividible by step.", min, max, step));
+      exit(1);
+    }
+    dist = std::uniform_int_distribution<T>(min/step, max/step);
   }
 
   T get_random_number(std::mt19937 &gen) {
-    if (max < min) {
+    if (min==max) {
+      return min;
+    } else if (max < min) {
       std::swap(max, min);
     }
-    if (step!=1) {
-      return Range<T>(min/step, max/step).get_random_number(gen)*step;
-    } else {
-      return dist(gen);
-    }
+    auto number = dist(gen);
+    return (step!=1) ? number*step : number;
   }
 
   T get_random_number(int upper_bound, std::mt19937 &gen) {
-    if (max > upper_bound) dist = std::uniform_int_distribution<>(min, upper_bound);
-    if (step!=1) {
-      return Range<T>(min/step, upper_bound/step).get_random_number(gen)*step;
+    T number;
+    if (max > upper_bound) {
+      number = Range(min, upper_bound).get_random_number(gen);
     } else {
-      return dist(gen);
+      number = dist(gen);
     }
+    return (step!=1) ? number*step : number;
   }
 };
 #endif /* RANGE */

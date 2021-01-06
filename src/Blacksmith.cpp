@@ -1,16 +1,16 @@
 #include <cinttypes>
-#include <climits>
-#include <cstdio>
 #include <cstdlib>
-#include <sys/mman.h>
-#include <sys/resource.h>
 #include <ctime>
-#include <unistd.h>
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
 #include <fstream>
 #include <chrono>
+#include <thread>
+
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <unistd.h>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"
@@ -18,10 +18,14 @@
 #include "Fuzzer/CodeJitter.hpp"
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Fuzzer/PatternAddressMapping.hpp"
+#include "Fuzzer/PatternAddressMapper.hpp"
+#include "Utilities/Logger.hpp"
+
+#ifndef GIT_COMMIT_HASH
+#define GIT_COMMIT_HASH "INVALID REPOSITORY."
+#endif
 
 /// the number of rounds to hammer
-/// this is controllable via the first (unnamed) program parameter
 static long RUN_TIME_LIMIT{0};
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
@@ -96,28 +100,32 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
-  printf("[+] Randomizing fuzzing parameters.\n");
   fuzzing_params.randomize_parameters(true);
 
   if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
     trials_per_pattern++;
+    hammering_pattern.accesses.clear();
   } else {
     trials_per_pattern = 0;
+    hammering_pattern.accesses.clear();
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
   }
 
-  printf("[+] Generating ARM hammering pattern %s.\n", hammering_pattern.instance_id.c_str());
   PatternBuilder pattern_builder(hammering_pattern);
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
   // choose random addresses for pattern
-  PatternAddressMapping mapping(true);
+  PatternAddressMapper mapping;
   mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
   mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
 }
 
+long get_timestamp_sec() {
+  return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+};
+
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
-  printf("Starting frequency-based hammering.\n");
+  Logger::log_info("Starting frequency-based hammering.");
 
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
@@ -128,52 +136,55 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   nlohmann::json arr = nlohmann::json::array();
 #endif
 
-  auto get_timestamp_sec = []() -> long {
-    return std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-  };
-
-  long limit = get_timestamp_sec() + RUN_TIME_LIMIT;
+  long execution_time_limit = get_timestamp_sec() + RUN_TIME_LIMIT;
 
   int cur_round = 0;
-  while (get_timestamp_sec() < limit) {
+  while (get_timestamp_sec() < execution_time_limit) {
     cur_round++;
-    printf("[+] Randomizing fuzzing parameters.\n");
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
-    HammeringPattern hammering_pattern(fuzzing_params.get_base_period());
+    hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
-    printf("[+] Generating frequency-based hammering pattern.\n");
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
-    // then test this pattern with 5 different address sets
-    int trials_per_pattern = 5;
-    while (trials_per_pattern--) {
-      printf("[+] Running for pattern %d with address set %d.\n", cur_round, 5 - trials_per_pattern);
+    // then test this pattern with N different address sets
+    while (trials_per_pattern++ < MAX_TRIALS_PER_PATTERN) {
+      Logger::log_info(string_format("Running for pattern %d (%s) with address set %d.",
+                                     cur_round,
+                                     hammering_pattern.instance_id.c_str(),
+                                     trials_per_pattern));
 
       // choose random addresses for pattern
-      PatternAddressMapping mapping;
-      mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
+      PatternAddressMapper mapper;
+      mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses
       std::vector<volatile char *> hammering_pattern_accesses;
-      mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
+      mapper.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
-      // TODO future work: do jitting for each pattern once only and pass vector of addresses as array
-      code_jitter.jit_strict(fuzzing_params.get_hammering_total_num_activations(),
+      bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
+      int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
+      code_jitter.jit_strict(fuzzing_params,
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_pattern_accesses);
+                             hammering_pattern_accesses,
+                             sync_at_each_ref,
+                             num_aggs_for_sync);
 
+      auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
+      FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
+
+      // wait for a random time
+      std::this_thread::sleep_for(std::chrono::milliseconds(wait_until_hammering_us));
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, mapping.get_lowest_address(), mapping.get_highest_address(), 25, mapping);
+      memory.check_memory(dram_analyzer, mapper);
 
-      // it is important that we store this mapping after we did memory.check_memory to include the found BitFlip
-      hammering_pattern.address_mappings.push_back(mapping);
+      // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
+      hammering_pattern.address_mappings.push_back(mapper);
 
 #ifdef ENABLE_JSON
       arr.push_back(hammering_pattern);
@@ -182,10 +193,10 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
+    trials_per_pattern = 0;
   }
 
 #ifdef ENABLE_JSON
-  // TODO: make filename dynamic to avoid unintended overwriting
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export;
   json_export.open("raw_data.json");
@@ -201,9 +212,9 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
 
   auto ts_start = std::chrono::high_resolution_clock::now();
   ts_start.time_since_epoch().count();
-  auto limit = ts_start.time_since_epoch().count() + RUN_TIME_LIMIT;
+  auto limit = get_timestamp_sec() + RUN_TIME_LIMIT;
 
-  while (std::chrono::high_resolution_clock::now().time_since_epoch().count() < limit) {
+  while (get_timestamp_sec() < limit) {
     srand(time(nullptr));
 
     // skip the first and last 100MB (just for convenience to avoid hammering on non-existing/illegal locations)
@@ -223,41 +234,50 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
           dram_analyzer.normalize_addr_to_bank(cur_start_addr, ba);
       std::vector<volatile char *> aggressors;
       volatile char *cur_next_addr = cur_start_addr;
-      printf("[+] agg row ");
+      std::stringstream ss;
+      ss << "agg row: ";
       for (int i = 1; i < aggressor_rows_size; i += 2) {
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (d*row_increment), ba);
-        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
+        ss << dram_analyzer.get_row_index(cur_next_addr) << " ";
         aggressors.push_back(cur_next_addr);
 
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
-        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
+        ss << dram_analyzer.get_row_index(cur_next_addr) << " ";
         aggressors.push_back(cur_next_addr);
       }
 
       if ((aggressor_rows_size%2)!=0) {
         dram_analyzer.normalize_addr_to_bank(cur_next_addr + (d*row_increment), ba);
-        printf("%lu ", dram_analyzer.get_row_index(cur_next_addr));
+        ss << dram_analyzer.get_row_index(cur_next_addr) << " ";
         aggressors.push_back(cur_next_addr);
       }
-      printf("\n");
+      Logger::log_data(ss.str());
 
-      // TODO: make USE_SYNC a program parameter (not a define)
       if (!USE_SYNC) {
-        printf("[+] Hammering %d aggressors with v %d d %d on bank %d\n", aggressor_rows_size, v, d, ba);
+        Logger::log_info(string_format("Hammering %d aggressors with v=%d d=%d on bank %d",
+                                       aggressor_rows_size,
+                                       v,
+                                       d,
+                                       ba));
         hammer(aggressors);
       } else {
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (100*row_increment), ba);
         auto d1 = cur_next_addr;
         cur_next_addr = dram_analyzer.normalize_addr_to_bank(cur_next_addr + (v*row_increment), ba);
         auto d2 = cur_next_addr;
-        printf("[+] d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)\n",
-               dram_analyzer.get_row_index(d1), d1, dram_analyzer.get_row_index(d2), d2);
+        Logger::log_info(string_format("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
+                                       dram_analyzer.get_row_index(d1),
+                                       d1,
+                                       dram_analyzer.get_row_index(d2),
+                                       d2));
         if (ba==0) {
-          printf("[+] sync: ref_rounds %lu, remainder %lu\n",
-                 acts/aggressors.size(),
-                 acts - ((acts/aggressors.size())*aggressors.size()));
+          Logger::log_info(string_format("sync: ref_rounds %lu, remainder %lu.", acts/aggressors.size(),
+                                         acts - ((acts/aggressors.size())*aggressors.size())));
         }
-        printf("[+] Hammering sync %d aggressors from addr %p on bank %d\n", aggressor_rows_size, cur_start_addr, ba);
+        Logger::log_info(string_format("Hammering sync %d aggressors from addr %p on bank %d",
+                                       aggressor_rows_size,
+                                       cur_start_addr,
+                                       ba));
         hammer_sync(aggressors, acts, d1, d2);
       }
 
@@ -310,26 +330,28 @@ size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks
   }
 
   auto activations = (running_sum/acts.size());
-  printf("[+] Counted %lu activations per refresh interval.\n", activations);
+  Logger::log_info("Determined the number of possible ACTs per refresh interval.");
+  Logger::log_data(string_format("num_acts_per_tREFI: %lu", activations));
 
   return activations;
 }
 
 /// Prints metadata about this evaluation run.
 void print_metadata() {
-  printf("=== Evaluation Run Metadata ==========\n");
-  printf("Start_ts: %lu\n", (unsigned long) time(nullptr));
+  Logger::log_info("General information about this fuzzing run:");
+
   char name[1024] = "";
   gethostname(name, sizeof name);
-  printf("Hostname: %s\n", name);
-  fflush(stdout);
-  system(
-      "echo \"Git_SHA: `(git rev-parse --short HEAD 2>/dev/null | tr '\\n' ' ' && if [ \"$(git diff --stat 2>/dev/null)\" != \"\" ]; then echo -n '(dirty)'; else echo -n '(clean)'; fi) || echo 'not a repository'`\"\n");
-  fflush(stdout);
-  printf("RUN_TIME_LIMIT: %ld\n", RUN_TIME_LIMIT);
+
+  std::stringstream ss;
+  ss << "Start_ts: " << (unsigned long) time(nullptr) << std::endl
+     << "Hostname: " << name << std::endl
+     << "Git SHA: " << GIT_COMMIT_HASH << std::endl
+     << "RUN_TIME_LIMIT: " << RUN_TIME_LIMIT;
+
+  Logger::log_data(ss.str());
+
   print_global_defines();
-  printf("======================================\n");
-  fflush(stdout);
 }
 
 char *getCmdOption(char **begin, char **end, const std::string &option) {
@@ -345,6 +367,9 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
 }
 
 int main(int argc, char **argv) {
+  Logger::initialize();
+
+  // process parameter '-generate_patterns'
   const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
   if (cmdOptionExists(argv, argv + argc, ARG_GENERATE_PATTERN)) {
     size_t acts = strtoul(getCmdOption(argv, argv + argc, ARG_GENERATE_PATTERN), nullptr, 10);
@@ -352,13 +377,14 @@ int main(int argc, char **argv) {
     const size_t MAX_ACCESSES = acts*MAX_NUM_REFRESH_INTERVALS;
     void *rows_to_access = calloc(MAX_ACCESSES, sizeof(int));
     if (rows_to_access==nullptr) {
-      fprintf(stderr, "Allocation of rows_to_access failed!\n");
+      Logger::log_error("Allocation of rows_to_access failed!");
       exit(1);
     }
     generate_pattern_for_ARM(acts, static_cast<int *>(rows_to_access), MAX_ACCESSES);
     return 0;
   }
 
+  // process parameter '-runtime_limit'
   const std::string ARG_RUNTIME_LIMIT = "-runtime_limit";
   if (cmdOptionExists(argv, argv + argc, ARG_RUNTIME_LIMIT)) {
     // parse the program arguments
@@ -367,13 +393,23 @@ int main(int argc, char **argv) {
     RUN_TIME_LIMIT = 120; // 2 minutes
   }
 
+  // process parameter '-num_ranks'
+  const std::string ARG_NUM_RANKS = "-num_ranks";
+  bool param_num_ranks_given = false;
+  int num_ranks;
+  if (cmdOptionExists(argv, argv + argc, ARG_NUM_RANKS)) {
+    // parse the program arguments
+    num_ranks = (int) strtol(getCmdOption(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
+    param_num_ranks_given = true;
+  }
+
   // prints the current git commit and some metadata
   print_metadata();
 
   // give this process the highest CPU priority
   int ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) {
-    printf(FRED "[-] Instruction setpriority failed." NONE "\n");
+    Logger::log_error("Instruction setpriority failed.");
   }
   // allocate a large bulk of contiguous memory
   bool use_superpage = true;
@@ -383,27 +419,47 @@ int main(int argc, char **argv) {
   DramAnalyzer dram_analyzer(memory.get_starting_address());
   // find address sets that create bank conflicts
   dram_analyzer.find_bank_conflicts();
-  // determine the row and bank/rank functions
-  dram_analyzer.find_functions(use_superpage);
+
+  if (param_num_ranks_given) {
+    dram_analyzer.load_known_functions(num_ranks);
+  } else {
+    // determine the row and bank/rank functions
+    dram_analyzer.find_functions(use_superpage);
+  }
   // determine the bank/rank masks
   dram_analyzer.find_bank_rank_masks();
+
+  // process parameter '-acts_per_ref'
+  int act;
+  const std::string ARG_ACTS_PER_REF = "-acts_per_ref";
+  if (cmdOptionExists(argv, argv + argc, ARG_ACTS_PER_REF)) {
+    // parse the program arguments
+    size_t tmp = strtol(getCmdOption(argv, argv + argc, ARG_ACTS_PER_REF), nullptr, 10);
+    if (tmp > ((size_t) INT16_MAX)) {
+      Logger::log_error(string_format("Given parameter value %lu for %s is invalid!", tmp, ARG_ACTS_PER_REF.c_str()));
+      exit(1);
+    }
+    act = (int) tmp;
+  } else {
+    // count the number of possible activations per refresh interval
+    act = count_acts_per_ref(dram_analyzer.get_banks());
+  }
 
   // initialize the DRAMAddr class
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
-  // count the number of possible activations per refresh interval
-  int act = count_acts_per_ref(dram_analyzer.get_banks());
   // perform the hammering and check the flipped bits after each round
   if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     n_sided_frequency_based_hammering(memory, dram_analyzer, act);
-  } else if (!USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+  } else if (!USE_FREQUENCY_BASED_FUZZING) {
     n_sided_hammer(memory, dram_analyzer, act);
   } else {
-    fprintf(stderr,
-            "Invalid combination of program control-flow arguments given. "
-            "Note that fuzzing is only supported with synchronized hammering.");
+    Logger::log_error("Invalid combination of program control-flow arguments given. "
+                      "Note that fuzzing is only supported with synchronized hammering.");
     return 1;
   }
+
+  Logger::close();
 
   return 0;
 }

@@ -4,13 +4,12 @@
 #include <cinttypes>
 #include <cstdlib>
 #include <algorithm>
-#include <cmath>
+#include <utility>
 #include <vector>
 #include <unordered_set>
-#include <DRAMAddr.hpp>
+#include <sstream>
 
 #include "GlobalDefines.hpp"
-#include "Utilities/AsmPrimitives.hpp"
 
 volatile char *DramAnalyzer::normalize_addr_to_bank(volatile char *cur_addr, size_t bank_no) {
   volatile char *normalized_addr = cur_addr;
@@ -40,7 +39,7 @@ uint64_t DramAnalyzer::get_row_increment() const {
   for (size_t i = 0; i < 64; i++) {
     if (row_function & BIT_SET(i)) return BIT_SET(i);
   }
-  printf("[-] No bit set for row function\n");
+  Logger::log_error("No bit set for row function.");
   return 0;
 }
 
@@ -66,6 +65,34 @@ uint64_t DramAnalyzer::get_row_index(const volatile char *addr) const {
   return cur_row;
 }
 
+struct FunctionSet {
+  uint64_t row_func{};
+  std::vector<uint64_t> br_functions;
+
+  FunctionSet() = default;
+
+  FunctionSet(uint64_t row_fn, std::vector<uint64_t> bank_rank_fn)
+      : row_func(row_fn), br_functions(std::move(bank_rank_fn)) {}
+
+  std::string get_string() {
+    std::stringstream ss;
+    for (auto &f : br_functions) ss << f << "|";
+    ss << row_func;
+    return ss.str();
+  }
+
+  void pretty_print() {
+    Logger::log_info("Found candidate bank/rank and row function:");
+    Logger::log_data(string_format("   Row function 0x%" PRIx64, row_func));
+    std::stringstream ss;
+    ss << "   Bank/rank functions (" << br_functions.size() << "): ";
+    for (auto bank_rank_function : br_functions) {
+      ss << "0x" << std::hex << bank_rank_function << " ";
+    }
+    Logger::log_data(ss.str());
+  }
+};
+
 /*
  * Assumptions:
  *  1) row selection starts from higher bits than 13 (8K DRAM pages)
@@ -77,13 +104,17 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 
   // this method to determine the bank/rank functions doesn't somehow work very reliable on some nodes (e.g., cn003),
   // because of that we need to choose a rather large maximum number of tries
-  const int max_num_tries = 30;
+  const int max_num_tries = 20;
   int num_tries = 0;
+
+  std::unordered_map<std::string, FunctionSet> candidates;
+  std::unordered_map<std::string, int> candidates_count;
+  int max_count = 0;
 
   do {
     bank_rank_functions.clear();
-    int max_bits = (superpage_on) ? 30 : 21;
     row_function = 0;
+    int max_bits = (superpage_on) ? 30 : 21;
 
     for (int ba = 6; ba < NUM_BANKS; ba++) {
       auto addr = banks.at(ba).at(0);
@@ -118,26 +149,43 @@ void DramAnalyzer::find_functions(bool superpage_on) {
         }
       }
     }
+
     num_tries++;
-  } while (num_tries < max_num_tries // && bank_rank_functions.size()!=num_expected_fns
-      );
 
-  // TODO: Fix this... is the assumption correct at all? Maybe it makes more sense to build a histogram and use the
-  //  address function set with the highest "hits"
-//  // we cannot continue if we couldn't determine valid bank/rank functions
-//  if (bank_rank_functions.size()!=num_expected_fns) {
-//    printf(
-//        "[-] Found %zu bank/rank functions for %d banks, expected were %zu functions. ",
-//        bank_rank_functions.size(), NUM_BANKS, num_expected_fns);
-//    exit(1);
-//  }
+    FunctionSet fs(row_function, bank_rank_functions);
+    int count = (candidates_count.count(fs.get_string()) > 0) ? candidates_count[fs.get_string()] + 1 : 1;
+    max_count = std::max(count, max_count);
+    candidates[fs.get_string()] = fs;
+    candidates_count[fs.get_string()] = count;
+    fs.pretty_print();
 
-  printf("[+] Row function 0x%" PRIx64 ", row increment 0x%" PRIx64 ", and %lu bank/rank functions: ",
-         row_function, get_row_increment(), bank_rank_functions.size());
-  for (size_t j = 0; j < bank_rank_functions.size(); j++) {
-    printf("0x%" PRIx64 " ", bank_rank_functions[j]);
-    if (j==(bank_rank_functions.size() - 1)) printf("\n");
+    // stop if guesses seem to be correct
+    if ((num_tries==3 && candidates.size()==1) || (num_tries > 4 && max_count > 0.7*candidates.size())) {
+      break;
+    }
+
+  } while (num_tries < max_num_tries);
+
+  // use the row_function/bank_rank_functions that was determined most of the time as the function ('best guess')
+  std::string best_str;
+  for (const auto& candidate_pair : candidates_count) {
+    if (candidate_pair.second == max_count) {
+      best_str = candidate_pair.first;
+      break;
+    }
   }
+  row_function = candidates[best_str].row_func;
+  bank_rank_functions = candidates[best_str].br_functions;
+
+  Logger::log_info("Found bank/rank and row function:");
+  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
+  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+  std::stringstream ss;
+  ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
+  for (auto bank_rank_function : bank_rank_functions) {
+    ss << "0x" << std::hex << bank_rank_function << " ";
+  }
+  Logger::log_data(ss.str());
 }
 
 uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank) {
@@ -156,7 +204,7 @@ uint64_t DramAnalyzer::test_addr_against_bank(volatile char *addr, std::vector<v
 void DramAnalyzer::find_bank_conflicts() {
   srand(time(nullptr));
   int nr_banks_cur = 0;
-  int remaining_tries = NUM_BANKS*128;  // experimentally determined, may be unprecise
+  int remaining_tries = NUM_BANKS*256;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS && remaining_tries > 0) {
     reset:
     remaining_tries--;
@@ -192,18 +240,18 @@ void DramAnalyzer::find_bank_conflicts() {
       nr_banks_cur++;
     }
     if (remaining_tries==0) {
-      fprintf(stderr,
-              "[-] Could not find all bank/rank functions. Is the number of banks (%d) defined correctly?\n",
-              (int) NUM_BANKS);
+      Logger::log_error(string_format(
+          "Could not find conflicting address sets. Is the number of banks (%d) defined correctly?",
+          (int) NUM_BANKS));
       exit(1);
     }
   }
 
-  printf("[+] Found bank conflicts.\n");
+  Logger::log_info("Found bank conflicts.");
   for (auto &bank : banks) {
     find_targets(bank, NUM_TARGETS);
   }
-  printf("[+] Populated addresses from different banks.\n");
+  Logger::log_info("Populated addresses from different banks.");
 }
 
 void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_t size) {
@@ -249,3 +297,25 @@ std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
   return bank_rank_functions;
 }
 
+void DramAnalyzer::load_known_functions(int num_ranks) {
+  if (num_ranks==1) {
+    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x24000, 0x48000, 0x90000});
+    row_function = 0x3ffe0000;
+  } else if (num_ranks==2) {
+    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x44000, 0x88000, 0x110000, 0x220000});
+    row_function = 0x3ffc0000;
+  } else {
+    Logger::log_error("Cannot load bank/rank and row function if num_ranks is not 1 or 2.");
+    exit(1);
+  }
+
+  Logger::log_info("Loaded bank/rank and row function:");
+  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
+  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+  std::stringstream ss;
+  ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
+  for (auto bank_rank_function : bank_rank_functions) {
+    ss << "0x" << std::hex << bank_rank_function << " ";
+  }
+  Logger::log_data(ss.str());
+}

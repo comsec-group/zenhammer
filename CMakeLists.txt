@@ -4,7 +4,13 @@ cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_BUILD_TYPE DEBUG)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
 option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
@@ -49,7 +55,18 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
-enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
+#enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
+enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
+enable_cxx_compiler_flag_if_supported("-Wno-format-security")
+
+execute_process(COMMAND "git status 1>/dev/null 2>&1" RESULT_VARIABLE ret)
+if(ret EQUAL "0")
+execute_process(
+        COMMAND git rev-parse HEAD
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
 
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
@@ -57,18 +74,19 @@ set(SOURCES
         src/DRAMAddr.cpp
         src/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/Fuzzer/PatternAddressMapping.cpp
+        src/Fuzzer/PatternAddressMapper.cpp
         src/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
-        src/Fuzzer/BitFlip.cpp)
+        src/Fuzzer/BitFlip.cpp
+        src/Utilities/Logger.cpp)
 
 set(HEADER_ONLY
-        include/Fuzzer/PatternAddressMapping.hpp
-        include/GlobalDefines.hpp)
+        include/GlobalDefines.hpp
+        include/Utilities/Enums.hpp)
 
-set(LIBRARY_NAME libblacksmith)
+set(LIBRARY_NAME bs)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -83,3 +101,4 @@ endif ()
 
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})
+target_compile_definitions(blacksmith PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")

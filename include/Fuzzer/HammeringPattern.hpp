@@ -13,7 +13,7 @@
 #include "Fuzzer/AggressorAccessPattern.hpp"
 #include "Utilities/Range.hpp"
 #include "Utilities/Uuid.hpp"
-#include "PatternAddressMapping.hpp"
+#include "PatternAddressMapper.hpp"
 
 class HammeringPattern {
  public:
@@ -35,9 +35,9 @@ class HammeringPattern {
   std::vector<AggressorAccessPattern> agg_access_patterns;
 
   // from an OOP perspective it would make more sense to have a reference to this HammeringPattern in each of the
-  // PatternAddressMapping objects; however, for the JSON export having this vector of mappings for a pattern works
+  // PatternAddressMapper objects; however, for the JSON export having this vector of mappings for a pattern works
   // better because we need to foreign keys and can easily associate this HammeringPattern to N PatternAddressMappings
-  std::vector<PatternAddressMapping> address_mappings;
+  std::vector<PatternAddressMapper> address_mappings;
 
   HammeringPattern();
 

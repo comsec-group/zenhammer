@@ -10,8 +10,8 @@ void DRAMAddr::initialize(uint64_t num_bank_rank_functions, volatile char *start
   } else if (num_bank_rank_functions==4) {
     num_ranks = RANKS(1);
   } else {
-    fprintf(stderr, FRED "[-] Could not initialize DRAMAddr as #ranks seems not to be 1 or 2." NONE "\n");
-    exit(0);
+    Logger::log_error("Could not initialize DRAMAddr as #ranks seems not to be 1 or 2.");
+    exit(1);
   }
   DRAMAddr::load_mem_config((CHANS(CHANNEL) | DIMMS(DIMM) | num_ranks | BANKS(NUM_BANKS)));
   DRAMAddr::set_base((void *) start_address);
@@ -59,6 +59,10 @@ size_t DRAMAddr::linearize() const {
 }
 
 void *DRAMAddr::to_virt() {
+  return const_cast<const DRAMAddr *>(this)->to_virt();
+}
+
+void *DRAMAddr::to_virt() const {
   size_t res = 0;
   size_t l = this->linearize();
   for (unsigned long i : MemConfig.ADDR_MTX) {
@@ -76,6 +80,15 @@ std::string DRAMAddr::to_string() {
           this->row,
           this->col,
           this->to_virt());
+  return std::string(buff);
+}
+
+std::string DRAMAddr::to_string_compact() const {
+  char buff[1024];
+  sprintf(buff, "(%ld,%ld,%ld)",
+          this->bank,
+          this->row,
+          this->col);
   return std::string(buff);
 }
 
