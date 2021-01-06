@@ -83,9 +83,9 @@ struct FunctionSet {
 
   void pretty_print() {
     Logger::log_info("Found candidate bank/rank and row function:");
-    Logger::log_data(string_format("   Row function 0x%" PRIx64, row_func));
+    Logger::log_data(string_format("Row function 0x%" PRIx64, row_func));
     std::stringstream ss;
-    ss << "   Bank/rank functions (" << br_functions.size() << "): ";
+    ss << "Bank/rank functions (" << br_functions.size() << "): ";
     for (auto bank_rank_function : br_functions) {
       ss << "0x" << std::hex << bank_rank_function << " ";
     }
@@ -178,8 +178,8 @@ void DramAnalyzer::find_functions(bool superpage_on) {
   bank_rank_functions = candidates[best_str].br_functions;
 
   Logger::log_info("Found bank/rank and row function:");
-  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
-  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+  Logger::log_data(string_format("Row function: 0x%" PRIx64, row_function));
+  Logger::log_data(string_format("Row increment: 0x%" PRIx64, get_row_increment()));
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (auto bank_rank_function : bank_rank_functions) {
