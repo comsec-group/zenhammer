@@ -5,12 +5,8 @@ project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
 option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
