@@ -177,7 +177,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
 
       // wait for a random time
-      std::this_thread::sleep_for(std::chrono::milliseconds(wait_until_hammering_us));
+      std::this_thread::sleep_for(std::chrono::microseconds(wait_until_hammering_us));
       // do hammering
       code_jitter.hammer_pattern();
       // check whether any bit flips occurred
