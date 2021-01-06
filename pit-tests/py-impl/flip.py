@@ -14,7 +14,7 @@ class Flip(ctypes.Structure):
         return self.__str__()
 
     def __str__(s):
-        d = DRAMAddr(addr)
+        d = DRAMAddr.from_addr(addr)
         return f"Flip(row:{d.row:04d}, data: {s.data:02x}, flip: {s.mask:02x})"
     
     def __eq__(s, o):

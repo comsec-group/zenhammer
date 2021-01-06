@@ -220,7 +220,8 @@ class PatternInstance(PhasedPatternShape):
     
     def hammer(self):
         signal = list(map(lambda x:x.to_addr(), self.padded_signal()))
-        scan_range = (self.aggr_tuple[0] - 5, self.aggr_tuple[1] + 5) 
+        
+        scan_range = (min(self.aggr_tuple)-5, max(self.aggr_tuple) + 5) 
         sync_addr = self.aggr_tuple[0] + DRAMAddr(0,10,0) # sync on a different row 
         sync_addr = (ctypes.c_size_t)(sync_addr.to_addr())
         patt = (ctypes.c_void_p * len(signal))(*signal) 
