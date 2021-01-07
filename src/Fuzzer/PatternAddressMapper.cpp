@@ -18,11 +18,10 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   const int bank_no = fuzzing_params.get_random_bank_no();
-  const int agg_inter_distance = fuzzing_params.get_random_inter_distance();
   bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
-  FuzzingParameterSet::print_dynamic_parameters(bank_no, agg_inter_distance, use_seq_addresses);
+  FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses);
 
-  size_t cur_row = fuzzing_params.get_start_row();
+  size_t cur_row = fuzzing_params.get_random_start_row();
 
   // a set of DRAM rows that are already assigned to aggressors
   std::set<int> occupied_rows;
@@ -48,7 +47,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         // if use_seq_addresses is true, we use the last address and add the agg_inter_distance on top -> this is the
         //   row of the next aggressor
         // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
-        cur_row = (cur_row + (size_t) agg_inter_distance)%fuzzing_params.get_max_row_no();
+        cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())%fuzzing_params.get_max_row_no();
 
         retry:
         row = use_seq_addresses ?
@@ -131,8 +130,8 @@ void PatternAddressMapper::export_pattern_internal(
   }
 
   // print string representation of pattern
-  Logger::log_info("Pattern filled by random DRAM rows:");
-  Logger::log_data(pattern_str.str());
+//  Logger::log_info("Pattern filled by random DRAM rows:");
+//  Logger::log_data(pattern_str.str());
 
   if (invalid_aggs) {
     Logger::log_error(
@@ -172,13 +171,14 @@ void PatternAddressMapper::export_pattern(
   export_pattern_internal(aggressors, base_period, dummy_vector, rows_vector);
 
   if (max_rows < rows_vector.size()) {
-    Logger::log_error("Exporting pattern failed! Given plain-C 'rows' array is too small to hold all accesses.");
+    Logger::log_error("Exporting pattern failed! Given plain-C 'rows' array is too small to hold all aggressors.");
   }
 
   for (size_t i = 0; i < std::min(rows_vector.size(), max_rows); ++i) {
     rows[i] = rows_vector.at(i);
   }
 }
+
 #ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
