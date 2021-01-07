@@ -9,7 +9,7 @@ void to_json(nlohmann::json &j, const HammeringPattern &p) {
                      {"max_period", p.max_period},
                      {"total_activations", p.total_activations},
                      {"num_refresh_intervals", p.num_refresh_intervals},
-                     {"access_ids", Aggressor::get_agg_ids(p.accesses)},
+                     {"access_ids", Aggressor::get_agg_ids(p.aggressors)},
                      {"agg_access_patterns", p.agg_access_patterns},
                      {"address_mappings", p.address_mappings}
   };
@@ -24,7 +24,7 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
 
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("accesses_agg_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
-  p.accesses = Aggressor::create_aggressors(agg_ids);
+  p.aggressors = Aggressor::create_aggressors(agg_ids);
 
   j.at("agg_access_patterns").get_to<>(p.agg_access_patterns);
   j.at("address_mappings").get_to<>(p.address_mappings);

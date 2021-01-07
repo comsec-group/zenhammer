@@ -28,8 +28,8 @@ class HammeringPattern {
 
   size_t num_refresh_intervals;
 
-  // the order in which accesses happen
-  std::vector<Aggressor> accesses;
+  // the order in which aggressor accesses happen
+  std::vector<Aggressor> aggressors;
 
   // additional and more structured information about the aggressors involved in this pattern such as whether they are 1-sided or 2-sided
   std::vector<AggressorAccessPattern> agg_access_patterns;
