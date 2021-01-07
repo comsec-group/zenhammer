@@ -19,13 +19,15 @@ class FuzzingParameterSet {
 
   int agg_intra_distance;
 
+  int agg_inter_distance;
+
   int num_activations_per_tREFI;
 
   int hammering_total_num_activations;
 
   int base_period;
 
-  int start_row;
+  Range<int> start_row;
 
   int max_row_no;
 
@@ -36,8 +38,6 @@ class FuzzingParameterSet {
   Range<int> bank_no;
 
   Range<int> use_sequential_aggressors;
-
-  Range<int> agg_inter_distance;
 
   Range<int> amplitude;
 
@@ -72,15 +72,15 @@ class FuzzingParameterSet {
 
   int get_agg_intra_distance() const;
 
-  int get_random_inter_distance();
+  int get_agg_inter_distance() const;
 
   int get_random_even_divisior(int n, int min_value);
 
   int get_random_N_sided(size_t upper_bound_max);
 
-  int get_num_activations_per_t_refi() const;
+  int get_random_start_row();
 
-  int get_start_row() const;
+  int get_num_activations_per_t_refi() const;
 
   size_t get_total_acts_pattern() const;
 
@@ -96,7 +96,7 @@ class FuzzingParameterSet {
 
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
-  static void print_dynamic_parameters(int bank, int inter_dist, bool seq_addresses);
+  static void print_dynamic_parameters(const int bank, bool seq_addresses);
 
   int get_max_row_no() const;
 
