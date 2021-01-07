@@ -104,10 +104,10 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
 
   if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
     trials_per_pattern++;
-    hammering_pattern.accesses.clear();
+    hammering_pattern.aggressors.clear();
   } else {
     trials_per_pattern = 0;
-    hammering_pattern.accesses.clear();
+    hammering_pattern.aggressors.clear();
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
   }
 
@@ -117,7 +117,7 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
   // choose random addresses for pattern
   PatternAddressMapper mapping;
   mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
-  mapping.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, rows_to_access, max_accesses);
+  mapping.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, rows_to_access, max_accesses);
 }
 
 long get_timestamp_sec() {
@@ -160,8 +160,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses
-      std::vector<volatile char *> hammering_pattern_accesses;
-      mapper.export_pattern(hammering_pattern.accesses, hammering_pattern.base_period, hammering_pattern_accesses);
+      std::vector<volatile char *> hammering_accesses_vec;
+      mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, hammering_accesses_vec);
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
       bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
@@ -169,7 +169,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       code_jitter.jit_strict(fuzzing_params,
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_pattern_accesses,
+                             hammering_accesses_vec,
                              sync_at_each_ref,
                              num_aggs_for_sync);
 
