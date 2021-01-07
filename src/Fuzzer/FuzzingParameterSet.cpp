@@ -123,9 +123,9 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 //  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
 //  wait_until_start_hammering_microseconds = Range<int>(0, 0);    // COMMENT: SAMSUNG parameters
-  wait_until_start_hammering_microseconds = Range<int>(0, 200);
+  wait_until_start_hammering_microseconds = Range<int>(4000, 5000);  // note: 4000us / 7.8 us ≈ 500 REFs
 
-  num_aggressors_for_sync = Range<int>(1, 3);
+  num_aggressors_for_sync = Range<int>(1, 2);
 //  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
@@ -147,7 +147,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
 //  set_distribution(N_sided, {{1, 10}, {2, 40}, {3, 10}, {4, 30}, {5, 10}, {6, 20}});
-  set_distribution(N_sided, {{1,10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
+  set_distribution(N_sided, {{1, 10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
 //  set_distribution(N_sided, {{2,100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
