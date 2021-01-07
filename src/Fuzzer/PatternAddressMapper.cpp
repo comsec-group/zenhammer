@@ -36,7 +36,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
       Aggressor &current_agg = acc_pattern.aggressors[i];
-      if (i > 0) {
+      if (aggressor_to_addr.count(current_agg.id) > 0) {
+        row = aggressor_to_addr.at(current_agg.id).row;
+      } else if (i > 0) {
         // if this aggressor has any partners (N>1), we need to add the appropriate distance and cannot choose randomly
         auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
         // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
