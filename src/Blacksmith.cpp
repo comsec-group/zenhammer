@@ -148,6 +148,14 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
+    // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
+    // rows in sequential order (i.e., first element in AggressorAccessPatterns has lowest DRAM row).
+    std::random_device rd;
+    std::shuffle(hammering_pattern.agg_access_patterns.begin(),
+                 hammering_pattern.agg_access_patterns.end(),
+                 std::default_random_engine(rd()));
+
+
     // then test this pattern with N different address sets
     while (trials_per_pattern++ < MAX_TRIALS_PER_PATTERN) {
       Logger::log_info(string_format("Running for pattern %d (%s) with address set %d.",
