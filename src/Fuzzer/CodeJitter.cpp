@@ -166,7 +166,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
     auto cur_addr = (uint64_t) aggressor_pairs[i];
 
-    // fence to ensure flushing finshed and defined order of accesses
+    // fence to ensure flushing finshed and defined order of aggressors
     if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr]) {
       a.mfence();
       accessed_before[cur_addr] = false;
@@ -195,7 +195,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
     }
   }
 
-  // fences -> ensure that accesses are not interleaved, i.e., we access aggressors always in same order
+  // fences -> ensure that aggressors are not interleaved, i.e., we access aggressors always in same order
   a.mfence();
 
   // ------- part 3: synchronize with the end  -----------------------------------------------------------------------
@@ -246,7 +246,7 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
     assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
 
-    // we do not deduct the sync accesses from the total number of activations
+    // we do not deduct the sync aggressors from the total number of activations
      assembler.dec(asmjit::x86::rsi);
 
     // update counter that counts the number of activation in the trailing synchronization

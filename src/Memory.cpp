@@ -151,7 +151,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       // restore original (unflipped) value
       *((int *) cur_addr) = expected_rand_value;
 
-      // flush this address os that future accesses see the new value
+      // flushes this address so that future aggressors see the new value
       clflushopt(cur_addr);
       mfence();
     }
