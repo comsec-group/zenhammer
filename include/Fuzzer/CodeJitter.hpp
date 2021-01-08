@@ -48,6 +48,8 @@ class CodeJitter {
   void cleanup();
 
   static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
+
+  bool pattern_sync_each_ref;
 };
 
 #endif /* CODEJITTER */

@@ -56,9 +56,12 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters) {
 
   Logger::log_info("Synchronization stats:");
   Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
-  auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/fuzzing_parameters.get_total_acts_pattern();
-  auto acts_per_pattern_round = (fuzzing_parameters.get_total_acts_pattern()/fuzzing_parameters.get_num_activations_per_t_refi());
-  auto num_synced_refs = pattern_rounds * acts_per_pattern_round;
+  const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
+  auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
+  auto acts_per_pattern_round =
+      pattern_sync_each_ref ? (total_acts_pattern/fuzzing_parameters.get_num_activations_per_t_refi())
+                            : 2; // beginning and end of pattern
+  auto num_synced_refs = pattern_rounds*acts_per_pattern_round;
   Logger::log_data(string_format("Number of total synced REFs (est.): %d", num_synced_refs));
   Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
   return total_sync_acts;
@@ -70,6 +73,8 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
                             const std::vector<volatile char *> &aggressor_pairs,
                             bool sync_each_ref,
                             int num_aggressors_for_sync) {
+
+  pattern_sync_each_ref = sync_each_ref;
 
   // decides the number of aggressors of the beginning/end to be used for detecting the refresh interval
   // e.g., 10 means use the first 10 aggs in aggressor_pairs (repeatedly, if necessary) to detect the start refresh
@@ -255,7 +260,7 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
 
     // we do not deduct the sync aggressors from the total number of activations
-     assembler.dec(asmjit::x86::rsi);
+    assembler.dec(asmjit::x86::rsi);
 
     // update counter that counts the number of activation in the trailing synchronization
     assembler.inc(asmjit::x86::edx);
