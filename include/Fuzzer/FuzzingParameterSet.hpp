@@ -27,9 +27,9 @@ class FuzzingParameterSet {
 
   int base_period;
 
-  Range<int> start_row;
-
   int max_row_no;
+
+  Range<int> start_row;
 
   Range<int> num_aggressors_for_sync;
 
@@ -96,7 +96,7 @@ class FuzzingParameterSet {
 
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
-  static void print_dynamic_parameters(const int bank, bool seq_addresses);
+  static void print_dynamic_parameters(const int bank, bool seq_addresses, int start_row);
 
   int get_max_row_no() const;
 
