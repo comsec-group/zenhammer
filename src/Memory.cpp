@@ -72,25 +72,35 @@ void Memory::initialize() {
   }
 }
 
-void Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping) {
+size_t Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping, bool reproducibility_mode) {
   auto victim_rows = mapping.get_victim_rows();
-  Logger::log_info(string_format("Checking if any bit flips occurred on %zu victims.", victim_rows.size()));
+  if (!reproducibility_mode)
+    Logger::log_info(string_format("Checking if any bit flips occurred on %zu victims.",
+                                   victim_rows.size()));
+
+  size_t sum_found_bitflips = 0;
   for (const auto &victim_row : victim_rows) {
-    check_memory(dram_analyzer, victim_row.first, victim_row.second, 0, mapping);
+    sum_found_bitflips +=
+        check_memory(dram_analyzer, mapping, victim_row.second, 0, victim_row.first, reproducibility_mode);
   }
+
+  return sum_found_bitflips;
 }
 
-void Memory::check_memory(DramAnalyzer &dram_analyzer,
-                          const volatile char *start,
-                          const volatile char *end,
-                          size_t check_offset,
-                          PatternAddressMapper &mapping) {
+size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
+                            PatternAddressMapper &mapping,
+                            const volatile char *end,
+                            size_t check_offset,
+                            const volatile char *start,
+                            bool reproducibility_mode) {
+
+  size_t found_bitflips = 0;
 
   if ((start==nullptr || end==nullptr) || ((uint64_t) start >= (uint64_t) end)) {
     Logger::log_error("Function check_memory called with invalid arguments.");
     Logger::log_data(string_format("Start addr.: %s", DRAMAddr((void *) start).to_string().c_str()));
     Logger::log_data(string_format("End addr.: %s", DRAMAddr((void *) end).to_string().c_str()));
-    return;
+    return found_bitflips;
   }
 
   auto row_increment = dram_analyzer.get_row_increment();
@@ -119,7 +129,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
 
       // make sure that we do not access an address out of the allocated memory area
       if ((cur_addr + sizeof(int) - 1) > (start_address + size)) {
-        return;
+        return found_bitflips;
       }
 
       // clear the cache to make sure we do not access a cached value
@@ -134,16 +144,19 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       // if the bit flipped -> compare byte per byte
       for (unsigned long c = 0; c < sizeof(int); c++) {
         volatile char *flipped_address = cur_addr + c;
-
         if (*((char *) flipped_address)!=((char *) &expected_rand_value)[c]) {
-          Logger::log_bitflip(flipped_address, dram_analyzer.get_row_index(flipped_address),
-                              offset%getpagesize(),
-                              ((unsigned char *) &expected_rand_value)[c],
-                              *(unsigned char *) flipped_address,
-                              (unsigned long) time(nullptr));
-          uint8_t bitmask = ((unsigned char *) &expected_rand_value)[c] ^(*(unsigned char *) flipped_address);
-          mapping.bit_flips
-              .emplace_back(DRAMAddr((void *) flipped_address), bitmask, *(unsigned char *) flipped_address);
+          if (!reproducibility_mode) {
+            Logger::log_bitflip(flipped_address, dram_analyzer.get_row_index(flipped_address),
+                                offset%getpagesize(),
+                                ((unsigned char *) &expected_rand_value)[c],
+                                *(unsigned char *) flipped_address,
+                                (unsigned long) time(nullptr));
+            uint8_t bitmask = ((unsigned char *) &expected_rand_value)[c] ^(*(unsigned char *) flipped_address);
+            mapping.bit_flips.emplace_back(DRAMAddr((void *) flipped_address),
+                                           bitmask,
+                                           *(unsigned char *) flipped_address);
+          }
+          found_bitflips++;
 //          Logger::log_data(string_format("Flip at %s", DRAMAddr((void *) flipped_address).to_string_compact().c_str()));
         }
       }
@@ -156,6 +169,8 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
       mfence();
     }
   }
+
+  return found_bitflips;
 }
 
 void Memory::check_memory(DramAnalyzer &dram_analyzer,
@@ -164,7 +179,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           size_t check_offset) {
   // create a "fake" pattern mapping to keep this method for backward compatibility
   PatternAddressMapper pattern_mapping;
-  check_memory(dram_analyzer, start, end, check_offset, pattern_mapping);
+  check_memory(dram_analyzer, pattern_mapping, end, check_offset, start, false);
 }
 
 Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {

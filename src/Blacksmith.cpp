@@ -121,7 +121,8 @@ long get_timestamp_sec() {
 };
 
 unsigned long long get_timestamp_us() {
-  return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
+      .count();
 };
 
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
@@ -149,7 +150,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
-    // rows in sequential order (i.e., first element in AggressorAccessPatterns has lowest DRAM row).
+    // rows in order of the AggressorAccessPatterns map
+    // (e.g., the first element in AggressorAccessPatterns is assigned to the lowest DRAM row).
     std::random_device rd;
     std::shuffle(hammering_pattern.agg_access_patterns.begin(),
                  hammering_pattern.agg_access_patterns.end(),
@@ -167,6 +169,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                                      trials_per_pattern,
                                      mapper.get_instance_id().c_str()));
 
+      // randomize the aggressor ID -> DRAM row mapping
       mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses
@@ -183,12 +186,11 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                              sync_at_each_ref,
                              num_aggs_for_sync);
 
-      auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
-      FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
-
       // wait for a random time before starting to hammer, while waiting access random rows that are not part of the
       // currently hammering pattern; this wait interval serves for two purposes: to reset the sampler and start from a
       // clean state before hammering, and also to fuzz a possible dependence at which REF we start hammering
+      auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
+      FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
       if (wait_until_hammering_us > 0) {
         auto random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
         auto random_access_limit = get_timestamp_us() + wait_until_hammering_us;
@@ -199,10 +201,36 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         }
       }
 
-      // do hammering
-      code_jitter.hammer_pattern(fuzzing_params);
-      // check whether any bit flips occurred
-      memory.check_memory(dram_analyzer, mapper);
+      const int max_reproducibility_rounds = 10;
+      int reproducibility_round = 0;
+      int reproducibility_rounds_with_bitflips = 0;
+      bool reproducibility_mode = false;
+      std::stringstream ss;
+      do {
+        // do hammering
+        code_jitter.hammer_pattern(fuzzing_params, !reproducibility_mode);
+
+        // check whether any bit flips occurred
+        auto flipped_bits = memory.check_memory(dram_analyzer, mapper, reproducibility_mode);
+        if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
+
+        if (reproducibility_round==0 && flipped_bits==0) {
+          // don't do reproducibility check if this pattern does not seem to be successful
+          reproducibility_round = max_reproducibility_rounds;
+        } else if (reproducibility_round < max_reproducibility_rounds - 1) {
+          // start/continue reproducibility check
+          ss << flipped_bits;
+          if (reproducibility_round < max_reproducibility_rounds-2) ss << " ";
+          reproducibility_mode = true;
+        } else {
+          // finish reproducibility check by printing pattern's reproducibility coefficient
+          Logger::log_info(string_format("Pattern's reproducibility: %d/%d (#flips: %s)",
+                                         reproducibility_rounds_with_bitflips,
+                                         max_reproducibility_rounds,
+                                         ss.str().c_str()));
+        }
+        reproducibility_round++;
+      } while (reproducibility_round < max_reproducibility_rounds);
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);

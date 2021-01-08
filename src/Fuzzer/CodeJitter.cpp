@@ -46,24 +46,27 @@ std::string get_string(FLUSHING_STRATEGY strategy) {
   return map.at(strategy);
 }
 
-int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters) {
+int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose) {
   if (fn==nullptr) {
     Logger::log_error("Skipping hammering pattern as pattern could not be created successfully.");
     return -1;
   }
-  Logger::log_info("Hammering the last generated pattern.");
+  if (verbose) Logger::log_info("Hammering the last generated pattern.");
   int total_sync_acts = fn();
 
-  Logger::log_info("Synchronization stats:");
-  Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
-  const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
-  auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
-  auto acts_per_pattern_round =
-      pattern_sync_each_ref ? (total_acts_pattern/fuzzing_parameters.get_num_activations_per_t_refi())
-                            : 2; // beginning and end of pattern
-  auto num_synced_refs = pattern_rounds*acts_per_pattern_round;
-  Logger::log_data(string_format("Number of total synced REFs (est.): %d", num_synced_refs));
-  Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
+  if (verbose) {
+    Logger::log_info("Synchronization stats:");
+    Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
+    const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
+    auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
+    auto acts_per_pattern_round =
+        pattern_sync_each_ref ? (total_acts_pattern/fuzzing_parameters.get_num_activations_per_t_refi())
+                              : 2; // beginning and end of pattern
+    auto num_synced_refs = pattern_rounds*acts_per_pattern_round;
+    Logger::log_data(string_format("Number of total synced REFs (est.): %d", num_synced_refs));
+    Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
+  }
+
   return total_sync_acts;
 }
 
