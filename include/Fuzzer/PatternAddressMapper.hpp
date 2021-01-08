@@ -34,6 +34,12 @@ class PatternAddressMapper {
   // a randomization engine
   std::mt19937 gen;
 
+  int min_row;
+
+  int max_row;
+
+  int bank_no;
+
   explicit PatternAddressMapper();
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
@@ -51,6 +57,8 @@ class PatternAddressMapper {
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
   const std::vector<std::pair<volatile char *, volatile char *>> &get_victim_rows() const;
+
+  std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
 };
 
 #ifdef ENABLE_JSON

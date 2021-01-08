@@ -120,6 +120,10 @@ long get_timestamp_sec() {
   return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 };
 
+unsigned long long get_timestamp_us() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+};
+
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   Logger::log_info("Starting frequency-based hammering.");
 
@@ -182,8 +186,19 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
       FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
 
-      // wait for a random time
-      std::this_thread::sleep_for(std::chrono::microseconds(wait_until_hammering_us));
+      // wait for a random time before starting to hammer, while waiting access random rows that are not part of the
+      // currently hammering pattern; this wait interval serves for two purposes: to reset the sampler and start from a
+      // clean state before hammering, and also to fuzz a possible dependence at which REF we start hammering
+      if (wait_until_hammering_us > 0) {
+        auto random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
+        auto random_access_limit = get_timestamp_us() + wait_until_hammering_us;
+        while (get_timestamp_us() < random_access_limit) {
+          for (const auto e : random_rows) {
+            *e; // this should be fine as random_rows as volatile
+          }
+        }
+      }
+
       // do hammering
       code_jitter.hammer_pattern(fuzzing_params);
       // check whether any bit flips occurred

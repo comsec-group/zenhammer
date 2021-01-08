@@ -17,7 +17,8 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   aggressor_to_addr.clear();
 
   // retrieve and then store randomized values as they should be the same for all added addresses
-  const int bank_no = fuzzing_params.get_random_bank_no();
+  // (store bank_no as field for get_random_nonaccessed_rows)
+  bank_no = fuzzing_params.get_random_bank_no();
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   const int start_row = fuzzing_params.get_random_start_row();
   FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
@@ -93,6 +94,10 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       }
     }
   }
+
+  // this works as sets are always ordered
+  min_row = *occupied_rows.begin();
+  max_row = *occupied_rows.rbegin();
 
   Logger::log_info(string_format("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
@@ -207,4 +212,14 @@ std::string &PatternAddressMapper::get_instance_id() {
 
 const std::vector<std::pair<volatile char *, volatile char *>> &PatternAddressMapper::get_victim_rows() const {
   return victim_rows;
+}
+
+std::vector<volatile char *> PatternAddressMapper::get_random_nonaccessed_rows(int row_upper_bound) {
+  // we don't mind if addresses are added multiple times
+  std::vector<volatile char*> addresses;
+  for (int i = 0; i < 1024; ++i) {
+    auto row_no = (Range<int>(max_row, max_row+min_row).get_random_number(gen) % row_upper_bound);
+    addresses.push_back((volatile char*)DRAMAddr(bank_no, row_no, 0).to_virt());
+  }
+  return addresses;
 }
