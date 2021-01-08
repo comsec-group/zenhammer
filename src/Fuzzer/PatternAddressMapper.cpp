@@ -85,9 +85,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       for (int i = -5; i <= 5; ++i) {
         auto cur_row_candidate = dram_addr.row + i;
         auto victim_start = DRAMAddr(dram_addr.bank, cur_row_candidate, 0);
-        // check that the current row is not an aggressor and we haven't added
-        if (occupied_rows.count(cur_row_candidate)==0
-            && victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
+        if (victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
           victim_rows.emplace_back((volatile char *) victim_start.to_virt(),
                                    (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
           victim_addresses.insert((volatile char *) victim_start.to_virt());
