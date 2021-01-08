@@ -56,7 +56,7 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters) {
 
   Logger::log_info("Synchronization stats:");
   Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
-  auto num_synced_refs = fuzzing_parameters.get_total_acts_pattern()/fuzzing_params.get_num_activations_per_t_refi();
+  auto num_synced_refs = fuzzing_parameters.get_total_acts_pattern()/fuzzing_parameters.get_num_activations_per_t_refi();
   Logger::log_data(string_format("Number of synced REFs (est.): %d", num_synced_refs));
   Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
   return total_sync_acts;
