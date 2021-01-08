@@ -21,10 +21,6 @@
 #include "Fuzzer/PatternAddressMapper.hpp"
 #include "Utilities/Logger.hpp"
 
-#ifndef GIT_COMMIT_HASH
-#define GIT_COMMIT_HASH "INVALID REPOSITORY."
-#endif
-
 /// the number of rounds to hammer
 static long RUN_TIME_LIMIT{0};
 
@@ -158,13 +154,15 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
     // then test this pattern with N different address sets
     while (trials_per_pattern++ < MAX_TRIALS_PER_PATTERN) {
-      Logger::log_info(string_format("Running for pattern %d (%s) with address set %d.",
-                                     cur_round,
-                                     hammering_pattern.instance_id.c_str(),
-                                     trials_per_pattern));
-
       // choose random addresses for pattern
       PatternAddressMapper mapper;
+
+      Logger::log_info(string_format("Running for pattern %d (%s) with address set %d (%s).",
+                                     cur_round,
+                                     hammering_pattern.instance_id.c_str(),
+                                     trials_per_pattern,
+                                     mapper.get_instance_id().c_str()));
+
       mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
 
       // now fill the pattern with these random addresses

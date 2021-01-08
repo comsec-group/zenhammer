@@ -36,14 +36,14 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   Logger::log_data(string_format("num_refresh_intervals: %d", num_refresh_intervals));
   Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
   Logger::log_data(string_format("base_period: %d", base_period));
-  Logger::log_data(string_format("start_row: %d", start_row));
   Logger::log_data(string_format("agg_inter_distance: %d", agg_inter_distance));
 }
 
-void FuzzingParameterSet::print_dynamic_parameters(const int bank, bool seq_addresses) {
+void FuzzingParameterSet::print_dynamic_parameters(const int bank, bool seq_addresses, int start_row) {
   Logger::log_info("Printing DRAM address-related fuzzing parameters:");
   Logger::log_data(string_format("bank_no: %d", bank));
   Logger::log_data(string_format("use_seq_addresses: %s", (seq_addresses ? "true" : "false")));
+  Logger::log_data(string_format("start_row: %d", start_row));
 }
 
 void FuzzingParameterSet::print_dynamic_parameters2(bool sync_at_each_ref,

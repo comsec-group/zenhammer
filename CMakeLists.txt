@@ -55,7 +55,8 @@ enable_cxx_compiler_flag_if_supported("-Wextra")
 enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
 enable_cxx_compiler_flag_if_supported("-Wno-format-security")
 
-execute_process(COMMAND "git status 1>/dev/null 2>&1" RESULT_VARIABLE ret)
+execute_process(COMMAND "git" "status" RESULT_VARIABLE ret)
+set(GIT_COMMIT_HASH "NO_REPOSITORY")
 if(ret EQUAL "0")
 execute_process(
         COMMAND git rev-parse HEAD

@@ -18,10 +18,11 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   const int bank_no = fuzzing_params.get_random_bank_no();
-  bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
-  FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses);
+  const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
+  const int start_row = fuzzing_params.get_random_start_row();
+  FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
 
-  size_t cur_row = fuzzing_params.get_random_start_row();
+  size_t cur_row = start_row;
 
   // a set of DRAM rows that are already assigned to aggressors
   std::set<int> occupied_rows;

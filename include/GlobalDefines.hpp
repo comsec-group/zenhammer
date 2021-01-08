@@ -29,7 +29,9 @@ uint64_t static inline GB(uint64_t value) {
 #define FC_GREEN "\e[0;32m"
 #define FC_YELLOW "\e[0;33m"
 #define FC_BLUE "\e[0;34m"
+#define FC_MAGENTA "\e[0;35m"
 #define FC_CYAN "\e[0;36m"
+
 // font faces
 #define FF_BOLD "\e[1m"
 #define F_RESET "\e[0m" // reset to default font face/color
