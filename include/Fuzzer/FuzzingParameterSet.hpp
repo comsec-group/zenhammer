@@ -96,7 +96,7 @@ class FuzzingParameterSet {
 
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
-  static void print_dynamic_parameters(const int bank, bool seq_addresses, int start_row);
+  static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
 
   int get_max_row_no() const;
 

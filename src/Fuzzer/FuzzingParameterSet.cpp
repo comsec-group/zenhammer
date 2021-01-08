@@ -94,7 +94,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(1, 6);
+  N_sided = Range<int>(1, 8);
 //  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
@@ -117,7 +117,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 //  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
 //  wait_until_start_hammering_microseconds = Range<int>(0, 0);    // COMMENT: SAMSUNG parameters
-  wait_until_start_hammering_microseconds = Range<int>(4300, 4300);  // note: 4000us / 7.8 us ≈ 500 REFs
+  wait_until_start_hammering_microseconds = Range<int>(4700, 64000);  // note: 4000us / 7.8 us ≈ 500 REFs
 
   num_aggressors_for_sync = Range<int>(1, 1);
 //  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
@@ -130,7 +130,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // == fix values/formulas that must be configured before running this program ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  agg_intra_distance = 2;
+  agg_intra_distance = Range<int>(2,3).get_random_number(gen);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
@@ -143,8 +143,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-//  set_distribution(N_sided, {{1, 10}, {2, 40}, {3, 10}, {4, 30}, {5, 10}, {6, 20}});
-  set_distribution(N_sided, {{1, 10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
+  set_distribution(N_sided, {{1, 50}, {2, 50}, {3, 50}, {4, 50}, {5, 50}, {6, 50}, {7, 50}, {8, 50}});
+//  set_distribution(N_sided, {{1, 10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
 //  set_distribution(N_sided, {{2,100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
@@ -174,11 +174,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/6);
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/8);
 //  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  agg_inter_distance = Range<int>(2, 24).get_random_number(gen);
+  agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
 //  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
 
   if (print) print_semi_dynamic_parameters();
