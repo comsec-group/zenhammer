@@ -46,14 +46,20 @@ std::string get_string(FLUSHING_STRATEGY strategy) {
   return map.at(strategy);
 }
 
-int CodeJitter::hammer_pattern() {
+int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters) {
   if (fn==nullptr) {
     Logger::log_error("Skipping hammering pattern as pattern could not be created successfully.");
     return -1;
   }
   Logger::log_info("Hammering the last generated pattern.");
-  int ret = fn();
-  return ret;
+  int total_sync_acts = fn();
+
+  Logger::log_info("Synchronization stats:");
+  Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
+  auto num_synced_refs = fuzzing_parameters.get_total_acts_pattern()/fuzzing_params.get_num_activations_per_t_refi();
+  Logger::log_data(string_format("Number of synced REFs (est.): %d", num_synced_refs));
+  Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
+  return total_sync_acts;
 }
 
 void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,

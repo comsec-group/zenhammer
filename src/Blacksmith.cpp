@@ -185,7 +185,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // wait for a random time
       std::this_thread::sleep_for(std::chrono::microseconds(wait_until_hammering_us));
       // do hammering
-      code_jitter.hammer_pattern();
+      code_jitter.hammer_pattern(fuzzing_params);
       // check whether any bit flips occurred
       memory.check_memory(dram_analyzer, mapper);
 

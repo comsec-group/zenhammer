@@ -41,7 +41,7 @@ class CodeJitter {
                   int num_aggressors_for_sync);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
-  int hammer_pattern();
+  int hammer_pattern(FuzzingParameterSet &fuzzing_parameters);
 
   /// cleans this instance associated function pointer that points to the function that was jitted at runtime;
   /// cleaning up is required to release memory before jit_strict can be called again
