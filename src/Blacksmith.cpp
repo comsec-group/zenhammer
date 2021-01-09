@@ -201,7 +201,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         }
       }
 
-      const int max_reproducibility_rounds = 10;
+      const int max_reproducibility_rounds = 20;
       int reproducibility_round = 0;
       int reproducibility_rounds_with_bitflips = 0;
       bool reproducibility_mode = false;
@@ -217,10 +217,10 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         if (reproducibility_round==0 && flipped_bits==0) {
           // don't do reproducibility check if this pattern does not seem to be successful
           reproducibility_round = max_reproducibility_rounds;
-        } else if (reproducibility_round < max_reproducibility_rounds - 1) {
+        } else if (reproducibility_round < max_reproducibility_rounds) {
           // start/continue reproducibility check
           ss << flipped_bits;
-          if (reproducibility_round < max_reproducibility_rounds-2) ss << " ";
+          if (reproducibility_round < max_reproducibility_rounds-1) ss << " ";
           reproducibility_mode = true;
         } else {
           // finish reproducibility check by printing pattern's reproducibility coefficient
