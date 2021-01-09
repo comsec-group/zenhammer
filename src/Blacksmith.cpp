@@ -204,23 +204,32 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       const int max_reproducibility_rounds = 20;
       int reproducibility_round = 0;
       int reproducibility_rounds_with_bitflips = 0;
+      int reps_per_pattern = 3;
       bool reproducibility_mode = false;
       std::stringstream ss;
       do {
+        retry_pattern:
         // do hammering
         code_jitter.hammer_pattern(fuzzing_params, !reproducibility_mode);
 
         // check whether any bit flips occurred
         auto flipped_bits = memory.check_memory(dram_analyzer, mapper, reproducibility_mode);
-        if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
 
-        if (reproducibility_round==0 && flipped_bits==0) {
-          // don't do reproducibility check if this pattern does not seem to be successful
-          reproducibility_round = max_reproducibility_rounds;
-        } else if (reproducibility_round < max_reproducibility_rounds) {
+        if (flipped_bits > 0) {
+          reproducibility_rounds_with_bitflips++;
+          reproducibility_mode = true;
+        } else if (!reproducibility_mode && reps_per_pattern > 0) {
+          reps_per_pattern--;
+          Logger::log_info("No bit flips found. Retrying pattern.");
+          goto retry_pattern;
+        } else if (!reproducibility_mode && reps_per_pattern==0) {
+          break;
+        }
+
+        if (reproducibility_round < max_reproducibility_rounds) {
           // start/continue reproducibility check
           ss << flipped_bits;
-          if (reproducibility_round < max_reproducibility_rounds-1) ss << " ";
+          if (reproducibility_round < max_reproducibility_rounds - 1) ss << " ";
           reproducibility_mode = true;
         } else {
           // finish reproducibility check by printing pattern's reproducibility coefficient
