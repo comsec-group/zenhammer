@@ -23,8 +23,6 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
 void FuzzingParameterSet::print_static_parameters() const {
   Logger::log_info("Printing static hammering parameters:");
   Logger::log_data(string_format("agg_intra_distance: %d", agg_intra_distance));
-  Logger::log_data(string_format("flushing_strategy: %s", get_string(flushing_strategy).c_str()));
-  Logger::log_data(string_format("fencing_strategy: %s", get_string(fencing_strategy).c_str()));
   Logger::log_data(string_format("N_sided dist.: %s", get_dist_string().c_str()));
   Logger::log_data(string_format("hammering_total_num_activations: %d", hammering_total_num_activations));
   Logger::log_data(string_format("max_row_no: %d", max_row_no));
@@ -37,6 +35,8 @@ void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
   Logger::log_data(string_format("base_period: %d", base_period));
   Logger::log_data(string_format("agg_inter_distance: %d", agg_inter_distance));
+  Logger::log_data(string_format("flushing_strategy: %s", get_string(flushing_strategy).c_str()));
+  Logger::log_data(string_format("fencing_strategy: %s", get_string(fencing_strategy).c_str()));
 }
 
 void FuzzingParameterSet::print_dynamic_parameters(const int bank, bool seq_addresses, int start_row) {
@@ -94,7 +94,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(1, 6);
+  N_sided = Range<int>(1, 8);
 //  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
@@ -120,7 +120,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   wait_until_start_hammering_microseconds = Range<int>(4700, 64000);  // note: 4000us / 7.8 us ≈ 500 REFs
 
   num_aggressors_for_sync = Range<int>(1, 1);
-//  num_aggressors_for_sync = Range<int>(2,2); // COMMENT: SAMSUNG parameters
+//  num_aggressors_for_sync = Range<int>(2, 2); // COMMENT: SAMSUNG parameters
 
   start_row = Range<int>(0, 4096);
 
@@ -130,13 +130,16 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // == fix values/formulas that must be configured before running this program ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  agg_intra_distance = Range<int>(2,3).get_random_number(gen);
+  agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
+
+  // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
+  auto strategy = get_valid_strategies();
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+  flushing_strategy = strategy.first;
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
+  fencing_strategy = strategy.second;
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
@@ -145,7 +148,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
   set_distribution(N_sided, {{1, 50}, {2, 50}, {3, 50}, {4, 50}, {5, 50}, {6, 50}, {7, 50}, {8, 50}});
 //  set_distribution(N_sided, {{1, 10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
-//  set_distribution(N_sided, {{2,100}});   // COMMENT: SAMSUNG parameters
+//  set_distribution(N_sided, {{2, 100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -178,7 +181,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
-//  agg_inter_distance = Range<int>(2, 8);   // COMMENT: SAMSUNG parameters
+//  agg_inter_distance = Range<int>(2, 8).get_random_number(gen);   // COMMENT: SAMSUNG parameters
 
   if (print) print_semi_dynamic_parameters();
 }

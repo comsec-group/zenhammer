@@ -77,11 +77,11 @@ set(SOURCES
         src/Fuzzer/HammeringPattern.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
         src/Fuzzer/BitFlip.cpp
-        src/Utilities/Logger.cpp)
+        src/Utilities/Logger.cpp
+        src/Utilities/Enums.cpp)
 
 set(HEADER_ONLY
-        include/GlobalDefines.hpp
-        include/Utilities/Enums.hpp)
+        include/GlobalDefines.hpp)
 
 set(LIBRARY_NAME bs)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})

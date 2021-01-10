@@ -1,20 +1,29 @@
 #ifndef BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
 #define BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
 
-enum class FLUSHING_STRATEGY {
+#include <string>
+#include <vector>
+
+enum class FLUSHING_STRATEGY : int {
   // flush an accessed aggressor as soon as it has been accessed (i.e., pairs are flushed in-between)
-  EARLIEST_POSSIBLE
+  EARLIEST_POSSIBLE = 1,
+  // add the flush right before the next access of the aggressor
+  LATEST_POSSIBLE = 2
 };
 
 std::string get_string(FLUSHING_STRATEGY strategy);
 
-enum class FENCING_STRATEGY {
-  // add the fence right before the next access of the aggressor if it has been flushed before
-  LATEST_POSSIBLE,
+enum class FENCING_STRATEGY : int {
   // do not fence before accessing an aggressor even if it has been accessed before
-  OMIT_FENCING
+  OMIT_FENCING = 0,
+  // add the fence right after the access
+  EARLIEST_POSSIBLE = 1,
+  // add the fence right before the next access of the aggressor if it has been flushed before
+  LATEST_POSSIBLE = 2,
 };
 
 std::string get_string(FENCING_STRATEGY strategy);
+
+std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategies();
 
 #endif //BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_

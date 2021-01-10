@@ -29,23 +29,6 @@ void CodeJitter::cleanup() {
 #endif
 }
 
-std::string get_string(FENCING_STRATEGY strategy) {
-  std::map<FENCING_STRATEGY, std::string> map =
-      {
-          {FENCING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"},
-          {FENCING_STRATEGY::OMIT_FENCING, "OMIT_FENCING"}
-      };
-  return map.at(strategy);
-}
-
-std::string get_string(FLUSHING_STRATEGY strategy) {
-  std::map<FLUSHING_STRATEGY, std::string> map =
-      {
-          {FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"}
-      };
-  return map.at(strategy);
-}
-
 int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose) {
   if (fn==nullptr) {
     Logger::log_error("Skipping hammering pattern as pattern could not be created successfully.");
@@ -182,9 +165,21 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
     auto cur_addr = (uint64_t) aggressor_pairs[i];
 
-    // fence to ensure flushing finshed and defined order of aggressors
-    if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE && accessed_before[cur_addr]) {
-      a.mfence();
+    if ((flushing_strategy==FLUSHING_STRATEGY::LATEST_POSSIBLE || fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE)
+        && accessed_before[cur_addr]) {
+
+      // flush
+      if (flushing_strategy==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
+        a.mov(asmjit::x86::rax, cur_addr);
+        a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+      }
+
+
+      // fence to ensure flushing finished and defined order of aggressors is guaranteed
+      if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE) {
+        a.mfence();
+      }
+
       accessed_before[cur_addr] = false;
     }
 
@@ -197,7 +192,6 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
 
     // flush
     if (flushing_strategy==FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-      // flush
       a.mov(asmjit::x86::rax, cur_addr);
       a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
     }
