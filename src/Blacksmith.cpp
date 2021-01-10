@@ -201,8 +201,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         }
       }
 
-      const int max_reproducibility_rounds = 20;
-      int reproducibility_round = 0;
+      const int max_reproducibility_rounds = 10;
+      int reproducibility_round = 1;
       int reproducibility_rounds_with_bitflips = 0;
       bool reproducibility_mode = false;
       std::stringstream ss;
@@ -214,23 +214,27 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         auto flipped_bits = memory.check_memory(dram_analyzer, mapper, reproducibility_mode);
         if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
 
-        if (reproducibility_round==0 && flipped_bits==0) {
+        if (!reproducibility_mode && flipped_bits==0) {
           // don't do reproducibility check if this pattern does not seem to be successful
           reproducibility_round = max_reproducibility_rounds;
-        } else if (reproducibility_round < max_reproducibility_rounds) {
+        } else {
           // start/continue reproducibility check
           ss << flipped_bits;
-          if (reproducibility_round < max_reproducibility_rounds-1) ss << " ";
+          if (reproducibility_round < max_reproducibility_rounds) ss << " ";
           reproducibility_mode = true;
-        } else {
+        }
+
+        if (reproducibility_round==max_reproducibility_rounds) {
           // finish reproducibility check by printing pattern's reproducibility coefficient
           Logger::log_info(string_format("Pattern's reproducibility: %d/%d (#flips: %s)",
                                          reproducibility_rounds_with_bitflips,
                                          max_reproducibility_rounds,
                                          ss.str().c_str()));
         }
+
         reproducibility_round++;
-      } while (reproducibility_round < max_reproducibility_rounds);
+
+      } while (reproducibility_round <= max_reproducibility_rounds);
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);
