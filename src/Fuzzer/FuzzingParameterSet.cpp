@@ -86,12 +86,10 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  Logger::log_info("Randomizing fuzzing parameters.");
+  if (print) Logger::log_info("Randomizing fuzzing parameters.");
 
   // experimentally-determined debug parameters that very soon trigger bit flips on Samsung DIMMs (about 1-5 minutes)
 #ifdef DEBUG_SAMSUNG
-
-  Logger::log_debug("Using SAMSUNG debug parameters.");
   // dynamic params
   N_sided = Range<int>(2, 2);
   amplitude = Range<int>(1, 6);

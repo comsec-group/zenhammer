@@ -216,10 +216,10 @@ const std::vector<std::pair<volatile char *, volatile char *>> &PatternAddressMa
 
 std::vector<volatile char *> PatternAddressMapper::get_random_nonaccessed_rows(int row_upper_bound) {
   // we don't mind if addresses are added multiple times
-  std::vector<volatile char*> addresses;
+  std::vector<volatile char *> addresses;
   for (int i = 0; i < 1024; ++i) {
-    auto row_no = (Range<int>(max_row, max_row+min_row).get_random_number(gen) % row_upper_bound);
-    addresses.push_back((volatile char*)DRAMAddr(bank_no, row_no, 0).to_virt());
+    auto row_no = (Range<int>(max_row, max_row + min_row).get_random_number(gen)%row_upper_bound);
+    addresses.push_back((volatile char *) DRAMAddr(bank_no, row_no, 0).to_virt());
   }
   return addresses;
 }
