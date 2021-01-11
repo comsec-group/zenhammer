@@ -80,7 +80,9 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
   for (const auto &e : divisors) {
     if (e >= min_value) return e;
   }
-  return -1;
+
+  Logger::log_error(string_format("Could not determine a random even divisor of n=%d. Using n.", n));
+  return n;
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
@@ -196,7 +198,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/4);
+  base_period = get_random_even_divisior(num_activations_per_tREFI, 4);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
