@@ -9,7 +9,7 @@
 HammeringPattern hammering_pattern;
 
 // (ugly hack) last created HammeringPattern
-const size_t MAX_TRIALS_PER_PATTERN = NUM_BANKS/2;
+const size_t MAX_TRIALS_PER_PATTERN = NUM_BANKS/4;
 size_t trials_per_pattern = 0;
 
 int main(int argc, char **argv);
