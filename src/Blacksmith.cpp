@@ -125,6 +125,15 @@ unsigned long long get_timestamp_us() {
       .count();
 };
 
+void do_random_accesses(const std::vector<volatile char *> random_rows, unsigned long long duration_us) {
+  auto random_access_limit = get_timestamp_us() + duration_us;
+  while (get_timestamp_us() < random_access_limit) {
+    for (volatile char *e : random_rows) {
+      *e; // this should be fine as random_rows as volatile
+    }
+  }
+}
+
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   Logger::log_info("Starting frequency-based hammering.");
 
@@ -191,14 +200,10 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // clean state before hammering, and also to fuzz a possible dependence at which REF we start hammering
       auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_microseconds();
       FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
+      std::vector<volatile char *> random_rows;
       if (wait_until_hammering_us > 0) {
-        auto random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
-        auto random_access_limit = get_timestamp_us() + wait_until_hammering_us;
-        while (get_timestamp_us() < random_access_limit) {
-          for (const auto e : random_rows) {
-            *e; // this should be fine as random_rows as volatile
-          }
-        }
+        random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
+        do_random_accesses(random_rows, wait_until_hammering_us);
       }
 
       const int max_reproducibility_rounds = 20;
@@ -210,12 +215,12 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         // do hammering
         code_jitter.hammer_pattern(fuzzing_params, !reproducibility_mode);
 
-        // check whether any bit flips occurred
+        // check if any bit flips happened
         auto flipped_bits = memory.check_memory(dram_analyzer, mapper, reproducibility_mode);
         if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
 
         if (!reproducibility_mode && flipped_bits==0) {
-          // don't do reproducibility check if this pattern does not seem to be successful
+          // don't do reproducibility check if this pattern does not seem to be working
           break;
         } else {
           // start/continue reproducibility check
@@ -224,16 +229,21 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
           reproducibility_mode = true;
         }
 
+        // last round: finish reproducibility check by printing pattern's reproducibility coefficient
         if (reproducibility_round==max_reproducibility_rounds) {
-          // finish reproducibility check by printing pattern's reproducibility coefficient
           Logger::log_info(string_format("Pattern's reproducibility: %d/%d (#flips: %s)",
                                          reproducibility_rounds_with_bitflips,
                                          max_reproducibility_rounds,
                                          ss.str().c_str()));
         }
 
-        reproducibility_round++;
+        // wait a bit and do some random accesses before checking reproducibility of the pattern
+        if (random_rows.empty()) {
+          random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
+        }
+        do_random_accesses(random_rows, 64000); // 64000us (retention time)
 
+        reproducibility_round++;
       } while (reproducibility_round <= max_reproducibility_rounds);
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
