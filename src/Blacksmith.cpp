@@ -98,7 +98,7 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
 
   fuzzing_params.randomize_parameters(true);
 
-  if (trials_per_pattern > 1 && trials_per_pattern < MAX_TRIALS_PER_PATTERN) {
+  if (trials_per_pattern > 1 && trials_per_pattern < PROBES_PER_PATTERN) {
     trials_per_pattern++;
     hammering_pattern.aggressors.clear();
   } else {
@@ -137,6 +137,10 @@ void do_random_accesses(const std::vector<volatile char *> random_rows, unsigned
 void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyzer, int acts) {
   Logger::log_info("Starting frequency-based hammering.");
 
+  // the number of successful hammering probes (note: if a pattern works on different locations, we increase this
+  // counter once for each successful location)
+  size_t NUM_SUCCESSFULL_PROBES = 0;
+
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
 
@@ -158,8 +162,6 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
-    Logger::log_highlight(string_format("Generating hammering pattern #%d (%s) based on properties:",
-                                        cur_round, hammering_pattern.instance_id.c_str()));
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
@@ -172,7 +174,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
 
     // then test this pattern with N different address sets
-    while (trials_per_pattern++ < MAX_TRIALS_PER_PATTERN) {
+    while (trials_per_pattern++ < PROBES_PER_PATTERN) {
       // choose random addresses for pattern
       PatternAddressMapper mapper;
 
@@ -210,8 +212,12 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         do_random_accesses(random_rows, wait_until_hammering_us);
       }
 
-      const int max_reproducibility_rounds = 20;
-      int reproducibility_round = 1;
+#ifdef DEBUG_SAMSUNG
+      const int reproducibility_rounds = 20;
+#else
+      const int reproducibility_rounds = 100;
+#endif
+      int cur_reproducibility_round = 1;
       int reproducibility_rounds_with_bitflips = 0;
       bool reproducibility_mode = false;
       std::stringstream ss;
@@ -223,25 +229,39 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         auto flipped_bits = memory.check_memory(dram_analyzer, mapper, reproducibility_mode);
         if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
 
+        // this if/else block is only executed in the very first round: it decides whether to start the reproducibility
+        // check (if any bit flips were found) or not
         if (!reproducibility_mode && flipped_bits==0) {
           // don't do reproducibility check if this pattern does not seem to be working
           break;
-        } else {
-          // start/continue reproducibility check
-          ss << flipped_bits;
-          if (reproducibility_round < max_reproducibility_rounds) ss << " ";
-          if (!reproducibility_mode) {
-            reproducibility_mode = true;
-            Logger::log_info("Testing bit flip's reproducibility.");
-          }
+        } else if (!reproducibility_mode && flipped_bits > 0) {
+          // mark this probe as successful (but only once, not each reproducibility round!)
+          NUM_SUCCESSFULL_PROBES++;
+        }
+
+        // start/continue reproducibility check
+        ss << flipped_bits;
+        if (cur_reproducibility_round < reproducibility_rounds) ss << " ";
+        if (!reproducibility_mode) {
+          reproducibility_mode = true;
+          Logger::log_info("Testing bit flip's reproducibility.");
         }
 
         // last round: finish reproducibility check by printing pattern's reproducibility coefficient
-        if (reproducibility_round==max_reproducibility_rounds) {
+        if (cur_reproducibility_round==reproducibility_rounds) {
           Logger::log_info(string_format("Bit flip's reproducibility score: %d/%d (#flips: %s)",
                                          reproducibility_rounds_with_bitflips,
-                                         max_reproducibility_rounds,
+                                         reproducibility_rounds,
                                          ss.str().c_str()));
+
+          // derive number of reps we need to do to trigger a bit flip based on the current reproducibility coefficient
+          reproducibility_score = reproducibility_rounds_with_bitflips/reproducibility_rounds;
+          auto old_reps_per_pattern = REPS_PER_PATTERN;
+          // it's important to use max here, otherwise REPS_PER_PATTERN can become 0 (i.e., stop hammering)
+          REPS_PER_PATTERN =
+              std::max(1UL,
+                       REPS_PER_PATTERN + (1/NUM_SUCCESSFULL_PROBES)*(reproducibility_score - REPS_PER_PATTERN));
+          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %d", old_reps_per_pattern, REPS_PER_PATTERN));
         }
 
         // wait a bit and do some random accesses before checking reproducibility of the pattern
@@ -250,8 +270,11 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         }
         do_random_accesses(random_rows, 64000); // 64000us (retention time)
 
-        reproducibility_round++;
-      } while (reproducibility_round <= max_reproducibility_rounds);
+        cur_reproducibility_round++;
+      } while (cur_reproducibility_round <= reproducibility_rounds);
+
+      // assign the computed reproducibility score to this pattern s.t. it is included in the JSON export
+      mapper.reproducibility_score = reproducibility_score;
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);

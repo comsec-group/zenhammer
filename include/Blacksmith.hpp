@@ -8,8 +8,12 @@
 // (ugly hack) last created HammeringPattern
 HammeringPattern hammering_pattern;
 
-// (ugly hack) last created HammeringPattern
-const size_t MAX_TRIALS_PER_PATTERN = NUM_BANKS/4;
+// how often we try the same pattern at a different location (i.e., other DRAM rows)
+size_t PROBES_PER_PATTERN = NUM_BANKS/4;
+
+// how often we repeat hammering the same pattern at the same location
+size_t REPS_PER_PATTERN = 1;
+
 size_t trials_per_pattern = 0;
 
 int main(int argc, char **argv);
