@@ -86,6 +86,7 @@ set(HEADER_ONLY
 set(LIBRARY_NAME bs)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_SAMSUNG=\"${DEBUG_SAMSUNG}\"")
 
 if (ENABLE_JITTING)
     target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
@@ -99,3 +100,4 @@ endif ()
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})
 target_compile_definitions(blacksmith PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
+target_compile_definitions(blacksmith PRIVATE "-DDEBUG_SAMSUNG=\"${DEBUG_SAMSUNG}\"")
