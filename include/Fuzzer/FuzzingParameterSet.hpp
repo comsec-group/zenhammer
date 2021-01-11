@@ -45,7 +45,7 @@ class FuzzingParameterSet {
 
   Range<int> sync_each_ref;
 
-  Range<int> wait_until_start_hammering_microseconds;
+  Range<int> wait_until_start_hammering_refs;
 
   FLUSHING_STRATEGY flushing_strategy;
 

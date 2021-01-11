@@ -51,7 +51,7 @@ void FuzzingParameterSet::print_dynamic_parameters2(bool sync_at_each_ref,
                                                     int num_aggs_for_sync) {
   Logger::log_info("Printing code jitting-related fuzzing parameters:");
   Logger::log_data(string_format("sync_each_ref: %s", (sync_at_each_ref ? "true" : "false")));
-  Logger::log_data(string_format("wait_until_start_hammering_microseconds: %d", wait_until_hammering_us));
+  Logger::log_data(string_format("wait_until_start_hammering_refs: %d", wait_until_hammering_us));
   Logger::log_data(string_format("num_aggressors_for_sync: %d", num_aggs_for_sync));
 }
 
@@ -96,7 +96,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   bank_no = Range<int>(0, NUM_BANKS - 1);
   use_sequential_aggressors = Range<int>(1, 1);
   sync_each_ref = Range<int>(0, 0);
-  wait_until_start_hammering_microseconds = Range<int>(0, 0);
+  wait_until_start_hammering_refs = Range<int>(0, 0);
   num_aggressors_for_sync = Range<int>(2, 2);
   start_row = Range<int>(0, 4096);
 
@@ -143,10 +143,13 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // the whole pattern (which may consists of more than one REF interval)
   sync_each_ref = Range<int>(0, 1);
 
-  wait_until_start_hammering_microseconds = Range<int>(4700, 64000);  // note: 4000us / 7.8 us ≈ 500 REFs
+  // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
+  wait_until_start_hammering_refs = Range<int>(10, 500);  // note: 4000us / 7.8 us ≈ 500 REFs
 
+  // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   num_aggressors_for_sync = Range<int>(1, 1);
 
+  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   start_row = Range<int>(0, 4096);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
@@ -157,10 +160,9 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
+  // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   auto strategy = get_valid_strategies();
-  // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   flushing_strategy = strategy.first;
-  // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   fencing_strategy = strategy.second;
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
@@ -268,7 +270,8 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
 }
 
 int FuzzingParameterSet::get_random_wait_until_start_hammering_microseconds() {
-  return wait_until_start_hammering_microseconds.get_random_number(gen);
+  // each REF interval has a length of 7.8 us, for simplicity we assume 8 us
+  return wait_until_start_hammering_refs.get_random_number(gen);
 }
 
 bool FuzzingParameterSet::get_random_sync_each_ref() {
