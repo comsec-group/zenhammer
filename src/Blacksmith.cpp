@@ -151,6 +151,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   int cur_round = 0;
   while (get_timestamp_sec() < execution_time_limit) {
     cur_round++;
+
+    Logger::log_highlight(string_format("Generating hammering pattern #%d.", cur_round));
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
@@ -174,7 +176,9 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // choose random addresses for pattern
       PatternAddressMapper mapper;
 
-      Logger::log_info(string_format("Running with address set %d (%s).",
+      Logger::log_info(string_format("Running pattern #%d (%s) for address set %d (%s).",
+                                     cur_round,
+                                     hammering_pattern.instance_id.c_str(),
                                      trials_per_pattern,
                                      mapper.get_instance_id().c_str()));
 
@@ -434,6 +438,14 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
 
 int main(int argc, char **argv) {
   Logger::initialize();
+
+#ifdef DEBUG_SAMSUNG
+  Logger::log_debug(
+      "\n"
+      "=================================================================================================\n"
+      "==== ATTENTION // Debugging enabled: DEBUG_SAMSUNG=1 ===========================================\n"
+      "=================================================================================================");
+#endif
 
   // process parameter '-generate_patterns'
   const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
