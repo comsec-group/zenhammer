@@ -31,7 +31,7 @@ class Logger {
 
   static void log_info(const std::string &message, bool newline = true);
 
-  static void log_info2(const std::string &message, bool newline = true);
+  static void log_highlight(const std::string &message, bool newline = true);
 
   static void log_error(const std::string &message, bool newline = true);
 

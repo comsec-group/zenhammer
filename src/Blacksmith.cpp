@@ -156,8 +156,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
-    Logger::log_info2(string_format("Generating hammering pattern #%d (%s) based on properties:",
-                                    cur_round, hammering_pattern.instance_id.c_str()));
+    Logger::log_highlight(string_format("Generating hammering pattern #%d (%s) based on properties:",
+                                        cur_round, hammering_pattern.instance_id.c_str()));
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
@@ -226,12 +226,15 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
           // start/continue reproducibility check
           ss << flipped_bits;
           if (reproducibility_round < max_reproducibility_rounds) ss << " ";
-          reproducibility_mode = true;
+          if (!reproducibility_mode) {
+            reproducibility_mode = true;
+            Logger::log_info("Testing bit flip's reproducibility.");
+          }
         }
 
         // last round: finish reproducibility check by printing pattern's reproducibility coefficient
         if (reproducibility_round==max_reproducibility_rounds) {
-          Logger::log_info(string_format("Pattern's reproducibility: %d/%d (#flips: %s)",
+          Logger::log_info(string_format("Bit flip's reproducibility score: %d/%d (#flips: %s)",
                                          reproducibility_rounds_with_bitflips,
                                          max_reproducibility_rounds,
                                          ss.str().c_str()));

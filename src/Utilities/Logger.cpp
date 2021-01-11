@@ -27,7 +27,7 @@ void Logger::log_info(const std::string &message, bool newline) {
   if (newline) instance.logfile << std::endl;
 }
 
-void Logger::log_info2(const std::string &message, bool newline) {
+void Logger::log_highlight(const std::string &message, bool newline) {
   instance.logfile << FC_MAGENTA << FF_BOLD << "[+] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << std::endl;
