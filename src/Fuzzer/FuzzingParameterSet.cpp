@@ -85,7 +85,38 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
   Logger::log_info("Randomizing fuzzing parameters.");
-  // Remarks in brackets [ ] describe considerations on whether we need to include a parameter into the JSON export
+
+  // experimentally-determined debug parameters that very soon trigger bit flips on Samsung DIMMs (about 1-5 minutes)
+#ifdef DEBUG_SAMSUNG
+
+  Logger::log_debug("Using SAMSUNG debug parameters.");
+  // dynamic params
+  N_sided = Range<int>(2, 2);
+  amplitude = Range<int>(1, 6);
+  bank_no = Range<int>(0, NUM_BANKS - 1);
+  use_sequential_aggressors = Range<int>(1, 1);
+  sync_each_ref = Range<int>(0, 0);
+  wait_until_start_hammering_microseconds = Range<int>(0, 0);
+  num_aggressors_for_sync = Range<int>(2, 2);
+  start_row = Range<int>(0, 4096);
+
+  // static params
+  agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
+  auto strategy = get_valid_strategies();
+  flushing_strategy = strategy.first;
+  fencing_strategy = strategy.second;
+  set_distribution(N_sided, {{2, 100}});
+  hammering_total_num_activations = 5000000;
+  max_row_no = 8192;
+
+  // semi-dynamic params
+  num_aggressors = Range<int>(24, 64).get_random_number(gen);
+  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));
+  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
+  agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
+
+#else // regular run
 
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -95,12 +126,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
   N_sided = Range<int>(1, 8);
-//  N_sided = Range<int>(2, 2);  // COMMENT: SAMSUNG parameters
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
   amplitude = Range<int>(1, base_period/N_sided.min);
-//  amplitude = Range<int>(1, 6);  // COMMENT: SAMSUNG parameters
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -109,21 +138,16 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   use_sequential_aggressors = Range<int>(0, 1);
-//  use_sequential_aggressors = Range<int>(1, 1);   // COMMENT: SAMSUNG parameters
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
   sync_each_ref = Range<int>(0, 1);
-//  sync_each_ref = Range<int>(0, 0);   // COMMENT: SAMSUNG parameters
 
-//  wait_until_start_hammering_microseconds = Range<int>(0, 0);    // COMMENT: SAMSUNG parameters
   wait_until_start_hammering_microseconds = Range<int>(4700, 64000);  // note: 4000us / 7.8 us ≈ 500 REFs
 
   num_aggressors_for_sync = Range<int>(1, 1);
-//  num_aggressors_for_sync = Range<int>(2, 2); // COMMENT: SAMSUNG parameters
 
   start_row = Range<int>(0, 4096);
-
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -134,10 +158,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
   auto strategy = get_valid_strategies();
-
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   flushing_strategy = strategy.first;
-
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   fencing_strategy = strategy.second;
 
@@ -147,8 +169,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
   set_distribution(N_sided, {{1, 50}, {2, 50}, {3, 50}, {4, 50}, {5, 50}, {6, 50}, {7, 50}, {8, 50}});
-//  set_distribution(N_sided, {{1, 10}, {2, 50}, {3, 20,}, {4, 35}, {5, 20}, {6, 15}});
-//  set_distribution(N_sided, {{2, 100}});   // COMMENT: SAMSUNG parameters
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -164,12 +184,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
   // mapped to the same DRAM address]
-//  num_aggressors = Range<int>(24, 64).get_random_number(gen);  // COMMENT: SAMSUNG parameters
   num_aggressors = Range<int>(21, 512).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-//  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));  // COMMENT: SAMSUNG parameters
   num_refresh_intervals = std::pow(2, Range<int>(0, 6).get_random_number(gen));
 
   // [included in HammeringPattern]
@@ -177,11 +195,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/4);
-//  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);  // COMMENT: Samsung
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
-//  agg_inter_distance = Range<int>(2, 8).get_random_number(gen);   // COMMENT: SAMSUNG parameters
+
+#endif
 
   if (print) print_semi_dynamic_parameters();
 }
