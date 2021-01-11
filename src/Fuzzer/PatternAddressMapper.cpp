@@ -5,7 +5,7 @@
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
 
-PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()), reproducibility_score(0.0) { /* NOLINT */
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937(rd());
@@ -191,6 +191,10 @@ void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
   j = nlohmann::json{{"id", p.get_instance_id()},
                      {"aggressor_to_addr", p.aggressor_to_addr},
                      {"bit_flips", p.bit_flips},
+                     {"min_row", p.min_row},
+                     {"max_row", p.max_row},
+                     {"bank_no", p.bank_no},
+                     {"reproducibility_score", p.reproducibility_score}
   };
 }
 
@@ -198,6 +202,10 @@ void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("id").get_to(p.get_instance_id());
   j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
   j.at("bit_flips").get_to(p.bit_flips);
+  j.at("min_row").get_to(p.min_row);
+  j.at("max_row").get_to(p.max_row);
+  j.at("bank_no").get_to(p.bank_no);
+  j.at("reproducibility_score").get_to(p.reproducibility_score);
 }
 
 #endif

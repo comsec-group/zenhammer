@@ -20,25 +20,31 @@ class PatternAddressMapper {
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
-  std::vector<std::pair<volatile char*, volatile char*>> victim_rows;
+  std::vector<std::pair<volatile char *, volatile char *>> victim_rows;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
- public:
-  // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
-  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
-
-  std::vector<BitFlip> bit_flips;
-
   // a randomization engine
   std::mt19937 gen;
 
+ public:
+  // information about the mapping (required for determining rows not belonging to this mapping)
   int min_row;
-
   int max_row;
-
   int bank_no;
+
+  // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
+  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
+
+  // the bit flips that were detected while running the pattern with this mapping
+  std::vector<BitFlip> bit_flips;
+
+  // the reproducibility score of this mapping, e.g.,
+  //    1   => 100%: was reproducible in all reproducibility runs executed,
+  //    0.4 => 40%: was reproducible in 40% of all reproducibility runs executed
+  // (note: is zero initialized, i.e., value is also 0 in case that this pattern does not trigger bit flips at all)
+  double reproducibility_score;
 
   explicit PatternAddressMapper();
 

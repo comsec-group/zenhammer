@@ -219,6 +219,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 #endif
       int cur_reproducibility_round = 1;
       int reproducibility_rounds_with_bitflips = 0;
+      int reproducibility_score = 0;
       bool reproducibility_mode = false;
       std::stringstream ss;
       do {
