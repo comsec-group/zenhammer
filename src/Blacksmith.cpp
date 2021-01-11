@@ -147,6 +147,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
     PatternBuilder pattern_builder(hammering_pattern);
+    Logger::log_info2(string_format("Generating hammering pattern #%d (%s) based on properties:",
+                                    cur_round, hammering_pattern.instance_id.c_str()));
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
@@ -163,9 +165,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // choose random addresses for pattern
       PatternAddressMapper mapper;
 
-      Logger::log_info(string_format("Running for pattern %d (%s) with address set %d (%s).",
-                                     cur_round,
-                                     hammering_pattern.instance_id.c_str(),
+      Logger::log_info(string_format("Running with address set %d (%s).",
                                      trials_per_pattern,
                                      mapper.get_instance_id().c_str()));
 

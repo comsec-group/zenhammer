@@ -65,8 +65,6 @@ void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, in
 };
 
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params) {
-  Logger::log_info2(string_format("Generating hammering pattern %s based on properties:", pattern.instance_id.c_str()));
-
   int pattern_length = fuzzing_params.get_total_acts_pattern();
   const auto base_period = (size_t) fuzzing_params.get_base_period();
   const size_t num_base_periods = fuzzing_params.get_total_acts_pattern()/fuzzing_params.get_base_period();
