@@ -262,8 +262,10 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
     assembler.mov(asmjit::x86::rax, (uint64_t) agg);
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
 
-    // we do not deduct the sync aggressors from the total number of activations
-    assembler.dec(asmjit::x86::rsi);
+    // we do not deduct the sync aggressors from the total number of activations because the number of sync activations
+    // varies for different patterns; if we deduct it from the total number of activations, we cannot ensure anymore
+    // that we are hammering long enough/as many times as needed to trigger bit flips
+//    assembler.dec(asmjit::x86::rsi);
 
     // update counter that counts the number of activation in the trailing synchronization
     assembler.inc(asmjit::x86::edx);
