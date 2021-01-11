@@ -104,9 +104,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // static params
   agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
-  auto strategy = get_valid_strategies();
-  flushing_strategy = strategy.first;
-  fencing_strategy = strategy.second;
+  flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+  fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
   set_distribution(N_sided, {{2, 100}});
   hammering_total_num_activations = 5000000;
   max_row_no = 8192;
