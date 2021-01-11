@@ -6,7 +6,7 @@
 #include <string>
 #include <Utilities/Logger.hpp>
 
-CodeJitter::CodeJitter() {
+CodeJitter::CodeJitter() : pattern_sync_each_ref(false) {
 #ifdef ENABLE_JITTING
   logger = new asmjit::StringLogger;
 #endif
@@ -42,9 +42,13 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
     Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
     const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
     auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
-    auto acts_per_pattern_round =
-        pattern_sync_each_ref ? (total_acts_pattern/fuzzing_parameters.get_num_activations_per_t_refi())
-                              : 2; // beginning and end of pattern
+    auto acts_per_pattern_round = pattern_sync_each_ref
+                                  // sync after each num_acts_per_tREFI: computes how many activations are necessary
+                                  // by taking our pattern's length into account
+                                  ? (total_acts_pattern/fuzzing_parameters.get_num_activations_per_t_refi())
+                                  // beginning and end of pattern; for simplicity we only consider the end of the
+                                  // pattern here (=1) as this is the sync that is repeated after each hammering run
+                                  : 1;
     auto num_synced_refs = pattern_rounds*acts_per_pattern_round;
     Logger::log_data(string_format("Number of pattern reps while hammering: %d", pattern_rounds));
     Logger::log_data(string_format("Number of total synced REFs (est.): %d", num_synced_refs));
@@ -61,6 +65,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
                             bool sync_each_ref,
                             int num_aggressors_for_sync) {
 
+  // this is used by hammer_pattern but only for some stats calculations
   pattern_sync_each_ref = sync_each_ref;
 
   // decides the number of aggressors of the beginning/end to be used for detecting the refresh interval

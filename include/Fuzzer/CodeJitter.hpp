@@ -25,6 +25,8 @@ class CodeJitter {
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;
 
+  bool pattern_sync_each_ref;
+
  public:
   /// constructor
   CodeJitter();
@@ -48,8 +50,6 @@ class CodeJitter {
   void cleanup();
 
   static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
-
-  bool pattern_sync_each_ref;
 };
 
 #endif /* CODEJITTER */
