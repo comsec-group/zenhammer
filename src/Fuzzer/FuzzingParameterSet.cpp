@@ -124,7 +124,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(1, 8);
+  N_sided = Range<int>(1, 2);
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
