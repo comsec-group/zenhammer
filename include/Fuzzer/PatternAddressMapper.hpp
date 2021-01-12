@@ -65,6 +65,8 @@ class PatternAddressMapper {
   const std::vector<std::pair<volatile char *, volatile char *>> &get_victim_rows() const;
 
   std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
+
+  void determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns);
 };
 
 #ifdef ENABLE_JSON
