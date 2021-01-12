@@ -218,7 +218,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 #ifdef DEBUG_SAMSUNG
       const int reproducibility_rounds = 20;
 #else
-      const int reproducibility_rounds = 100;
+      const int reproducibility_rounds = 150;
 #endif
       int cur_reproducibility_round = 1;
       int reproducibility_rounds_with_bitflips = 0;
@@ -261,17 +261,17 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
           // derive number of reps we need to do to trigger a bit flip based on the current reproducibility coefficient
           // this might look counterintuitive but makes sense, assume we trigger bit flips in 3 of 20 runs, so we need
           // to hammer on average 20/3 ≈ 7 times to see a bit flip
-          reproducibility_score =
-              (int) std::ceil((float) reproducibility_rounds/(float) reproducibility_rounds_with_bitflips);
+//          reproducibility_score =
+//              (int) std::ceil((float) reproducibility_rounds/(float) reproducibility_rounds_with_bitflips);
 
-          auto old_reps_per_pattern = REPS_PER_PATTERN;
+//          auto old_reps_per_pattern = REPS_PER_PATTERN;
           // it's important to use max here, otherwise REPS_PER_PATTERN can become 0 (i.e., stop hammering)
-          REPS_PER_PATTERN =
-              std::max(1,
-                       (int) std::ceil((float) REPS_PER_PATTERN
-                                           + ((1.0f/(float) NUM_SUCCESSFULL_PROBES)
-                                               *(float) (reproducibility_score - REPS_PER_PATTERN))));
-          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %lu", old_reps_per_pattern, REPS_PER_PATTERN));
+//          REPS_PER_PATTERN =
+//              std::max(1,
+//                       (int) std::ceil((float) REPS_PER_PATTERN
+//                                           + ((1.0f/(float) NUM_SUCCESSFULL_PROBES)
+//                                               *(float) (reproducibility_score - REPS_PER_PATTERN))));
+//          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %lu", old_reps_per_pattern, REPS_PER_PATTERN));
         }
 
         // wait a bit and do some random accesses before checking reproducibility of the pattern
