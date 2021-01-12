@@ -169,7 +169,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-  set_distribution(N_sided, {{1, 50}, {2, 50}, {3, 50}, {4, 50}, {5, 50}, {6, 50}, {7, 50}, {8, 50}});
+  set_distribution(N_sided, {{1, 20}, {2, 80}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
@@ -287,4 +287,8 @@ int FuzzingParameterSet::get_random_num_aggressors_for_sync() {
 
 int FuzzingParameterSet::get_random_start_row() {
   return start_row.get_random_number(gen);
+}
+
+int FuzzingParameterSet::get_num_refresh_intervals() const {
+  return num_refresh_intervals;
 }

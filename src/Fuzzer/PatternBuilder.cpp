@@ -113,6 +113,10 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
     }
   }
 
+  // update information in HammeringPattern s.t. it will be included into the JSON export
+  pattern.total_activations = pattern.aggressors.size();
+  pattern.num_refresh_intervals = fuzzing_params.get_num_refresh_intervals();
+
   Logger::log_info("Abstract pattern based on aggressor IDs:");
   std::stringstream ss;
   for (size_t i = 0; i < pattern.aggressors.size(); ++i) {

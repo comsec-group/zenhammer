@@ -107,6 +107,8 @@ class FuzzingParameterSet {
   static void print_dynamic_parameters2(bool sync_at_each_ref,
                                  int wait_until_hammering_us,
                                  int num_aggs_for_sync);
+
+  int get_num_refresh_intervals() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

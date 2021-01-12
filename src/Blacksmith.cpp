@@ -288,15 +288,17 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);
 
-#ifdef ENABLE_JSON
-      arr.push_back(hammering_pattern);
-#endif
-
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
     trials_per_pattern = 0;
-  }
+
+#ifdef ENABLE_JSON
+    // export the current HammeringPattern including all of its associated PatternAddressMappers
+    arr.push_back(hammering_pattern);
+#endif
+
+  } // end of fuzzing
 
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
