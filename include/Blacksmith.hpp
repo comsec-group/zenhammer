@@ -12,7 +12,7 @@ HammeringPattern hammering_pattern;
 size_t PROBES_PER_PATTERN = NUM_BANKS/4;
 
 // how often we repeat hammering the same pattern at the same location
-size_t REPS_PER_PATTERN = 1;
+int REPS_PER_PATTERN = 1;
 
 size_t trials_per_pattern = 0;
 

@@ -146,6 +146,9 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
   CodeJitter code_jitter;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
 #ifdef ENABLE_JSON
   nlohmann::json arr = nlohmann::json::array();
 #endif
@@ -167,10 +170,9 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
     // rows in order of the AggressorAccessPatterns map
     // (e.g., the first element in AggressorAccessPatterns is assigned to the lowest DRAM row).
-    std::random_device rd;
     std::shuffle(hammering_pattern.agg_access_patterns.begin(),
                  hammering_pattern.agg_access_patterns.end(),
-                 std::default_random_engine(rd()));
+                 gen);
 
 
     // then test this pattern with N different address sets
@@ -256,13 +258,19 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
                                          ss.str().c_str()));
 
           // derive number of reps we need to do to trigger a bit flip based on the current reproducibility coefficient
-          reproducibility_score = reproducibility_rounds_with_bitflips/reproducibility_rounds;
+          // this might look counterintuitive but makes sense, assume we trigger bit flips in 3 of 20 runs, so we need
+          // to hammer on average 20/3 ≈ 7 times to see a bit flip
+          reproducibility_score =
+              (int) std::ceil((float) reproducibility_rounds/(float) reproducibility_rounds_with_bitflips);
+
           auto old_reps_per_pattern = REPS_PER_PATTERN;
           // it's important to use max here, otherwise REPS_PER_PATTERN can become 0 (i.e., stop hammering)
           REPS_PER_PATTERN =
-              std::max(1UL,
-                       REPS_PER_PATTERN + (1/NUM_SUCCESSFULL_PROBES)*(reproducibility_score - REPS_PER_PATTERN));
-          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %d", old_reps_per_pattern, REPS_PER_PATTERN));
+              std::max(1,
+                       (int) std::ceil((float) REPS_PER_PATTERN
+                                           + ((1.0f/(float) NUM_SUCCESSFULL_PROBES)
+                                               *(float) (reproducibility_score - REPS_PER_PATTERN))));
+          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %lu", old_reps_per_pattern, REPS_PER_PATTERN));
         }
 
         // wait a bit and do some random accesses before checking reproducibility of the pattern
