@@ -4,12 +4,19 @@ cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
-
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
 option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
+option(WITH_SAMSUNG_PARAMETERS "Use debugging parameters for Samsung DIMMs" OFF)
+
+# credits to https://stackoverflow.com/a/19578320/3017719
+if (NOT WIN32)
+    string(ASCII 27 Esc)
+    set(ColourReset "${Esc}[m")
+    set(BoldRed "${Esc}[1;31m")
+endif ()
 
 if (ENABLE_JSON)
     add_definitions(-DENABLE_JSON)
@@ -51,19 +58,19 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Wextra")
-#enable_cxx_compiler_flag_if_supported("-Wno-unused-parameter")
 enable_cxx_compiler_flag_if_supported("-Wno-unused-function")
 enable_cxx_compiler_flag_if_supported("-Wno-format-security")
 
-execute_process(COMMAND "git" "status" RESULT_VARIABLE ret)
+# set default value for GIT_COMMIT_HASH preprocessor directive
 set(GIT_COMMIT_HASH "NO_REPOSITORY")
-if(ret EQUAL "0")
-execute_process(
-        COMMAND git rev-parse HEAD
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
+execute_process(COMMAND "git" "status" RESULT_VARIABLE ret)
+if (ret EQUAL "0")
+    execute_process(
+            COMMAND git rev-parse HEAD
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_COMMIT_HASH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif ()
 
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
@@ -86,12 +93,17 @@ set(HEADER_ONLY
 set(LIBRARY_NAME bs)
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_SAMSUNG=\"${DEBUG_SAMSUNG}\"")
+if (WITH_SAMSUNG_PARAMETERS)
+    message("${BoldRed}==============================================================================")
+    message(">>> ATTENTION: WITH_SAMSUNG_PARAMETERS=ON. This is intended for debugging only!")
+    message("==============================================================================${ColourReset}")
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
+endif ()
 
 if (ENABLE_JITTING)
     target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
     target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
-endif()
+endif ()
 
 if (ENABLE_JSON)
     target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
@@ -100,4 +112,11 @@ endif ()
 add_executable(blacksmith src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(blacksmith PRIVATE ${LIBRARY_NAME})
 target_compile_definitions(blacksmith PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
-target_compile_definitions(blacksmith PRIVATE "-DDEBUG_SAMSUNG=\"${DEBUG_SAMSUNG}\"")
+if (WITH_SAMSUNG_PARAMETERS)
+    target_compile_definitions(blacksmith PRIVATE "-DDEBUG_SAMSUNG=1")
+endif ()
+
+# forces CMake to delete variable's value from CMake cache: uses either the default value or the value passed as param
+# e.g., cmake -DWITH_SAMSUNG_PARAMETERS=ON ..
+# https://stackoverflow.com/a/53159688/3017719
+unset(WITH_SAMSUNG_PARAMETERS CACHE)
