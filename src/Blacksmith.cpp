@@ -117,12 +117,13 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
 }
 
 long get_timestamp_sec() {
-  return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  return std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count();
 };
 
 unsigned long long get_timestamp_us() {
-  return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
-      .count();
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count();
 };
 
 void do_random_accesses(const std::vector<volatile char *> random_rows, unsigned long long duration_us) {
@@ -470,6 +471,87 @@ bool cmdOptionExists(char **begin, char **end, const std::string &option) {
   return std::find(begin, end, option)!=end;
 }
 
+void replay_patterns(Memory &memory,
+                     DramAnalyzer &dram_analyzer,
+                     const char *json_filename,
+                     const char *pattern_ids,
+                     int num_acts_per_tref) {
+  // extract all HammeringPattern IDs from the given comma-separated string
+  std::stringstream ids_str(pattern_ids);
+  std::unordered_set<std::string> ids;
+  while (ids_str.good()) {
+    std::string substr;
+    getline(ids_str, substr, ',');
+    ids.insert(substr);
+    Logger::log_debug(string_format("Detected HammeringPattern ID in args: %s.", substr.c_str()));
+  }
+
+  // load and parse JSON file, extract HammeringPatterns matching any of the given IDs
+  std::ifstream ifs(json_filename);
+  if (!ifs.is_open()) {
+    Logger::log_error(string_format("Could not open given filename (%s).", json_filename));
+    exit(1);
+  }
+  nlohmann::json json_file = nlohmann::json::parse(ifs);
+  std::vector<HammeringPattern> patterns;
+  for (auto const &json_hammering_patt : json_file) {
+    HammeringPattern pattern;
+    from_json(json_hammering_patt, pattern);
+    // after parsing, check if this pattern's ID matches one of the IDs given to '-replay_patterns'
+    // Note: Due to a bug in the implementation, raw_data.json may contain multiple HammeringPatterns with the same ID
+    // (and the exact same pattern) but a different mapping. In this case, we load ALL such patterns.
+    if (ids.count(pattern.instance_id) > 0) {
+      Logger::log_debug(string_format("Found HammeringPattern with ID=%s in JSON.", pattern.instance_id.c_str()));
+      patterns.push_back(pattern);
+    }
+  }
+
+  FuzzingParameterSet fuzz_params(num_acts_per_tref);
+  CodeJitter code_jitter;
+//  PatternAddressMapper mapper;
+
+  for (auto &patt : patterns) {
+    for (auto &mapper : patt.address_mappings) {
+      mapper.determine_victims(patt.agg_access_patterns);
+      int num_tries = 10;
+      while (num_tries--) {
+//      mapper.randomize_addresses(fuzz_params, patt.agg_access_patterns);
+
+        // now fill the pattern with these random addresses
+        std::vector<volatile char *> hammering_accesses_vec;
+        mapper.export_pattern(patt.aggressors, patt.base_period, hammering_accesses_vec);
+
+        // now create instructions that follow this pattern (i.e., do jitting of code)
+        bool sync_at_each_ref = fuzz_params.get_random_sync_each_ref();
+        int num_aggs_for_sync = fuzz_params.get_random_num_aggressors_for_sync();
+        code_jitter.jit_strict(fuzz_params,
+                               FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
+                               FENCING_STRATEGY::LATEST_POSSIBLE,
+                               hammering_accesses_vec,
+                               sync_at_each_ref,
+                               num_aggs_for_sync);
+
+        // wait a specific time while doing some random accesses before starting hammering
+        auto wait_until_hammering_us = fuzz_params.get_random_wait_until_start_hammering_microseconds();
+        FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
+        std::vector<volatile char *> random_rows;
+        if (wait_until_hammering_us > 0) {
+          random_rows = mapper.get_random_nonaccessed_rows(fuzz_params.get_max_row_no());
+          do_random_accesses(random_rows, wait_until_hammering_us);
+        }
+
+        // do hammering
+        code_jitter.hammer_pattern(fuzz_params, true);
+
+        // check if any bit flips happened
+        auto flipped_bits = memory.check_memory(dram_analyzer, mapper, false);
+
+        code_jitter.cleanup();
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   Logger::initialize();
 
@@ -560,15 +642,32 @@ int main(int argc, char **argv) {
   // initialize the DRAMAddr class
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
-  // perform the hammering and check the flipped bits after each round
-  if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    n_sided_frequency_based_hammering(memory, dram_analyzer, act);
-  } else if (!USE_FREQUENCY_BASED_FUZZING) {
-    n_sided_hammer(memory, dram_analyzer, act);
+  // process parameters '-load_json' and '-replay_patterns'
+  const std::string ARG_LOAD_PATTERN = "-load_json";
+  if (cmdOptionExists(argv, argv + argc, ARG_LOAD_PATTERN)) {
+    const std::string ARG_PATTERN_IDs = "-replay_patterns";
+    if (!cmdOptionExists(argv, argv + argc, ARG_PATTERN_IDs)) {
+      Logger::log_error(string_format("Parameter %s expects parameter %s.\n"
+                                      "Ex.: blacksmith [-load_json filename] [-replay_patterns PatternUUID ...]",
+                                      ARG_LOAD_PATTERN.c_str(),
+                                      ARG_PATTERN_IDs.c_str()));
+      exit(1);
+    }
+    char *filename = getCmdOption(argv, argv + argc, ARG_LOAD_PATTERN);
+    char *pattern_ids = getCmdOption(argv, argv + argc, ARG_PATTERN_IDs);
+    replay_patterns(memory, dram_analyzer, filename, pattern_ids, act);
+    exit(0);
   } else {
-    Logger::log_error("Invalid combination of program control-flow arguments given. "
-                      "Note that fuzzing is only supported with synchronized hammering.");
-    return 1;
+    // perform the hammering and check the flipped bits after each round
+    if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+      n_sided_frequency_based_hammering(memory, dram_analyzer, act);
+    } else if (!USE_FREQUENCY_BASED_FUZZING) {
+      n_sided_hammer(memory, dram_analyzer, act);
+    } else {
+      Logger::log_error("Invalid combination of program control-flow arguments given. "
+                        "Note that fuzzing is only supported with synchronized hammering.");
+      return 1;
+    }
   }
 
   Logger::close();

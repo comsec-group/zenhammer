@@ -33,4 +33,6 @@ void n_sided_hammer(Memory &memory, DramAnalyzer &dram_analyzer, int acts);
 
 size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks);
 
+void replay_patterns(char *json_filename, const char *pattern_ids);
+
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
