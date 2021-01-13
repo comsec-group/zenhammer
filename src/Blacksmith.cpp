@@ -98,11 +98,11 @@ void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses) {
 
   fuzzing_params.randomize_parameters(true);
 
-  if (trials_per_pattern > 1 && trials_per_pattern < PROBES_PER_PATTERN) {
-    trials_per_pattern++;
+  if (cnt_pattern_probes > 1 && cnt_pattern_probes < PROBES_PER_PATTERN) {
+    cnt_pattern_probes++;
     hammering_pattern.aggressors.clear();
   } else {
-    trials_per_pattern = 0;
+    cnt_pattern_probes = 0;
     hammering_pattern.aggressors.clear();
     hammering_pattern = HammeringPattern(fuzzing_params.get_base_period());
   }
@@ -160,6 +160,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
   while (get_timestamp_sec() < execution_time_limit) {
     cur_round++;
 
+    Logger::log_timestamp();
     Logger::log_highlight(string_format("Generating hammering pattern #%d.", cur_round));
     fuzzing_params.randomize_parameters(true);
 
@@ -177,14 +178,14 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
 
 
     // then test this pattern with N different address sets
-    while (trials_per_pattern++ < PROBES_PER_PATTERN) {
+    while (cnt_pattern_probes++ < PROBES_PER_PATTERN) {
       // choose random addresses for pattern
       PatternAddressMapper mapper;
 
       Logger::log_info(string_format("Running pattern #%d (%s) for address set %d (%s).",
                                      cur_round,
                                      hammering_pattern.instance_id.c_str(),
-                                     trials_per_pattern,
+                                     cnt_pattern_probes,
                                      mapper.get_instance_id().c_str()));
 
       // randomize the aggressor ID -> DRAM row mapping
@@ -214,6 +215,8 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
         random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
         do_random_accesses(random_rows, wait_until_hammering_us);
       }
+
+      // TODO: Integrate and test REPS_PER_PATTERN
 
 #ifdef DEBUG_SAMSUNG
       const int reproducibility_rounds = 20;
@@ -292,7 +295,7 @@ void n_sided_frequency_based_hammering(Memory &memory, DramAnalyzer &dram_analyz
       // cleanup the jitter for its next use
       code_jitter.cleanup();
     }
-    trials_per_pattern = 0;
+    cnt_pattern_probes = 0;
 
 #ifdef ENABLE_JSON
     // export the current HammeringPattern including all of its associated PatternAddressMappers
@@ -441,24 +444,6 @@ size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks
   return activations;
 }
 
-/// Prints metadata about this evaluation run.
-void print_metadata() {
-  Logger::log_info("General information about this fuzzing run:");
-
-  char name[1024] = "";
-  gethostname(name, sizeof name);
-
-  std::stringstream ss;
-  ss << "Start_ts: " << (unsigned long) time(nullptr) << std::endl
-     << "Hostname: " << name << std::endl
-     << "Git SHA: " << GIT_COMMIT_HASH << std::endl
-     << "RUN_TIME_LIMIT: " << RUN_TIME_LIMIT;
-
-  Logger::log_data(ss.str());
-
-  print_global_defines();
-}
-
 char *getCmdOption(char **begin, char **end, const std::string &option) {
   char **itr = std::find(begin, end, option);
   if (itr!=end && ++itr!=end) {
@@ -598,7 +583,7 @@ int main(int argc, char **argv) {
   }
 
   // prints the current git commit and some metadata
-  print_metadata();
+  Logger::log_metadata(GIT_COMMIT_HASH, RUN_TIME_LIMIT);
 
   // give this process the highest CPU priority
   int ret = setpriority(PRIO_PROCESS, 0, -20);

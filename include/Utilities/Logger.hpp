@@ -24,7 +24,12 @@ class Logger {
   // the logger instance (a singleton)
   static Logger instance;
 
+  static std::string format_timestamp(unsigned long ts);
+
+  unsigned long timestamp_start{};
+
  public:
+
   static void initialize();
 
   static void close();
@@ -46,6 +51,12 @@ class Logger {
                           bool newline = true);
 
   static void log_debug(const std::string &message, bool newline = true);
+
+  static void log_timestamp();
+
+  static void log_global_defines();
+
+  static void log_metadata(const char *string, long run_time_limit_seconds);
 };
 
 #endif //BLACKSMITH_INCLUDE_LOGGER_HPP_

@@ -81,23 +81,4 @@ uint64_t static inline GB(uint64_t value) {
 // generate frequency-based patterns using fuzzing
 #define USE_FREQUENCY_BASED_FUZZING 1
 
-[[gnu::unused]] static void print_global_defines() {
-  Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
-  std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << std::endl
-    << "CACHELINE_SIZE: " << CACHELINE_SIZE << std::endl
-    << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << std::endl
-    << "THRESH: " << THRESH << std::endl
-    << "NUM_TARGETS: " << NUM_TARGETS << std::endl
-    << "MAX_ROWS: " << MAX_ROWS << std::endl
-    << "NUM_BANKS: " << NUM_BANKS << std::endl
-    << "DIMM: " << DIMM << std::endl
-    << "CHANNEL: " << CHANNEL << std::endl
-    << "MEM_SIZE: " << MEM_SIZE << std::endl
-    << "PAGE_SIZE: " << getpagesize() << std::endl
-    << "USE_SYNC: " << (USE_SYNC ? "true" : "false") << std::endl
-    << "USE_FREQUENCY_BASED_FUZZING: " << (USE_FREQUENCY_BASED_FUZZING ? "true" : "false");
-  Logger::log_data(ss.str());
-}
-
 #endif /* GLOBAL_DEFINES */

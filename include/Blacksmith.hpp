@@ -8,17 +8,16 @@
 // (ugly hack) last created HammeringPattern
 HammeringPattern hammering_pattern;
 
-// how often we try the same pattern at a different location (i.e., other DRAM rows)
+// total number of (different) locations (i.e., Aggressor ID -> DRAM rows mapping) where we try a pattern
 size_t PROBES_PER_PATTERN = NUM_BANKS/4;
 
-// how often we repeat hammering the same pattern at the same location
+// counter for the number of different locations where we tried the current pattern
+size_t cnt_pattern_probes = 0;
+
+// number of repetitions we hammer the same pattern at the same location
 int REPS_PER_PATTERN = 1;
 
-size_t trials_per_pattern = 0;
-
 int main(int argc, char **argv);
-
-void print_metadata();
 
 void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses);
 

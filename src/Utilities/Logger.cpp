@@ -15,6 +15,8 @@ void Logger::initialize() {
   std::cout << "Writing into logfile " FF_BOLD << logfile_filename << F_RESET << std::endl;
   // we need to open the log file in append mode because the run_benchmark script writes values into it
   instance.logfile.open(logfile_filename, std::ios::out | std::ios::app);
+
+  instance.timestamp_start = (unsigned long) time(nullptr);
 }
 
 void Logger::close() {
@@ -50,6 +52,25 @@ void Logger::log_debug(const std::string &message, bool newline) {
   if (newline) instance.logfile << std::endl;
 }
 
+std::string Logger::format_timestamp(unsigned long ts) {
+  auto minutes = ts/60;
+  auto hours = minutes/60;
+  std::stringstream ss;
+  ss << int(hours) << " hours "
+     << int(minutes%60) << " minutes "
+     << int(ts%60) << " seconds";
+  return ss.str();
+}
+
+void Logger::log_timestamp() {
+  std::stringstream ss;
+  auto current_time = (unsigned long) time(nullptr);
+  ss << "Remaining execution time: "
+     << format_timestamp(current_time - instance.timestamp_start)
+     << ".";
+  log_info(ss.str());
+}
+
 void Logger::log_bitflip(volatile char *flipped_address,
                          uint64_t row_no,
                          size_t page_offset,
@@ -62,7 +83,42 @@ void Logger::log_bitflip(volatile char *flipped_address,
                    << std::dec << "row " << row_no << ", "
                    << "page offset: " << page_offset << ", "
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
-                   << std::dec << "detected at t=" << timestamp << ".";
+                   << std::dec << "detected after " << format_timestamp(timestamp-instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
   if (newline) instance.logfile << std::endl;
+}
+
+void Logger::log_metadata(const char *commit_hash, long run_time_limit_seconds) {
+  Logger::log_info("General information about this fuzzing run:");
+
+  char name[1024] = "";
+  gethostname(name, sizeof name);
+
+  std::stringstream ss;
+  ss << "Start timestamp:: " << instance.timestamp_start << std::endl
+     << "Hostname: " << name << std::endl
+     << "Commit SHA: " << commit_hash << std::endl
+     << "Run time limit: " << run_time_limit_seconds << " (" << format_timestamp(run_time_limit_seconds) << ")";
+  Logger::log_data(ss.str());
+
+  log_global_defines();
+}
+
+void Logger::log_global_defines() {
+  Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
+  std::stringstream ss;
+  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << std::endl
+     << "CACHELINE_SIZE: " << CACHELINE_SIZE << std::endl
+     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << std::endl
+     << "THRESH: " << THRESH << std::endl
+     << "NUM_TARGETS: " << NUM_TARGETS << std::endl
+     << "MAX_ROWS: " << MAX_ROWS << std::endl
+     << "NUM_BANKS: " << NUM_BANKS << std::endl
+     << "DIMM: " << DIMM << std::endl
+     << "CHANNEL: " << CHANNEL << std::endl
+     << "MEM_SIZE: " << MEM_SIZE << std::endl
+     << "PAGE_SIZE: " << getpagesize() << std::endl
+     << "USE_SYNC: " << (USE_SYNC ? "true" : "false") << std::endl
+     << "USE_FREQUENCY_BASED_FUZZING: " << (USE_FREQUENCY_BASED_FUZZING ? "true" : "false");
+  Logger::log_data(ss.str());
 }

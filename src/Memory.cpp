@@ -157,7 +157,6 @@ size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
                                            *(unsigned char *) flipped_address);
           }
           found_bitflips++;
-//          Logger::log_data(string_format("Flip at %s", DRAMAddr((void *) flipped_address).to_string_compact().c_str()));
         }
       }
 

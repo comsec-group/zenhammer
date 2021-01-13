@@ -4,7 +4,8 @@
 #include "Fuzzer/PatternBuilder.hpp"
 #include "DramAnalyzer.hpp"
 
-PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern) : pattern(hammering_pattern), aggressor_id_counter(1) {
+PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
+    : pattern(hammering_pattern), aggressor_id_counter(1) {
   std::random_device rd;
   gen = std::mt19937(rd());
 }
@@ -54,12 +55,12 @@ void PatternBuilder::fill_slots(size_t start_period,
 }
 
 void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors) {
-    // clean any existing aggressor in the given vector
+  // clean any existing aggressor in the given vector
   aggs.clear();
 
   // increment the ID cyclically until we added N aggressors
-  for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter+1)%max_num_aggressors)) {
-    aggs.emplace_back((int)aggressor_id_counter);
+  for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1)%max_num_aggressors)) {
+    aggs.emplace_back((int) aggressor_id_counter);
     added_aggs++;
   }
 };
@@ -122,6 +123,18 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   for (size_t i = 0; i < pattern.aggressors.size(); ++i) {
     if ((i%base_period)==0 && i > 0) ss << std::endl;
     ss << std::setfill('0') << std::setw(2) << pattern.aggressors.at(i).id << " ";
+  }
+  Logger::log_data(ss.str());
+
+  // reset stringstream to reuse it
+  ss.str("");
+  ss.clear();
+  Logger::log_info("Aggressor pairs given as \"(id ...) : freq, amp, start_offset\":");
+  auto cnt = 0;
+  for (const auto &agg_acc_pair : pattern.agg_access_patterns) {
+    if (cnt > 0 && cnt%3==0) ss << std::endl;
+    ss << std::setw(28) << std::setfill(' ') << std::left << agg_acc_pair.to_string();
+    cnt++;
   }
   Logger::log_data(ss.str());
 }

@@ -150,15 +150,23 @@ void PatternAddressMapper::export_pattern_internal(
 
   // writes the agg_id -> DRAMAddr mapping into the log file
   Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
-  std::stringstream mapping_str;
-  mapping_str << "{ ";
+
+  // get all keys (this is to not assume that keys always must start by 1) and sort them
+  std::vector<int> keys;
+  for(auto const& map: aggressor_to_addr) keys.push_back(map.first);
+  std::sort(keys.begin(), keys.end());
+
+  // print all keys in a sorted way (ascending)
   size_t cnt = 0;
-  for (const auto &p : aggressor_to_addr) {
-    mapping_str << p.first << ": " << p.second.to_string_compact();
+  std::stringstream mapping_str;
+  for (const auto &k : keys) {
+    if (cnt > 0 && cnt % 3 == 0) mapping_str << std::endl;
+    mapping_str << std::setw(3) << std::left << k
+                << " -> "
+                << std::setw(10) << std::left << aggressor_to_addr.at(k).to_string_compact()
+                << "   ";
     cnt++;
-    if (cnt < aggressor_to_addr.size()) mapping_str << ", ";
   }
-  mapping_str << " }";
   Logger::log_data(mapping_str.str());
 }
 
