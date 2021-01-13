@@ -32,6 +32,8 @@ class AggressorAccessPattern {
         start_offset(absolute_offset),
         aggressors(std::move(aggressors)) {
   }
+
+  std::string to_string() const;
 };
 
 void to_json(nlohmann::json &j, const AggressorAccessPattern &p);

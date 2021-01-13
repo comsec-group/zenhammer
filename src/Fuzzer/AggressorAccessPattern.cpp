@@ -20,3 +20,19 @@ void from_json(const nlohmann::json &j, AggressorAccessPattern &p) {
 }
 
 #endif
+
+std::string AggressorAccessPattern::to_string() const {
+  // creates a string of aggressor IDs like (id1, id2, ...)
+  std::stringstream aggs;
+  aggs << "(";
+  for (const auto &agg : aggressors) {
+    aggs << agg.id;
+    if (agg.id!=(*aggressors.rbegin()).id) aggs << ",";
+  }
+  aggs << ") : ";
+
+  std::stringstream ss;
+  ss << std::setw(10) << std::setfill(' ') << std::left << aggs.str();
+  ss << frequency << ", " << amplitude << "⨉, " << start_offset;
+  return ss.str();
+}
