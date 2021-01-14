@@ -37,11 +37,10 @@ class Memory {
 
   volatile char *get_starting_address() const;
 
-  size_t check_memory(DramAnalyzer &dram_analyzer,
-                      PatternAddressMapper &mapping,
-                      const volatile char *end,
-                      size_t check_offset,
+  size_t check_memory(PatternAddressMapper &mapping,
                       const volatile char *start,
+                      const volatile char *end,
+                      size_t check_margin_rows,
                       bool reproducibility_mode);
 
   size_t check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping, bool reproducibility_mode);

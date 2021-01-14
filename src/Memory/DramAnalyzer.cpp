@@ -54,17 +54,6 @@ std::vector<uint64_t> DramAnalyzer::get_bank_rank(std::vector<volatile char *> &
   return bank_rank;
 }
 
-// Gets the row index for a given address by considering the given row function.
-uint64_t DramAnalyzer::get_row_index(const volatile char *addr) const {
-  uint64_t cur_row = (uint64_t) addr & row_function;
-  for (size_t i = 0; i < 64; i++) {
-    if (row_function & (1UL << i)) {
-      return (cur_row >> i);
-    }
-  }
-  return cur_row;
-}
-
 struct FunctionSet {
   uint64_t row_func{};
   std::vector<uint64_t> br_functions;
@@ -168,8 +157,8 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 
   // use the row_function/bank_rank_functions that was determined most of the time as the function ('best guess')
   std::string best_str;
-  for (const auto& candidate_pair : candidates_count) {
-    if (candidate_pair.second == max_count) {
+  for (const auto &candidate_pair : candidates_count) {
+    if (candidate_pair.second==max_count) {
       best_str = candidate_pair.first;
       break;
     }
@@ -278,7 +267,7 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_
   }
 }
 
-DramAnalyzer::DramAnalyzer(volatile char *target) : start_address(target) {
+DramAnalyzer::DramAnalyzer(volatile char *target) : row_function(0), start_address(target) {
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
   bank_rank_masks = std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
 }

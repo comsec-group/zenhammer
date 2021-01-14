@@ -10,7 +10,6 @@
 
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <unistd.h>
 
 #include "Blacksmith.hpp"
 #include "DRAMAddr.hpp"

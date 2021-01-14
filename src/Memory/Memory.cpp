@@ -81,17 +81,16 @@ size_t Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &m
   size_t sum_found_bitflips = 0;
   for (const auto &victim_row : victim_rows) {
     sum_found_bitflips +=
-        check_memory(dram_analyzer, mapping, victim_row.second, 0, victim_row.first, reproducibility_mode);
+        check_memory(mapping, victim_row.first, victim_row.second, 0, reproducibility_mode);
   }
 
   return sum_found_bitflips;
 }
 
-size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
-                            PatternAddressMapper &mapping,
-                            const volatile char *end,
-                            size_t check_offset,
+size_t Memory::check_memory(PatternAddressMapper &mapping,
                             const volatile char *start,
+                            const volatile char *end,
+                            size_t check_margin_rows,
                             bool reproducibility_mode) {
 
   size_t found_bitflips = 0;
@@ -103,9 +102,13 @@ size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
     return found_bitflips;
   }
 
-  auto row_increment = dram_analyzer.get_row_increment();
-  start -= row_increment*check_offset;
-  end += row_increment*check_offset;
+  DRAMAddr start_addr((void *) start);
+  start_addr.row = (check_margin_rows > start_addr.row) ? 0UL : (start_addr.row - check_margin_rows);
+  start = (volatile char *) start_addr.to_virt();
+
+  DRAMAddr end_addr((void *) end);
+  end_addr.row = (check_margin_rows > end_addr.row) ? 0UL : (end_addr.row - check_margin_rows);
+  end = (volatile char *) end_addr.to_virt();
 
   auto start_offset = (uint64_t) (start - start_address);
   start_offset = (start_offset/getpagesize())*getpagesize();
@@ -115,7 +118,6 @@ size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
 
   // for each page (4K) in the address space [start, end]
   for (uint64_t i = start_offset; i < end_offset; i += getpagesize()) {
-
     // reseed rand to have a sequence of reproducible numbers, using this we can
     // compare the initialized values with those after hammering to see whether
     // bit flips occurred
@@ -146,7 +148,7 @@ size_t Memory::check_memory(DramAnalyzer &dram_analyzer,
         volatile char *flipped_address = cur_addr + c;
         if (*((char *) flipped_address)!=((char *) &expected_rand_value)[c]) {
           if (!reproducibility_mode) {
-            Logger::log_bitflip(flipped_address, dram_analyzer.get_row_index(flipped_address),
+            Logger::log_bitflip(flipped_address, DRAMAddr((void *) flipped_address).row,
                                 offset%getpagesize(),
                                 ((unsigned char *) &expected_rand_value)[c],
                                 *(unsigned char *) flipped_address,
@@ -178,7 +180,7 @@ void Memory::check_memory(DramAnalyzer &dram_analyzer,
                           size_t check_offset) {
   // create a "fake" pattern mapping to keep this method for backward compatibility
   PatternAddressMapper pattern_mapping;
-  check_memory(dram_analyzer, pattern_mapping, end, check_offset, start, false);
+  check_memory(pattern_mapping, start, end, check_offset, false);
 }
 
 Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
