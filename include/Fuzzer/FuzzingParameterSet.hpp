@@ -29,11 +29,11 @@ class FuzzingParameterSet {
 
   int max_row_no;
 
+  size_t total_acts_pattern;
+
   Range<int> start_row;
 
   Range<int> num_aggressors_for_sync;
-
-  size_t total_acts_pattern;
 
   Range<int> bank_no;
 
@@ -54,6 +54,10 @@ class FuzzingParameterSet {
   std::discrete_distribution<int> N_sided_probabilities;
 
   std::string get_dist_string() const;
+
+  void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
+
+  void print_semi_dynamic_parameters() const;
 
  public:
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
@@ -90,11 +94,7 @@ class FuzzingParameterSet {
 
   void print_static_parameters() const;
 
-  void print_semi_dynamic_parameters() const;
-
   void randomize_parameters(bool print = true);
-
-  void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
   static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
 
@@ -105,8 +105,8 @@ class FuzzingParameterSet {
   int get_random_wait_until_start_hammering_microseconds();
 
   static void print_dynamic_parameters2(bool sync_at_each_ref,
-                                 int wait_until_hammering_us,
-                                 int num_aggs_for_sync);
+                                        int wait_until_hammering_us,
+                                        int num_aggs_for_sync);
 
   int get_num_refresh_intervals() const;
 };

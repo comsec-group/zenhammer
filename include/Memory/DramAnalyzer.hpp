@@ -27,8 +27,6 @@ class DramAnalyzer {
  public:
   explicit DramAnalyzer(volatile char *target);
 
-  volatile char *normalize_addr_to_bank(volatile char *cur_addr, size_t bank_no);
-
   uint64_t get_row_increment() const;
 
   void find_functions(bool superpage_on);
@@ -52,13 +50,14 @@ class DramAnalyzer {
     return (int) ((after - before)/DRAMA_ROUNDS);
   }
 
-  const std::vector<std::vector<volatile char *>> &get_banks() const;
-
   void find_bank_rank_masks();
 
   std::vector<uint64_t> get_bank_rank_functions();
 
   void load_known_functions(int num_ranks);
+
+  /// Determine the number of possible activations within a refresh interval.
+  size_t count_acts_per_ref();
 };
 
 #endif /* DRAMANALYZER */

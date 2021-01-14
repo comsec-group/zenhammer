@@ -13,30 +13,8 @@
 #include <sstream>
 
 #include "GlobalDefines.hpp"
-
-volatile char *DramAnalyzer::normalize_addr_to_bank(volatile char *cur_addr, size_t bank_no) {
-  volatile char *normalized_addr = cur_addr;
-  for (size_t i = 0; i < bank_rank_masks.at(bank_no).size(); i++) {
-    // apply the bank/rank function on the given address
-    uint64_t mask = ((uint64_t) normalized_addr) & bank_rank_functions[i];
-
-    // check whether we need to normalize the address
-    bool normalize = (bank_rank_masks.at(bank_no)[i]==((mask==0) || (mask==bank_rank_functions[i])));
-
-    // continue with next iteration if no normalization is required
-    if (!normalize) continue;
-
-    // normalize address
-    for (int b = 0; b < 64; b++) {
-      if (bank_rank_functions[i] & BIT_SET(b)) {
-        normalized_addr = (volatile char *) (((uint64_t) normalized_addr) ^ BIT_SET(b));
-        break;
-      }
-    }
-  }
-
-  return normalized_addr;
-}
+#include "Utilities/Logger.hpp"
+#include "Fuzzer/FuzzingParameterSet.hpp"
 
 uint64_t DramAnalyzer::get_row_increment() const {
   for (size_t i = 0; i < 64; i++) {
@@ -84,6 +62,8 @@ struct FunctionSet {
     Logger::log_data(ss.str());
   }
 };
+
+size_t count_acts_per_ref(const std::vector<std::vector<volatile char *>> &banks);
 
 /*
  * Assumptions:
@@ -275,10 +255,6 @@ DramAnalyzer::DramAnalyzer(volatile char *target) : row_function(0), start_addre
   bank_rank_masks = std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
 }
 
-const std::vector<std::vector<volatile char *>> &DramAnalyzer::get_banks() const {
-  return banks;
-}
-
 void DramAnalyzer::find_bank_rank_masks() {
   for (size_t j = 0; j < NUM_BANKS; j++) {
     bank_rank_masks[j] = get_bank_rank(banks.at(j));
@@ -310,4 +286,52 @@ void DramAnalyzer::load_known_functions(int num_ranks) {
     ss << "0x" << std::hex << bank_rank_function << " ";
   }
   Logger::log_data(ss.str());
+}
+
+size_t DramAnalyzer::count_acts_per_ref() {
+  size_t skip_first_N = 50;
+  volatile char *a = banks.at(0).at(0);
+  volatile char *b = banks.at(0).at(1);
+  std::vector<uint64_t> acts;
+  uint64_t running_sum = 0;
+  uint64_t before = 0, after = 0, count = 0, count_old = 0;
+  *a;
+  *b;
+
+  auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, size_t num_numbers) {
+    size_t mean = running_sum/num_numbers;
+    uint64_t var = 0;
+    for (const auto &num : values) {
+      var += std::pow(num - mean, 2);
+    }
+    return std::sqrt(var/num_numbers);
+  };
+
+  for (size_t i = 0;; i++) {
+    clflushopt(a);
+    clflushopt(b);
+    mfence();
+    before = rdtscp();
+    lfence();
+    *a;
+    *b;
+    after = rdtscp();
+    count++;
+    if ((after - before) > 1000) {
+      if (i > skip_first_N && count_old!=0) {
+        uint64_t value = (count - count_old)*2;
+        acts.push_back(value);
+        running_sum += value;
+        // check after each 200 data points if our standard deviation reached 0 -> then stop collecting measurements
+        if ((acts.size()%200)==0 && compute_std(acts, running_sum, acts.size())==0) break;
+      }
+      count_old = count;
+    }
+  }
+
+  auto activations = (running_sum/acts.size());
+  Logger::log_info("Determined the number of possible ACTs per refresh interval.");
+  Logger::log_data(string_format("num_acts_per_tREFI: %lu", activations));
+
+  return activations;
 }

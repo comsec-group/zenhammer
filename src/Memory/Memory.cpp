@@ -192,3 +192,7 @@ Memory::~Memory() {
 volatile char *Memory::get_starting_address() const {
   return start_address;
 }
+
+bool Memory::is_superpage() const {
+  return superpage;
+}
