@@ -40,7 +40,9 @@ class Memory {
                       size_t check_margin_rows,
                       bool reproducibility_mode);
 
-  size_t check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping, bool reproducibility_mode);
+  size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode);
+
+  bool is_superpage() const;
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

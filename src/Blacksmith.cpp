@@ -1,6 +1,6 @@
-#include <cinttypes>
+#include "Blacksmith.hpp"
+
 #include <cstdlib>
-#include <ctime>
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
@@ -637,21 +637,16 @@ int main(int argc, char **argv) {
                                       ARG_PATTERN_IDs.c_str()));
       exit(1);
     }
-    char *filename = getCmdOption(argv, argv + argc, ARG_LOAD_PATTERN);
-    char *pattern_ids = getCmdOption(argv, argv + argc, ARG_PATTERN_IDs);
-    replay_patterns(memory, dram_analyzer, filename, pattern_ids, act);
-    exit(0);
+    char *filename = get_cmd_parameter(argv, argv + argc, ARG_LOAD_PATTERN);
+    char *pattern_ids = get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs);
+    FuzzyHammerer::replay_patterns(memory, filename, pattern_ids, act);
+  } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+    FuzzyHammerer::n_sided_frequency_based_hammering(memory, act, run_time_limit, PROBES_PER_PATTERN);
+  } else if (!USE_FREQUENCY_BASED_FUZZING) {
+    TraditionalHammerer::n_sided_hammer(memory, act, run_time_limit);
   } else {
-    // perform the hammering and check the flipped bits after each round
-    if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-      n_sided_frequency_based_hammering(memory, dram_analyzer, act);
-    } else if (!USE_FREQUENCY_BASED_FUZZING) {
-      n_sided_hammer(memory, dram_analyzer, act);
-    } else {
-      Logger::log_error("Invalid combination of program control-flow arguments given. "
-                        "Note that fuzzing is only supported with synchronized hammering.");
-      return 1;
-    }
+    Logger::log_error("Invalid combination of program control-flow arguments given. "
+                      "Note that fuzzing is only supported with synchronized hammering.");
   }
 
   Logger::close();

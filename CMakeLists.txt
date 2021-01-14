@@ -89,10 +89,13 @@ set(SOURCES
         src/Fuzzer/AggressorAccessPattern.cpp
         src/Fuzzer/BitFlip.cpp
         src/Utilities/Logger.cpp
-        src/Utilities/Enums.cpp)
+        src/Utilities/Enums.cpp
+        src/Forges/TraditionalHammerer.cpp
+        src/Forges/FuzzyHammerer.cpp)
 
 set(HEADER_ONLY
-        include/GlobalDefines.hpp)
+        include/GlobalDefines.hpp
+        include/Utilities/TimeHelper.hpp)
 
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)

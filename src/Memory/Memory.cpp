@@ -71,7 +71,7 @@ void Memory::initialize() {
   }
 }
 
-size_t Memory::check_memory(DramAnalyzer &dram_analyzer, PatternAddressMapper &mapping, bool reproducibility_mode) {
+size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode) {
   auto victim_rows = mapping.get_victim_rows();
   if (!reproducibility_mode)
     Logger::log_info(string_format("Checking if any bit flips occurred on %zu victims.",
