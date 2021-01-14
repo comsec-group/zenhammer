@@ -8,7 +8,7 @@
 #include <nlohmann/json.hpp>
 #endif
 
-#include "DRAMAddr.hpp"
+#include "Memory/DRAMAddr.hpp"
 
 const int ID_PLACEHOLDER_AGG = -1;
 

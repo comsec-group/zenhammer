@@ -1,5 +1,8 @@
-#include "DramAnalyzer.hpp"
+#include "Memory/DramAnalyzer.hpp"
 
+#include <sys/mman.h>
+#include <chrono>
+#include <cstdint>
 #include <cassert>
 #include <cinttypes>
 #include <cstdlib>

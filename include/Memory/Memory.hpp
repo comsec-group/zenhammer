@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "DramAnalyzer.hpp"
+#include "Memory/DramAnalyzer.hpp"
 #include "Fuzzer/PatternAddressMapper.hpp"
 
 class Memory {
@@ -28,10 +28,7 @@ class Memory {
 
   void allocate_memory(size_t mem_size);
 
-  void check_memory(DramAnalyzer &dram_analyzer,
-                    const volatile char *start,
-                    const volatile char *end,
-                    size_t check_offset);
+  void check_memory(const volatile char *start, const volatile char *end, size_t check_offset);
 
   void initialize();
 

@@ -79,11 +79,11 @@ endif ()
 set(SOURCES
         src/Fuzzer/Aggressor.cpp
         src/Fuzzer/CodeJitter.cpp
-        src/DRAMAddr.cpp
-        src/DramAnalyzer.cpp
+        src/Memory/DRAMAddr.cpp
+        src/Memory/DramAnalyzer.cpp
         src/Fuzzer/PatternBuilder.cpp
         src/Fuzzer/PatternAddressMapper.cpp
-        src/Memory.cpp
+        src/Memory/Memory.cpp
         src/Fuzzer/FuzzingParameterSet.cpp
         src/Fuzzer/HammeringPattern.cpp
         src/Fuzzer/AggressorAccessPattern.cpp

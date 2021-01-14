@@ -41,12 +41,12 @@ class DRAMAddr {
   size_t linearize() const;
 
  public:
-  size_t bank;
-  size_t row;
-  size_t col;
+  size_t bank{};
+  size_t row{};
+  size_t col{};
 
   // class methods
-  static void set_base(void *buff);
+  static void set_base_msb(void *buff);
 
   static void load_mem_config(mem_config_t cfg);
 
@@ -67,6 +67,10 @@ class DRAMAddr {
   std::string to_string_compact() const;
 
   void *to_virt() const;
+
+  DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
+
+  void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 };
 
 void to_json(nlohmann::json &j, const DRAMAddr &p);

@@ -31,8 +31,6 @@ class DramAnalyzer {
 
   uint64_t get_row_increment() const;
 
-  uint64_t get_row_index(const volatile char *addr) const;
-
   void find_functions(bool superpage_on);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially

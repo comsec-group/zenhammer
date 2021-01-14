@@ -1,4 +1,4 @@
-#include "Memory.hpp"
+#include "Memory/Memory.hpp"
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "DramAnalyzer.hpp"
 #include "Fuzzer/BitFlip.hpp"
 #include "GlobalDefines.hpp"
 #include "Utilities/AsmPrimitives.hpp"
@@ -174,10 +173,7 @@ size_t Memory::check_memory(PatternAddressMapper &mapping,
   return found_bitflips;
 }
 
-void Memory::check_memory(DramAnalyzer &dram_analyzer,
-                          const volatile char *start,
-                          const volatile char *end,
-                          size_t check_offset) {
+void Memory::check_memory(const volatile char *start, const volatile char *end, size_t check_offset) {
   // create a "fake" pattern mapping to keep this method for backward compatibility
   PatternAddressMapper pattern_mapping;
   check_memory(pattern_mapping, start, end, check_offset, false);

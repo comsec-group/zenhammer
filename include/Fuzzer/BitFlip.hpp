@@ -1,7 +1,7 @@
 #ifndef BLACKSMITH_INCLUDE_FUZZER_BITFLIP_HPP_
 #define BLACKSMITH_INCLUDE_FUZZER_BITFLIP_HPP_
 
-#include "DRAMAddr.hpp"
+#include "Memory/DRAMAddr.hpp"
 
 class BitFlip {
  public:

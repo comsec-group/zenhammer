@@ -2,7 +2,7 @@
 
 #include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "DramAnalyzer.hpp"
+#include "Memory/DramAnalyzer.hpp"
 
 PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
     : pattern(hammering_pattern), aggressor_id_counter(1) {
