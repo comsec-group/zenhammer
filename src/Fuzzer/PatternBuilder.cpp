@@ -133,7 +133,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &fuzzi
   auto cnt = 0;
   for (const auto &agg_acc_pair : pattern.agg_access_patterns) {
     if (cnt > 0 && cnt%3==0) ss << std::endl;
-    ss << std::setw(28) << std::setfill(' ') << std::left << agg_acc_pair.to_string();
+    ss << std::setw(30) << std::setfill(' ') << std::left << agg_acc_pair.to_string();
     cnt++;
   }
   Logger::log_data(ss.str());

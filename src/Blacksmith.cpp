@@ -34,10 +34,10 @@ int main(int argc, char **argv) {
     void *rows_to_access = calloc(MAX_ACCESSES, sizeof(int));
     if (rows_to_access==nullptr) {
       Logger::log_error("Allocation of rows_to_access failed!");
-      return 1;
+      return EXIT_FAILURE;
     }
     FuzzyHammerer::generate_pattern_for_ARM(acts, static_cast<int *>(rows_to_access), MAX_ACCESSES, PROBES_PER_PATTERN);
-    return 0;
+    return EXIT_SUCCESS;
   }
 
   // process parameter '-runtime_limit'
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
                                       ARG_LOAD_PATTERN.c_str(),
                                       ARG_PATTERN_IDs.c_str()));
       Logger::close();
-      exit(1);
+      return EXIT_FAILURE;
     }
     char *filename = get_cmd_parameter(argv, argv + argc, ARG_LOAD_PATTERN);
     char *pattern_ids = get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs);
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
   }
 
   Logger::close();
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 char *get_cmd_parameter(char **begin, char **end, const std::string &parameter_name) {

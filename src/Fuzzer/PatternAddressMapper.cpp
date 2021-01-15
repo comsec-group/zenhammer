@@ -163,7 +163,7 @@ void PatternAddressMapper::export_pattern_internal(
     if (cnt > 0 && cnt % 3 == 0) mapping_str << std::endl;
     mapping_str << std::setw(3) << std::left << k
                 << " -> "
-                << std::setw(10) << std::left << aggressor_to_addr.at(k).to_string_compact()
+                << std::setw(13) << std::left << aggressor_to_addr.at(k).to_string_compact()
                 << "   ";
     cnt++;
   }
