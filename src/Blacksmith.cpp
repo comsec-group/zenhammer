@@ -13,7 +13,7 @@
 int main(int argc, char **argv) {
   // CONFIGURATION
   // total number of (different) locations (i.e., Aggressor ID -> DRAM rows mapping) where we try a pattern
-  const size_t PROBES_PER_PATTERN = NUM_BANKS/4;
+  const size_t PROBES_PER_PATTERN = 3;
 
   Logger::initialize();
 

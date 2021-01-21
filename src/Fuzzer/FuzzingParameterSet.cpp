@@ -143,13 +143,13 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   sync_each_ref = Range<int>(0, 1);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  wait_until_start_hammering_refs = Range<int>(10, 500);  // note: 4000us / 7.8 us ≈ 500 REFs
+  wait_until_start_hammering_refs = Range<int>(10, 128);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   num_aggressors_for_sync = Range<int>(1, 1);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  start_row = Range<int>(0, 4096);
+  start_row = Range<int>(0, 2048);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
 
@@ -160,9 +160,9 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  auto strategy = get_valid_strategy_pair();
-  flushing_strategy = strategy.first;
-  fencing_strategy = strategy.second;
+//  auto strategy = get_valid_strategy_pair();
+  flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+  fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
@@ -185,7 +185,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range<int>(21, 512).get_random_number(gen);
+  num_aggressors = Range<int>(21, 384).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
@@ -257,7 +257,7 @@ int FuzzingParameterSet::get_base_period() const {
 }
 
 int FuzzingParameterSet::get_num_base_periods() const {
-  return get_total_acts_pattern()/get_base_period();
+  return (int)(get_total_acts_pattern()/(size_t)get_base_period());
 }
 
 int FuzzingParameterSet::get_agg_intra_distance() const {
