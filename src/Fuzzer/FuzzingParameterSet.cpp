@@ -22,37 +22,37 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
 
 void FuzzingParameterSet::print_static_parameters() const {
   Logger::log_info("Printing static hammering parameters:");
-  Logger::log_data(string_format("agg_intra_distance: %d", agg_intra_distance));
-  Logger::log_data(string_format("N_sided dist.: %s", get_dist_string().c_str()));
-  Logger::log_data(string_format("hammering_total_num_activations: %d", hammering_total_num_activations));
-  Logger::log_data(string_format("max_row_no: %d", max_row_no));
+  Logger::log_data(format_string("agg_intra_distance: %d", agg_intra_distance));
+  Logger::log_data(format_string("N_sided dist.: %s", get_dist_string().c_str()));
+  Logger::log_data(format_string("hammering_total_num_activations: %d", hammering_total_num_activations));
+  Logger::log_data(format_string("max_row_no: %d", max_row_no));
 }
 
 void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   Logger::log_info("Printing pattern-specific fuzzing parameters:");
-  Logger::log_data(string_format("num_aggressors: %d", num_aggressors));
-  Logger::log_data(string_format("num_refresh_intervals: %d", num_refresh_intervals));
-  Logger::log_data(string_format("total_acts_pattern: %zu", total_acts_pattern));
-  Logger::log_data(string_format("base_period: %d", base_period));
-  Logger::log_data(string_format("agg_inter_distance: %d", agg_inter_distance));
-  Logger::log_data(string_format("flushing_strategy: %s", get_string(flushing_strategy).c_str()));
-  Logger::log_data(string_format("fencing_strategy: %s", get_string(fencing_strategy).c_str()));
+  Logger::log_data(format_string("num_aggressors: %d", num_aggressors));
+  Logger::log_data(format_string("num_refresh_intervals: %d", num_refresh_intervals));
+  Logger::log_data(format_string("total_acts_pattern: %zu", total_acts_pattern));
+  Logger::log_data(format_string("base_period: %d", base_period));
+  Logger::log_data(format_string("agg_inter_distance: %d", agg_inter_distance));
+  Logger::log_data(format_string("flushing_strategy: %s", to_string(flushing_strategy).c_str()));
+  Logger::log_data(format_string("fencing_strategy: %s", to_string(fencing_strategy).c_str()));
 }
 
 void FuzzingParameterSet::print_dynamic_parameters(const int bank, bool seq_addresses, int start_row) {
   Logger::log_info("Printing DRAM address-related fuzzing parameters:");
-  Logger::log_data(string_format("bank_no: %d", bank));
-  Logger::log_data(string_format("use_seq_addresses: %s", (seq_addresses ? "true" : "false")));
-  Logger::log_data(string_format("start_row: %d", start_row));
+  Logger::log_data(format_string("bank_no: %d", bank));
+  Logger::log_data(format_string("use_seq_addresses: %s", (seq_addresses ? "true" : "false")));
+  Logger::log_data(format_string("start_row: %d", start_row));
 }
 
 void FuzzingParameterSet::print_dynamic_parameters2(bool sync_at_each_ref,
                                                     int wait_until_hammering_us,
                                                     int num_aggs_for_sync) {
   Logger::log_info("Printing code jitting-related fuzzing parameters:");
-  Logger::log_data(string_format("sync_each_ref: %s", (sync_at_each_ref ? "true" : "false")));
-  Logger::log_data(string_format("wait_until_start_hammering_refs: %d", wait_until_hammering_us));
-  Logger::log_data(string_format("num_aggressors_for_sync: %d", num_aggs_for_sync));
+  Logger::log_data(format_string("sync_each_ref: %s", (sync_at_each_ref ? "true" : "false")));
+  Logger::log_data(format_string("wait_until_start_hammering_refs: %d", wait_until_hammering_us));
+  Logger::log_data(format_string("num_aggressors_for_sync: %d", num_aggs_for_sync));
 }
 
 void FuzzingParameterSet::set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities) {
@@ -81,7 +81,7 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
     if (e >= min_value) return e;
   }
 
-  Logger::log_error(string_format("Could not determine a random even divisor of n=%d. Using n.", n));
+  Logger::log_error(format_string("Could not determine a random even divisor of n=%d. Using n.", n));
   return n;
 }
 

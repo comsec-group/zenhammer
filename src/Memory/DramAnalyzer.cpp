@@ -53,7 +53,7 @@ struct FunctionSet {
 
   void pretty_print() {
     Logger::log_info("Found candidate bank/rank and row function:");
-    Logger::log_data(string_format("Row function 0x%" PRIx64, row_func));
+    Logger::log_data(format_string("Row function 0x%" PRIx64, row_func));
     std::stringstream ss;
     ss << "Bank/rank functions (" << br_functions.size() << "): ";
     for (auto bank_rank_function : br_functions) {
@@ -150,8 +150,8 @@ void DramAnalyzer::find_functions(bool superpage_on) {
   bank_rank_functions = candidates[best_str].br_functions;
 
   Logger::log_info("Found bank/rank and row function:");
-  Logger::log_data(string_format("Row function: 0x%" PRIx64, row_function));
-  Logger::log_data(string_format("Row increment: 0x%" PRIx64, get_row_increment()));
+  Logger::log_data(format_string("Row function: 0x%" PRIx64, row_function));
+  Logger::log_data(format_string("Row increment: 0x%" PRIx64, get_row_increment()));
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (auto bank_rank_function : bank_rank_functions) {
@@ -212,7 +212,7 @@ void DramAnalyzer::find_bank_conflicts() {
       nr_banks_cur++;
     }
     if (remaining_tries==0) {
-      Logger::log_error(string_format(
+      Logger::log_error(format_string(
           "Could not find conflicting address sets. Is the number of banks (%d) defined correctly?",
           (int) NUM_BANKS));
       exit(1);
@@ -278,8 +278,8 @@ void DramAnalyzer::load_known_functions(int num_ranks) {
   }
 
   Logger::log_info("Loaded bank/rank and row function:");
-  Logger::log_data(string_format("Row function 0x%" PRIx64, row_function));
-  Logger::log_data(string_format("Row increment 0x%" PRIx64, get_row_increment()));
+  Logger::log_data(format_string("Row function 0x%" PRIx64, row_function));
+  Logger::log_data(format_string("Row increment 0x%" PRIx64, get_row_increment()));
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (auto bank_rank_function : bank_rank_functions) {
@@ -331,7 +331,7 @@ size_t DramAnalyzer::count_acts_per_ref() {
 
   auto activations = (running_sum/acts.size());
   Logger::log_info("Determined the number of possible ACTs per refresh interval.");
-  Logger::log_data(string_format("num_acts_per_tREFI: %lu", activations));
+  Logger::log_data(format_string("num_acts_per_tREFI: %lu", activations));
 
   return activations;
 }

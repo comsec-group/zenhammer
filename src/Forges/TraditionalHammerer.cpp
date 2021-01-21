@@ -103,8 +103,8 @@ void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_
 
       if (!USE_SYNC) {
         // CONVENTIONAL HAMMERING
-        Logger::log_info(string_format("Hammering %d aggressors with v=%d d=%d on bank %d",
-                                       aggressor_rows_size, v, d, ba));
+        Logger::log_info(format_string("Hammering %d aggressors with v=%d d=%d on bank %d",
+            aggressor_rows_size, v, d, ba));
         hammer(aggressors);
       } else if (USE_SYNC) {
         // SYNCHRONIZED HAMMERING
@@ -113,13 +113,13 @@ void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_
         auto d1 = cur_next_addr;
         cur_next_addr.add_inplace(0, v, 0);
         auto d2 = cur_next_addr;
-        Logger::log_info(string_format("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
-                                       d1.row, d1.to_virt(), d2.row, d2.to_virt()));
+        Logger::log_info(format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
+            d1.row, d1.to_virt(), d2.row, d2.to_virt()));
         if (ba==0) {
-          Logger::log_info(string_format("sync: ref_rounds %lu, remainder %lu.", acts/aggressors.size(),
-                                         acts - ((acts/aggressors.size())*aggressors.size())));
+          Logger::log_info(format_string("sync: ref_rounds %lu, remainder %lu.", acts/aggressors.size(),
+              acts - ((acts/aggressors.size())*aggressors.size())));
         }
-        Logger::log_info(string_format("Hammering sync %d aggressors on bank %d", aggressor_rows_size, ba));
+        Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", aggressor_rows_size, ba));
         hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
       }
 

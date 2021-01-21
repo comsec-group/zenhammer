@@ -21,7 +21,7 @@ struct Range {
   Range(T min, T max, T step) : min(min), max(max), step(step) {
     if (min%step!=0 || max%step!=0) {
       Logger::log_error(
-          string_format("Range(%d,%d,%d) failed: min and max must both be dividible by step.", min, max, step));
+          format_string("Range(%d,%d,%d) failed: min and max must both be dividible by step.", min, max, step));
       exit(1);
     }
     dist = std::uniform_int_distribution<T>(min/step, max/step);

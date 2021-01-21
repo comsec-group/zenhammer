@@ -72,7 +72,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         if (!use_seq_addresses && occupied_rows.count(row) > 0) {
           assignment_trial_cnt++;
           if (assignment_trial_cnt < 7) goto retry;
-          Logger::log_info(string_format(
+          Logger::log_info(format_string(
               "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
               current_agg.id));
         }
@@ -91,7 +91,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   min_row = *occupied_rows.begin();
   max_row = *occupied_rows.rbegin();
 
-  Logger::log_info(string_format("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
+  Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
 void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns) {// a set to make sure we add victims only once
@@ -99,6 +99,10 @@ void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern>
   victim_rows.clear();
   for (auto &acc_pattern : agg_access_patterns) {
     for (auto &agg : acc_pattern.aggressors) {
+
+      if (aggressor_to_addr.count(agg.id)==0) {
+        Logger::log_error(format_string("Could not find DRAMAddr mapping for Aggressor %d", agg.id));
+      }
       auto dram_addr = aggressor_to_addr.at(agg.id);
 
       for (int i = -5; i <= 5; ++i) {
@@ -140,7 +144,7 @@ void PatternAddressMapper::export_pattern_internal(
 
     // check whether there exists a aggressor ID -> address mapping before trying to access it
     if (aggressor_to_addr.count(agg.id)==0) {
-      Logger::log_error(string_format("Could not find a valid address mapping for aggressor with ID %d.", agg.id));
+      Logger::log_error(format_string("Could not find a valid address mapping for aggressor with ID %d.", agg.id));
       continue;
     }
 

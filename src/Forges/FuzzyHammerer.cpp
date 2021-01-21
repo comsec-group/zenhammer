@@ -37,7 +37,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
     cur_round++;
 
     Logger::log_timestamp();
-    Logger::log_highlight(string_format("Generating hammering pattern #%d.", cur_round));
+    Logger::log_highlight(format_string("Generating hammering pattern #%d.", cur_round));
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
@@ -58,11 +58,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       PatternAddressMapper mapper;
       CodeJitter &code_jitter = mapper.get_code_jitter();
 
-      Logger::log_info(string_format("Running pattern #%d (%s) for address set %d (%s).",
-                                     cur_round,
-                                     hammering_pattern.instance_id.c_str(),
-                                     cnt_pattern_probes,
-                                     mapper.get_instance_id().c_str()));
+      Logger::log_info(format_string("Running pattern #%d (%s) for address set %d (%s).",
+          cur_round,
+          hammering_pattern.instance_id.c_str(),
+          cnt_pattern_probes,
+          mapper.get_instance_id().c_str()));
 
       // randomize the aggressor ID -> DRAM row mapping
       mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);

@@ -23,7 +23,7 @@ void Memory::allocate_memory(size_t mem_size) {
     // allocate memory using super pages
     fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
     if (fp==nullptr) {
-      Logger::log_info(string_format("Could not mount superpage from %s. Error:", hugetlbfs_mountpoint.c_str()));
+      Logger::log_info(format_string("Could not mount superpage from %s. Error:", hugetlbfs_mountpoint.c_str()));
       Logger::log_data(std::strerror(errno));
       exit(-1);
     }
@@ -46,7 +46,7 @@ void Memory::allocate_memory(size_t mem_size) {
   }
 
   if (target!=start_address) {
-    Logger::log_error(string_format("Could not create mmap area at address %p, instead using %p.",
+    Logger::log_error(format_string("Could not create mmap area at address %p, instead using %p.",
                                     start_address,
                                     target));
     start_address = target;
@@ -73,10 +73,7 @@ void Memory::initialize() {
 
 size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode) {
   auto victim_rows = mapping.get_victim_rows();
-  if (!reproducibility_mode)
-    Logger::log_info(string_format("Checking if any bit flips occurred on %zu victims.",
-                                   victim_rows.size()));
-
+  if (verbose) Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
   size_t sum_found_bitflips = 0;
   for (const auto &victim_row : victim_rows) {
     sum_found_bitflips +=
@@ -96,8 +93,8 @@ size_t Memory::check_memory(PatternAddressMapper &mapping,
 
   if ((start==nullptr || end==nullptr) || ((uint64_t) start >= (uint64_t) end)) {
     Logger::log_error("Function check_memory called with invalid arguments.");
-    Logger::log_data(string_format("Start addr.: %s", DRAMAddr((void *) start).to_string().c_str()));
-    Logger::log_data(string_format("End addr.: %s", DRAMAddr((void *) end).to_string().c_str()));
+    Logger::log_data(format_string("Start addr.: %s", DRAMAddr((void *) start).to_string().c_str()));
+    Logger::log_data(format_string("End addr.: %s", DRAMAddr((void *) end).to_string().c_str()));
     return found_bitflips;
   }
 
@@ -184,7 +181,7 @@ Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
 
 Memory::~Memory() {
   if (munmap((void *) start_address, size)==-1) {
-    Logger::log_error(string_format("munmap failed with error:"));
+    Logger::log_error(format_string("munmap failed with error:"));
     Logger::log_data(std::strerror(errno));
   }
 }

@@ -84,8 +84,8 @@ int main(int argc, char **argv) {
   if (cmd_parameter_exists(argv, argv + argc, ARG_ACTS_PER_REF)) {
     // parse the program arguments
     size_t tmp = strtol(get_cmd_parameter(argv, argv + argc, ARG_ACTS_PER_REF), nullptr, 10);
-    if (tmp > ((size_t) INT16_MAX)) {
-      Logger::log_error(string_format("Given parameter value %lu for %s is invalid!", tmp, ARG_ACTS_PER_REF.c_str()));
+    if (tmp > ((size_t) std::numeric_limits<int>::max())) {
+      Logger::log_error(format_string("Given parameter value %lu for %s is invalid!", tmp, ARG_ACTS_PER_REF.c_str()));
       exit(1);
     }
     act = (int) tmp;
@@ -99,10 +99,10 @@ int main(int argc, char **argv) {
   if (cmd_parameter_exists(argv, argv + argc, ARG_LOAD_PATTERN)) {
     const std::string ARG_PATTERN_IDs = "-replay_patterns";
     if (!cmd_parameter_exists(argv, argv + argc, ARG_PATTERN_IDs)) {
-      Logger::log_error(string_format("Parameter %s expects parameter %s.\n"
+      Logger::log_error(format_string("Parameter %s expects parameter %s.\n"
                                       "Ex.: blacksmith [-load_json filename] [-replay_patterns PatternUUID ...]",
-                                      ARG_LOAD_PATTERN.c_str(),
-                                      ARG_PATTERN_IDs.c_str()));
+          ARG_LOAD_PATTERN.c_str(),
+          ARG_PATTERN_IDs.c_str()));
       Logger::close();
       return EXIT_FAILURE;
     }

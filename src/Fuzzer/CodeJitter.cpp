@@ -43,7 +43,7 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
 
   if (verbose) {
     Logger::log_info("Synchronization stats:");
-    Logger::log_data(string_format("Total sync acts: %d", total_sync_acts));
+    Logger::log_data(format_string("Total sync acts: %d", total_sync_acts));
     const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
     auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
     auto acts_per_pattern_round = pattern_sync_each_ref
@@ -54,9 +54,9 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
                                   // pattern here (=1) as this is the sync that is repeated after each hammering run
                                   : 1;
     auto num_synced_refs = pattern_rounds*acts_per_pattern_round;
-    Logger::log_data(string_format("Number of pattern reps while hammering: %d", pattern_rounds));
-    Logger::log_data(string_format("Number of total synced REFs (est.): %d", num_synced_refs));
-    Logger::log_data(string_format("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
+    Logger::log_data(format_string("Number of pattern reps while hammering: %d", pattern_rounds));
+    Logger::log_data(format_string("Number of total synced REFs (est.): %d", num_synced_refs));
+    Logger::log_data(format_string("Avg. number of acts per sync: %d", total_sync_acts/num_synced_refs));
   }
 
   return total_sync_acts;
@@ -85,9 +85,9 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   // check whether the NUM_TIMED_ACCESSES value works at all - otherwise just return from this function
   // this is safe as hammer_pattern checks whether there's a valid jitted function
   if (NUM_TIMED_ACCESSES > aggressor_pairs.size()) {
-    Logger::log_error(string_format("NUM_TIMED_ACCESSES (%d) is larger than #aggressor_pairs (%zu).",
-                                    NUM_TIMED_ACCESSES,
-                                    aggressor_pairs.size()));
+    Logger::log_error(format_string("NUM_TIMED_ACCESSES (%d) is larger than #aggressor_pairs (%zu).",
+        NUM_TIMED_ACCESSES,
+        aggressor_pairs.size()));
     return;
   }
 
