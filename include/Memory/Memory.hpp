@@ -43,6 +43,8 @@ class Memory {
   size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode);
 
   bool is_superpage() const;
+
+  std::string get_flipped_rows_text_repr();
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

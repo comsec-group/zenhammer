@@ -196,3 +196,19 @@ volatile char *Memory::get_starting_address() const {
 bool Memory::is_superpage() const {
   return superpage;
 }
+
+std::string Memory::get_flipped_rows_text_repr() {
+  // first extract all rows, otherwise it will not be possible to know in advance whether we we still
+  // need to add a separator (comma) to the string as upcoming DRAMAddr instances might refer to the same row
+  std::set<int> flipped_rows;
+  for (const auto &da : flipped_bits) flipped_rows.insert(da.row);
+
+  std::stringstream ss;
+  for (const auto &row : flipped_rows) {
+    ss << row;
+    if (row != *flipped_rows.rbegin()) ss << ",";
+  }
+  return ss.str();
+}
+
+
