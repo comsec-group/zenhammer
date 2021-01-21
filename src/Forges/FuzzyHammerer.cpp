@@ -45,6 +45,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
+    //  Logger::log_info("Abstract pattern based on aggressor IDs:");
+//  Logger::log_data(pattern.get_pattern_text_repr());
+    Logger::log_info("Aggressor pairs, given as \"(id ...) : freq, amp, start_offset\":");
+    Logger::log_data(hammering_pattern.get_agg_access_pairs_text_repr());
+
     // randomize the order of AggressorAccessPatterns to avoid biasing the PatternAddressMapper as it always assigns
     // rows in order of the AggressorAccessPatterns map
     // (e.g., the first element in AggressorAccessPatterns is assigned to the lowest DRAM row).
@@ -65,7 +70,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
           mapper.get_instance_id().c_str()));
 
       // randomize the aggressor ID -> DRAM row mapping
-      mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
+      mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns, true);
 
       // now fill the pattern with these random addresses
       std::vector<volatile char *> hammering_accesses_vec;
@@ -211,6 +216,9 @@ void FuzzyHammerer::generate_pattern_for_ARM(int acts,
 
   PatternBuilder pattern_builder(hammering_pattern);
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
+
+  Logger::log_info("Aggressor pairs, given as \"(id ...) : freq, amp, start_offset\":");
+  Logger::log_data(hammering_pattern.get_agg_access_pairs_text_repr());
 
   // choose random addresses for pattern
   PatternAddressMapper mapper;
