@@ -6,6 +6,7 @@
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
+#include "Forges/ReplayingHammerer.hpp"
 #include "Memory/DRAMAddr.hpp"
 #include "Utilities/Logger.hpp"
 
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
     }
     char *filename = get_cmd_parameter(argv, argv + argc, ARG_LOAD_PATTERN);
     char *pattern_ids = get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs);
-    FuzzyHammerer::replay_patterns(memory, filename, pattern_ids, act);
+    ReplayingHammerer::replay_patterns(memory, filename, pattern_ids, act);
   } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     FuzzyHammerer::n_sided_frequency_based_hammering(memory, act, run_time_limit, PROBES_PER_PATTERN);
   } else if (!USE_FREQUENCY_BASED_FUZZING) {

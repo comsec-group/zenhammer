@@ -19,8 +19,6 @@ class FuzzyHammerer {
                                                 long runtime_limit,
                                                 size_t probes_per_pattern);
 
-  static void replay_patterns(Memory &memory, const char *json_filename, const char *pattern_ids, int acts_per_tref);
-
   static void generate_pattern_for_ARM(int acts,
                                        int *rows_to_access,
                                        int max_accesses,

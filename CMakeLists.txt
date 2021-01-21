@@ -91,7 +91,8 @@ set(SOURCES
         src/Utilities/Logger.cpp
         src/Utilities/Enums.cpp
         src/Forges/TraditionalHammerer.cpp
-        src/Forges/FuzzyHammerer.cpp)
+        src/Forges/FuzzyHammerer.cpp
+        src/Forges/ReplayingHammerer.cpp)
 
 set(HEADER_ONLY
         include/GlobalDefines.hpp
