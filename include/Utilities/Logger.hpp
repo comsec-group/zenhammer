@@ -57,6 +57,12 @@ class Logger {
   static void log_global_defines();
 
   static void log_metadata(const char *string, long run_time_limit_seconds);
+
+  static void log_analysis_stage(const std::string &message, bool newline = true);
+
+  static void log_success(const std::string &message, bool newline = true);
+
+  static void log_failure(const std::string &message, bool newline = true);
 };
 
 #endif //BLACKSMITH_INCLUDE_LOGGER_HPP_

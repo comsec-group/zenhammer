@@ -46,6 +46,17 @@ void Logger::log_data(const std::string &message, bool newline) {
   if (newline) instance.logfile << std::endl;
 }
 
+void Logger::log_analysis_stage(const std::string &message, bool newline) {
+  std::stringstream ss;
+  ss << FC_CYAN_BRIGHT "████  " << message << "  ";
+  // this makes sure that all log analysis stage messages have the same length
+  auto remaining_chars = 80-message.length();
+  while (remaining_chars--) ss << "█";
+  instance.logfile << ss.str();
+  instance.logfile << F_RESET;
+  if (newline) instance.logfile << std::endl;
+}
+
 void Logger::log_debug(const std::string &message, bool newline) {
   instance.logfile << FC_YELLOW "[DEBUG] " << message;
   instance.logfile << F_RESET;
@@ -83,7 +94,19 @@ void Logger::log_bitflip(volatile char *flipped_address,
                    << std::dec << "row " << row_no << ", "
                    << "page offset: " << page_offset << ", "
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
-                   << std::dec << "detected after " << format_timestamp(timestamp-instance.timestamp_start) << ".";
+                   << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
+  instance.logfile << F_RESET;
+  if (newline) instance.logfile << std::endl;
+}
+
+void Logger::log_success(const std::string &message, bool newline) {
+  instance.logfile << FC_GREEN << "[!] " << message;
+  instance.logfile << F_RESET;
+  if (newline) instance.logfile << std::endl;
+}
+
+void Logger::log_failure(const std::string &message, bool newline) {
+  instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << std::endl;
 }
