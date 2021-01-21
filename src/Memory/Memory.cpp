@@ -28,7 +28,7 @@ void Memory::allocate_memory(size_t mem_size) {
       exit(-1);
     }
     target = (volatile char *) mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
-                                    MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
+        MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
     if (target==MAP_FAILED) {
       perror("mmap");
       exit(-1);
@@ -47,8 +47,7 @@ void Memory::allocate_memory(size_t mem_size) {
 
   if (target!=start_address) {
     Logger::log_error(format_string("Could not create mmap area at address %p, instead using %p.",
-                                    start_address,
-                                    target));
+        start_address, target));
     start_address = target;
   }
 
@@ -77,8 +76,12 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
   if (verbose) Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
   size_t sum_found_bitflips = 0;
   for (const auto &victim_row : victim_rows) {
-    sum_found_bitflips += check_memory_internal(mapping, victim_row.first, victim_row.second, 0, reproducibility_mode,
-                                                verbose);
+    auto end = (uint64_t) victim_row.second;
+    if ((uint64_t) victim_row.first > end) {
+      end = (uint64_t) get_starting_address() + size;
+    }
+    sum_found_bitflips += check_memory_internal(mapping, victim_row.first, (volatile char *) end, 0,
+        reproducibility_mode, verbose);
   }
   return sum_found_bitflips;
 }
@@ -155,7 +158,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           const auto expected_value = ((unsigned char *) &expected_rand_value)[c];
           if (verbose) {
             Logger::log_bitflip(flipped_address, flipped_addr_dram.row, offset%getpagesize(), expected_value,
-                                flipped_addr_value, (size_t) time(nullptr));
+                flipped_addr_value, (size_t) time(nullptr));
           }
           if (!reproducibility_mode) {
             mapping.bit_flips
@@ -205,7 +208,7 @@ std::string Memory::get_flipped_rows_text_repr() {
   std::stringstream ss;
   for (const auto &row : flipped_rows) {
     ss << row;
-    if (row != *flipped_rows.rbegin()) ss << ",";
+    if (row!=*flipped_rows.rbegin()) ss << ",";
   }
   return ss.str();
 }
