@@ -24,6 +24,8 @@ enum class FENCING_STRATEGY : int {
 
 std::string get_string(FENCING_STRATEGY strategy);
 
-std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategies();
+std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies();
+
+std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair();
 
 #endif //BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_

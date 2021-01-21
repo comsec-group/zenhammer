@@ -30,9 +30,11 @@ std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategies() {
       std::make_pair(FLUSHING_STRATEGY::LATEST_POSSIBLE, FENCING_STRATEGY::LATEST_POSSIBLE),
   };
 
+std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair() {
+  auto valid_strategies = get_valid_strategies();
   auto num_strategies = valid_strategies.size();
   std::random_device rd;
   std::mt19937 gen(rd());
-  auto strategy_idx = Range<int>(0, num_strategies-1).get_random_number(gen);
+  auto strategy_idx = Range<int>(0, num_strategies - 1).get_random_number(gen);
   return valid_strategies.at(strategy_idx);
 }

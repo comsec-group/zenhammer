@@ -160,7 +160,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  auto strategy = get_valid_strategies();
+  auto strategy = get_valid_strategy_pair();
   flushing_strategy = strategy.first;
   fencing_strategy = strategy.second;
 
@@ -183,7 +183,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // == are only randomized once when calling this function ======
 
-  // [derivable from aggressors in AggressorAccessPattern, also not very expressful because different agg IDs can be
+  // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
   num_aggressors = Range<int>(21, 512).get_random_number(gen);
 
