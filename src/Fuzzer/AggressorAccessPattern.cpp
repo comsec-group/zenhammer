@@ -29,10 +29,9 @@ std::string AggressorAccessPattern::to_string() const {
     aggs << agg.id;
     if (agg.id!=(*aggressors.rbegin()).id) aggs << ",";
   }
-  aggs << ") : ";
+  aggs << "): ";
 
   std::stringstream ss;
-  ss << std::setw(10) << std::setfill(' ') << std::left << aggs.str();
-  ss << frequency << ", " << amplitude << "⨉, " << start_offset;
+  ss << aggs.str() << frequency << ", " << amplitude << "⨉, " << start_offset;
   return ss.str();
 }
