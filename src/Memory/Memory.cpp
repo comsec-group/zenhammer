@@ -71,13 +71,14 @@ void Memory::initialize() {
   }
 }
 
-size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode) {
+size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose) {
+  flipped_bits.clear();
   auto victim_rows = mapping.get_victim_rows();
   if (verbose) Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
   size_t sum_found_bitflips = 0;
   for (const auto &victim_row : victim_rows) {
-    sum_found_bitflips +=
-        check_memory(mapping, victim_row.first, victim_row.second, 0, reproducibility_mode);
+    sum_found_bitflips += check_memory_internal(mapping, victim_row.first, victim_row.second, 0, reproducibility_mode,
+                                                verbose);
   }
 
   return sum_found_bitflips;
@@ -143,16 +144,16 @@ size_t Memory::check_memory(PatternAddressMapper &mapping,
       for (unsigned long c = 0; c < sizeof(int); c++) {
         volatile char *flipped_address = cur_addr + c;
         if (*((char *) flipped_address)!=((char *) &expected_rand_value)[c]) {
+          auto flipped_addr_dram = DRAMAddr((void *) flipped_address);
+          auto flipped_addr_value = *(unsigned char *) flipped_address;
+          const auto expected_value = ((unsigned char *) &expected_rand_value)[c];
+          if (verbose) {
+            Logger::log_bitflip(flipped_address, flipped_addr_dram.row, offset%getpagesize(), expected_value,
+                                flipped_addr_value, (size_t) time(nullptr));
+          }
           if (!reproducibility_mode) {
-            Logger::log_bitflip(flipped_address, DRAMAddr((void *) flipped_address).row,
-                                offset%getpagesize(),
-                                ((unsigned char *) &expected_rand_value)[c],
-                                *(unsigned char *) flipped_address,
-                                (unsigned long) time(nullptr));
-            uint8_t bitmask = ((unsigned char *) &expected_rand_value)[c] ^(*(unsigned char *) flipped_address);
-            mapping.bit_flips.emplace_back(DRAMAddr((void *) flipped_address),
-                                           bitmask,
-                                           *(unsigned char *) flipped_address);
+            mapping.bit_flips
+                .emplace_back(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
           }
           found_bitflips++;
         }

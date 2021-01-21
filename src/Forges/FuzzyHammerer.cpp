@@ -112,7 +112,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
         code_jitter.hammer_pattern(fuzzing_params, !reproducibility_mode);
 
         // check if any bit flips happened
-        auto flipped_bits = memory.check_memory(mapper, reproducibility_mode);
+        auto flipped_bits = memory.check_memory(mapper, reproducibility_mode, !reproducibility_mode);
         if (flipped_bits > 0) reproducibility_rounds_with_bitflips++;
 
         // this if/else block is only executed in the very first round: it decides whether to start the reproducibility
