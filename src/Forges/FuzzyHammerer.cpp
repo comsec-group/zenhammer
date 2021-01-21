@@ -103,7 +103,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
 #endif
       int cur_reproducibility_round = 1;
       int reproducibility_rounds_with_bitflips = 0;
-      int reproducibility_score = 0;
       bool reproducibility_mode = false;
       std::stringstream ss;
       do {
@@ -134,10 +133,10 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
 
         // last round: finish reproducibility check by printing pattern's reproducibility coefficient
         if (cur_reproducibility_round==reproducibility_rounds) {
-          Logger::log_info(string_format("Bit flip's reproducibility score: %d/%d (#flips: %s)",
-                                         reproducibility_rounds_with_bitflips,
-                                         reproducibility_rounds,
-                                         ss.str().c_str()));
+          Logger::log_info(format_string("Bit flip's reproducibility score: %d/%d (#flips: %s)",
+              reproducibility_rounds_with_bitflips,
+              reproducibility_rounds,
+              ss.str().c_str()));
 
           // derive number of reps we need to do to trigger a bit flip based on the current reproducibility coefficient
           // this might look counterintuitive but makes sense, assume we trigger bit flips in 3 of 20 runs, so we need
@@ -145,14 +144,15 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
 //          reproducibility_score =
 //              (int) std::ceil((float) reproducibility_rounds/(float) reproducibility_rounds_with_bitflips);
 
+          // this code is used to dynamically adapt REPS_PER_PATTERN (the number of repeated hammerings of a pattern),
+          // note that REPS_PER_PATTERN is not used antywhere yet!
 //          auto old_reps_per_pattern = REPS_PER_PATTERN;
           // it's important to use max here, otherwise REPS_PER_PATTERN can become 0 (i.e., stop hammering)
 //          REPS_PER_PATTERN =
 //              std::max(1,
-//                       (int) std::ceil((float) REPS_PER_PATTERN
-//                                           + ((1.0f/(float) num_successful_probes)
-//                                               *(float) (reproducibility_score - REPS_PER_PATTERN))));
-//          Logger::log_info(string_format("Updated REPS_PER_PATTERN: %d → %lu", old_reps_per_pattern, REPS_PER_PATTERN));
+//                  (int) std::ceil((float) REPS_PER_PATTERN
+//                      + ((1.0f/(float) num_successful_probes) * (float) (reproducibility_score - REPS_PER_PATTERN))));
+//          Logger::log_info(format_string("Updated REPS_PER_PATTERN: %d → %lu", old_reps_per_pattern, REPS_PER_PATTERN));
         }
 
         // wait a bit and do some random accesses before checking reproducibility of the pattern
@@ -165,7 +165,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       } while (cur_reproducibility_round <= reproducibility_rounds);
 
       // assign the computed reproducibility score to this pattern s.t. it is included in the JSON export
-      mapper.reproducibility_score = reproducibility_score;
+      mapper.reproducibility_score = (double)reproducibility_rounds_with_bitflips / (double)reproducibility_rounds;
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);
