@@ -78,11 +78,12 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
       Logger::log_info("Creating ASM code for hammering.");
       code_jitter.jit_strict(fuzzing_params,
-                             FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
-                             FENCING_STRATEGY::LATEST_POSSIBLE,
-                             hammering_accesses_vec,
-                             sync_at_each_ref,
-                             num_aggs_for_sync);
+          FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
+          FENCING_STRATEGY::LATEST_POSSIBLE,
+          hammering_accesses_vec,
+          sync_at_each_ref,
+          num_aggs_for_sync,
+          fuzzing_params.get_hammering_total_num_activations());
 
       // wait for a random time before starting to hammer, while waiting access random rows that are not part of the
       // currently hammering pattern; this wait interval serves for two purposes: to reset the sampler and start from a

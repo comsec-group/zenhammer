@@ -29,22 +29,31 @@ class CodeJitter {
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;
 
+ public:
   bool pattern_sync_each_ref;
 
- public:
+  FLUSHING_STRATEGY flushing_strategy;
+
+  FENCING_STRATEGY fencing_strategy;
+
+  int total_activations;
+
+  int num_aggs_for_sync;
+
   /// constructor
   CodeJitter();
-
+  
   /// destructor
   ~CodeJitter();
 
   /// generates the jitted function and assigns the function pointer fn to it
   void jit_strict(FuzzingParameterSet &fuzzing_params,
-                  FLUSHING_STRATEGY flushing_strategy,
-                  FENCING_STRATEGY fencing_strategy,
+                  FLUSHING_STRATEGY flushing,
+                  FENCING_STRATEGY fencing,
                   const std::vector<volatile char *> &aggressor_pairs,
                   bool sync_each_ref,
-                  int num_aggressors_for_sync);
+                  int num_aggressors_for_sync,
+                  int total_num_activations);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
   int hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose);

@@ -4,9 +4,13 @@
 #include <set>
 #include <map>
 #include <string>
-#include <Utilities/Logger.hpp>
 
-CodeJitter::CodeJitter() : pattern_sync_each_ref(false) {
+#include "Utilities/Logger.hpp"
+
+CodeJitter::CodeJitter()
+    : pattern_sync_each_ref(false),
+      flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
+      fencing_strategy(FENCING_STRATEGY::LATEST_POSSIBLE) {
 #ifdef ENABLE_JITTING
   logger = new asmjit::StringLogger;
 #endif
@@ -59,14 +63,19 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
 }
 
 void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
-                            FLUSHING_STRATEGY flushing_strategy,
-                            FENCING_STRATEGY fencing_strategy,
+                            FLUSHING_STRATEGY flushing,
+                            FENCING_STRATEGY fencing,
                             const std::vector<volatile char *> &aggressor_pairs,
                             bool sync_each_ref,
-                            int num_aggressors_for_sync) {
+                            int num_aggressors_for_sync,
+                            int total_num_activations) {
 
   // this is used by hammer_pattern but only for some stats calculations
-  pattern_sync_each_ref = sync_each_ref;
+  this->pattern_sync_each_ref = sync_each_ref;
+  this->flushing_strategy = flushing;
+  this->fencing_strategy = fencing;
+  this->total_activations = total_num_activations;
+  this->num_aggs_for_sync = num_aggressors_for_sync;
 
   // decides the number of aggressors of the beginning/end to be used for detecting the refresh interval
   // e.g., 10 means use the first 10 aggs in aggressor_pairs (repeatedly, if necessary) to detect the start refresh
@@ -87,16 +96,6 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
     Logger::log_error(
         "Function pointer is not NULL, cannot continue jitting code without leaking memory. Did you forget to call cleanup() before?");
     exit(1);
-  }
-
-  if (flushing_strategy!=FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
-    Logger::log_info(string_format("jit_strict does not support given FLUSHING_STRATEGY (%s).",
-                                   get_string(flushing_strategy).c_str()));
-  }
-
-  if (fencing_strategy!=FENCING_STRATEGY::LATEST_POSSIBLE && fencing_strategy!=FENCING_STRATEGY::OMIT_FENCING) {
-    Logger::log_info(string_format("jit_strict does not support given FENCING_STRATEGY (%s).",
-                                   get_string(fencing_strategy).c_str()));
   }
 
 #ifdef ENABLE_JITTING
@@ -153,7 +152,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   // ------- part 2: perform hammering ---------------------------------------------------------------------------------
 
   // initialize variables
-  a.mov(asmjit::x86::rsi, fuzzing_params.get_hammering_total_num_activations());
+  a.mov(asmjit::x86::rsi, total_num_activations);
   a.mov(asmjit::x86::edx, 0);  // num activations counter
 
   a.bind(for_begin);
@@ -163,25 +162,21 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
   std::unordered_map<uint64_t, bool> accessed_before;
 
-  size_t total_activations = 0;
+  size_t cnt_total_activations = 0;
 
   // hammer each aggressor once
   for (size_t i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
     auto cur_addr = (uint64_t) aggressor_pairs[i];
 
-    if ((flushing_strategy==FLUSHING_STRATEGY::LATEST_POSSIBLE || fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE)
-        && accessed_before[cur_addr]) {
-
+    if (accessed_before[cur_addr]) {
       // flush
-      if (flushing_strategy==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
+      if (flushing==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
         a.mov(asmjit::x86::rax, cur_addr);
         a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
         accessed_before[cur_addr] = false;
       }
-
-
       // fence to ensure flushing finished and defined order of aggressors is guaranteed
-      if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE) {
+      if (fencing==FENCING_STRATEGY::LATEST_POSSIBLE) {
         a.mfence();
         accessed_before[cur_addr] = false;
       }
@@ -192,19 +187,19 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
     a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
     accessed_before[cur_addr] = true;
     a.dec(asmjit::x86::rsi);
-    total_activations++;
+    cnt_total_activations++;
 
     // flush
-    if (flushing_strategy==FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
+    if (flushing==FLUSHING_STRATEGY::EARLIEST_POSSIBLE) {
       a.mov(asmjit::x86::rax, cur_addr);
       a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
     }
 
     if (sync_each_ref
-        && ((total_activations%fuzzing_params.get_num_activations_per_t_refi())==0)) {
+        && ((cnt_total_activations%fuzzing_params.get_num_activations_per_t_refi())==0)) {
       std::vector<volatile char *> aggs(aggressor_pairs.begin() + i,
-                                        std::min(aggressor_pairs.begin() + i + NUM_TIMED_ACCESSES,
-                                                 aggressor_pairs.end()));
+          std::min(aggressor_pairs.begin() + i + NUM_TIMED_ACCESSES,
+              aggressor_pairs.end()));
       sync_ref(aggs, a);
     }
   }
