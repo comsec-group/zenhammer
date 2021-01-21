@@ -94,7 +94,8 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
-void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns) {// a set to make sure we add victims only once
+void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns) {
+  // a set to make sure we add victims only once
   std::set<volatile char *> victim_addresses;
   victim_rows.clear();
   for (auto &acc_pattern : agg_access_patterns) {

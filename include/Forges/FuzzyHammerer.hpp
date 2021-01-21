@@ -5,11 +5,12 @@
 #include "Memory/Memory.hpp"
 
 class FuzzyHammerer {
-// private:
  public:
   // counter for the number of different locations where we tried the current pattern
   static size_t cnt_pattern_probes;
 
+  // this and cnt_pattern_probes are a workaround for the generate_pattern_for_ARM as we there somehow need to keep
+  // track of whether we need to generate new pattern or only randomize the mapping of an existing one
   static HammeringPattern hammering_pattern;
 
   static void do_random_accesses(std::vector<volatile char *> random_rows, size_t duration_us);
