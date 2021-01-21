@@ -178,15 +178,15 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
       if (flushing_strategy==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
         a.mov(asmjit::x86::rax, cur_addr);
         a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+        accessed_before[cur_addr] = false;
       }
 
 
       // fence to ensure flushing finished and defined order of aggressors is guaranteed
       if (fencing_strategy==FENCING_STRATEGY::LATEST_POSSIBLE) {
         a.mfence();
+        accessed_before[cur_addr] = false;
       }
-
-      accessed_before[cur_addr] = false;
     }
 
     // hammer
