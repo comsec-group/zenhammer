@@ -80,16 +80,22 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
     sum_found_bitflips += check_memory_internal(mapping, victim_row.first, victim_row.second, 0, reproducibility_mode,
                                                 verbose);
   }
-
   return sum_found_bitflips;
 }
 
-size_t Memory::check_memory(PatternAddressMapper &mapping,
-                            const volatile char *start,
-                            const volatile char *end,
-                            size_t check_margin_rows,
-                            bool reproducibility_mode) {
+size_t Memory::check_memory(const volatile char *start, const volatile char *end, size_t check_offset) {
+  flipped_bits.clear();
+  // create a "fake" pattern mapping to keep this method for backward compatibility
+  PatternAddressMapper pattern_mapping;
+  return check_memory_internal(pattern_mapping, start, end, check_offset, false, true);
+}
 
+size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
+                                     const volatile char *start,
+                                     const volatile char *end,
+                                     size_t check_margin_rows,
+                                     bool reproducibility_mode,
+                                     bool verbose) {
   size_t found_bitflips = 0;
 
   if ((start==nullptr || end==nullptr) || ((uint64_t) start >= (uint64_t) end)) {
@@ -155,6 +161,7 @@ size_t Memory::check_memory(PatternAddressMapper &mapping,
             mapping.bit_flips
                 .emplace_back(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
           }
+          flipped_bits.emplace_back(flipped_addr_dram);
           found_bitflips++;
         }
       }
@@ -169,12 +176,6 @@ size_t Memory::check_memory(PatternAddressMapper &mapping,
   }
 
   return found_bitflips;
-}
-
-void Memory::check_memory(const volatile char *start, const volatile char *end, size_t check_offset) {
-  // create a "fake" pattern mapping to keep this method for backward compatibility
-  PatternAddressMapper pattern_mapping;
-  check_memory(pattern_mapping, start, end, check_offset, false);
 }
 
 Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
