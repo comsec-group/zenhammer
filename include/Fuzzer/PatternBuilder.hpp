@@ -24,7 +24,9 @@ class PatternBuilder {
   /// default constructor that randomizes fuzzing parameters
   explicit PatternBuilder(HammeringPattern &hammering_pattern);
 
-  void generate_frequency_based_pattern(FuzzingParameterSet &fuzzing_params);
+  void generate_frequency_based_pattern(FuzzingParameterSet &params, int pattern_length, size_t base_period);
+
+  void generate_frequency_based_pattern(FuzzingParameterSet &params);
 
   size_t get_random_gaussian(std::vector<int> &list);
 
@@ -33,13 +35,19 @@ class PatternBuilder {
   static int all_slots_full(size_t offset, size_t period, int pattern_length, std::vector<Aggressor> &aggs);
 
   static void fill_slots(size_t start_period,
-                         size_t period,
+                         size_t period_length,
                          size_t amplitude,
                          std::vector<Aggressor> &aggressors,
                          std::vector<Aggressor> &accesses,
                          size_t pattern_length);
 
   void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors);
+
+  void prefill_pattern(int pattern_total_acts, std::vector<AggressorAccessPattern> &fixed_aggs);
+
+  std::vector<int> get_available_multiplicators(FuzzingParameterSet &fuzzing_params);
+
+  std::vector<int> get_available_multiplicators(int num_base_periods);
 };
 
 #endif /* PATTERNBUILDER */
