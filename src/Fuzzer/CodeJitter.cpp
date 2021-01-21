@@ -100,8 +100,6 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   }
 
 #ifdef ENABLE_JITTING
-  Logger::log_info("Creating ASM code for hammering.");
-
   asmjit::CodeHolder code;
   code.init(runtime.environment());
   code.setLogger(logger);

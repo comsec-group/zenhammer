@@ -76,6 +76,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       // now create instructions that follow this pattern (i.e., do jitting of code)
       bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
       int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
+      Logger::log_info("Creating ASM code for hammering.");
       code_jitter.jit_strict(fuzzing_params,
                              FLUSHING_STRATEGY::EARLIEST_POSSIBLE,
                              FENCING_STRATEGY::LATEST_POSSIBLE,
