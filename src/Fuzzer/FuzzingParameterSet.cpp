@@ -256,6 +256,10 @@ int FuzzingParameterSet::get_base_period() const {
   return base_period;
 }
 
+int FuzzingParameterSet::get_num_base_periods() const {
+  return get_total_acts_pattern()/get_base_period();
+}
+
 int FuzzingParameterSet::get_agg_intra_distance() const {
   return agg_intra_distance;
 }

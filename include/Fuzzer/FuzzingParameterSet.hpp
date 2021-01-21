@@ -109,6 +109,8 @@ class FuzzingParameterSet {
                                         int num_aggs_for_sync);
 
   int get_num_refresh_intervals() const;
+
+  int get_num_base_periods() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
