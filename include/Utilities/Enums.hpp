@@ -11,7 +11,9 @@ enum class FLUSHING_STRATEGY : int {
   LATEST_POSSIBLE = 2
 };
 
-std::string get_string(FLUSHING_STRATEGY strategy);
+std::string to_string(FLUSHING_STRATEGY strategy);
+
+void from_string(const std::string &strategy, FLUSHING_STRATEGY &dest);
 
 enum class FENCING_STRATEGY : int {
   // do not fence before accessing an aggressor even if it has been accessed before
@@ -22,7 +24,9 @@ enum class FENCING_STRATEGY : int {
   LATEST_POSSIBLE = 2,
 };
 
-std::string get_string(FENCING_STRATEGY strategy);
+std::string to_string(FENCING_STRATEGY strategy);
+
+void from_string(const std::string &strategy, FENCING_STRATEGY &dest);
 
 std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies();
 
