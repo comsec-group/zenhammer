@@ -19,7 +19,15 @@ void from_json(const nlohmann::json &j, AggressorAccessPattern &p) {
   p.aggressors = Aggressor::create_aggressors(agg_ids);
 }
 
-#endif
+bool operator==(const AggressorAccessPattern &lhs, const AggressorAccessPattern &rhs) {
+  return
+      lhs.frequency==rhs.frequency &&
+          lhs.amplitude==rhs.amplitude &&
+          lhs.start_offset==rhs.start_offset &&
+          // actually we should compare the aggressors here but we skip that because it would require us to implement a
+          // comparison function for Aggressor too
+          lhs.aggressors.size()==rhs.aggressors.size();
+}
 
 std::string AggressorAccessPattern::to_string() const {
   // creates a string of aggressor IDs like (id1, id2, ...)

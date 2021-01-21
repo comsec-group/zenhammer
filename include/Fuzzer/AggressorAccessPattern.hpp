@@ -36,8 +36,25 @@ class AggressorAccessPattern {
   std::string to_string() const;
 };
 
+bool operator==(const AggressorAccessPattern& lhs, const AggressorAccessPattern& rhs);
+
+// required to use this class with std::unordered_set or any associative container
+template<> struct std::hash<AggressorAccessPattern> {
+  std::size_t operator()(AggressorAccessPattern const& s) const noexcept {
+    std::size_t h1 = std::hash<size_t>{}(s.frequency);
+    std::size_t h2 = std::hash<int>{}(s.amplitude);
+    std::size_t h3 = std::hash<size_t>{}(s.start_offset);
+    std::size_t h4 = std::hash<size_t>{}(s.aggressors.size());
+    return h1 ^ (h3 << h2) ^ (h3 << h4);
+  }
+};
+
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const AggressorAccessPattern &p);
 
 void from_json(const nlohmann::json &j, AggressorAccessPattern &p);
+
+#endif
 
 #endif /* AGGRESSORACCESSPATTERN */
