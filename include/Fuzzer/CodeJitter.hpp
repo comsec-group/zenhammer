@@ -11,6 +11,10 @@
 #include <asmjit/asmjit.h>
 #endif
 
+#ifdef ENABLE_JSON
+#include <nlohmann/json.hpp>
+#endif
+
 class CodeJitter {
  private:
 #ifdef ENABLE_JITTING
@@ -51,5 +55,13 @@ class CodeJitter {
 
   static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
 };
+
+#ifdef ENABLE_JSON
+
+void to_json(nlohmann::json &j, const CodeJitter &p);
+
+void from_json(const nlohmann::json &j, CodeJitter &p);
+
+#endif
 
 #endif /* CODEJITTER */

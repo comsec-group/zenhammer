@@ -285,3 +285,24 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
   assembler.jmp(wbegin);  // ... or jump back to the loop's beginning
   assembler.bind(wend);
 }
+
+#ifdef ENABLE_JSON
+
+void to_json(nlohmann::json &j, const CodeJitter &p) {
+  j = {{"pattern_sync_each_ref", p.pattern_sync_each_ref},
+       {"flushing_strategy", to_string(p.flushing_strategy)},
+       {"fencing_strategy", to_string(p.fencing_strategy)},
+       {"total_activations", p.total_activations},
+       {"num_aggs_for_sync", p.num_aggs_for_sync}
+  };
+}
+
+void from_json(const nlohmann::json &j, CodeJitter &p) {
+  j.at("pattern_sync_each_ref").get_to(p.pattern_sync_each_ref);
+  from_string(j.at("flushing_strategy"), p.flushing_strategy);
+  from_string(j.at("fencing_strategy"), p.fencing_strategy);
+  j.at("total_activations").get_to(p.total_activations);
+  j.at("num_aggs_for_sync").get_to(p.num_aggs_for_sync);
+}
+
+#endif
