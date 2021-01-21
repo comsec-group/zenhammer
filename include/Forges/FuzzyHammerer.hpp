@@ -14,7 +14,6 @@ class FuzzyHammerer {
 
   static void do_random_accesses(std::vector<volatile char *> random_rows, size_t duration_us);
 
-
   static void n_sided_frequency_based_hammering(Memory &memory,
                                                 int acts,
                                                 long runtime_limit,

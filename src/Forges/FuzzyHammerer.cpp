@@ -1,6 +1,7 @@
 #include "Forges/FuzzyHammerer.hpp"
 
 #include <unordered_set>
+#include <complex>
 
 #include "Utilities/TimeHelper.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
@@ -21,8 +22,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
 
   FuzzingParameterSet fuzzing_params(acts);
   fuzzing_params.print_static_parameters();
-
-  CodeJitter code_jitter;
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -53,11 +52,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
                  hammering_pattern.agg_access_patterns.end(),
                  gen);
 
-
     // then test this pattern with N different address sets
     while (cnt_pattern_probes++ < probes_per_pattern) {
       // choose random addresses for pattern
       PatternAddressMapper mapper;
+      CodeJitter &code_jitter = mapper.get_code_jitter();
 
       Logger::log_info(string_format("Running pattern #%d (%s) for address set %d (%s).",
                                      cur_round,
@@ -71,6 +70,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       // now fill the pattern with these random addresses
       std::vector<volatile char *> hammering_accesses_vec;
       mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, hammering_accesses_vec);
+      Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
+      Logger::log_data(mapper.get_mapping_text_repr());
 
       // now create instructions that follow this pattern (i.e., do jitting of code)
       bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
@@ -291,9 +292,11 @@ void FuzzyHammerer::generate_pattern_for_ARM(int acts,
   pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
   // choose random addresses for pattern
-  PatternAddressMapper mapping;
-  mapping.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns);
-  mapping.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, rows_to_access, max_accesses);
+  PatternAddressMapper mapper;
+  mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns, true);
+  mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, rows_to_access, max_accesses);
+  Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
+  Logger::log_data(mapper.get_mapping_text_repr());
 }
 
 void FuzzyHammerer::do_random_accesses(const std::vector<volatile char *> random_rows, const size_t duration_us) {

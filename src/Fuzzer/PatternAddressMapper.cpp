@@ -1,18 +1,25 @@
-#include <set>
 #include "Fuzzer/PatternAddressMapper.hpp"
+
+#include <set>
+#include <memory>
+#include <iomanip>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
 
-PatternAddressMapper::PatternAddressMapper() : instance_id(uuid::gen_uuid()), reproducibility_score(0.0) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper()
+    : instance_id(uuid::gen_uuid()) { /* NOLINT */
+  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
   gen = std::mt19937(rd());
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
-                                               std::vector<AggressorAccessPattern> &agg_access_patterns) {
+                                               std::vector<AggressorAccessPattern> &agg_access_patterns,
+                                               bool verbose) {
   // clear any already existing mapping
   aggressor_to_addr.clear();
 
@@ -21,7 +28,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   bank_no = fuzzing_params.get_random_bank_no();
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   const int start_row = fuzzing_params.get_random_start_row();
-  FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
+  if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
 
   size_t cur_row = start_row;
 
@@ -93,14 +100,18 @@ void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern>
   for (auto &acc_pattern : agg_access_patterns) {
     for (auto &agg : acc_pattern.aggressors) {
       auto dram_addr = aggressor_to_addr.at(agg.id);
+
       for (int i = -5; i <= 5; ++i) {
-        auto cur_row_candidate = dram_addr.row + i;
+        auto cur_row_candidate = (int) dram_addr.row + i;
+        if (cur_row_candidate < 0) continue;
+
         auto victim_start = DRAMAddr(dram_addr.bank, cur_row_candidate, 0);
         if (victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
           victim_rows.emplace_back((volatile char *) victim_start.to_virt(),
-                                   (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
+              (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
           victim_addresses.insert((volatile char *) victim_start.to_virt());
         }
+
       }
     }
   }
@@ -114,7 +125,7 @@ void PatternAddressMapper::export_pattern_internal(
   bool invalid_aggs = false;
   std::stringstream pattern_str;
   for (size_t i = 0; i < aggressors.size(); ++i) {
-    // for better visualization: add blank line after each base period
+    // for better visualization: add linebreak after each base period
     if (i!=0 && (i%base_period)==0) {
       pattern_str << std::endl;
     }
@@ -145,29 +156,9 @@ void PatternAddressMapper::export_pattern_internal(
 
   if (invalid_aggs) {
     Logger::log_error(
-        "Found at least an invalid aggressor in the pattern. These aggressors were NOT added but printed to visualize their position.");
+        "Found at least an invalid aggressor in the pattern. "
+        "These aggressors were NOT added but printed to visualize their position.");
   }
-
-  // writes the agg_id -> DRAMAddr mapping into the log file
-  Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
-
-  // get all keys (this is to not assume that keys always must start by 1) and sort them
-  std::vector<int> keys;
-  for(auto const& map: aggressor_to_addr) keys.push_back(map.first);
-  std::sort(keys.begin(), keys.end());
-
-  // print all keys in a sorted way (ascending)
-  size_t cnt = 0;
-  std::stringstream mapping_str;
-  for (const auto &k : keys) {
-    if (cnt > 0 && cnt % 3 == 0) mapping_str << std::endl;
-    mapping_str << std::setw(3) << std::left << k
-                << " -> "
-                << std::setw(13) << std::left << aggressor_to_addr.at(k).to_string_compact()
-                << "   ";
-    cnt++;
-  }
-  Logger::log_data(mapping_str.str());
 }
 
 void PatternAddressMapper::export_pattern(
@@ -197,16 +188,43 @@ void PatternAddressMapper::export_pattern(
   }
 }
 
+std::string PatternAddressMapper::get_mapping_text_repr() {
+  // get all keys (this is to not assume that keys always must start by 1) and sort them
+  std::vector<int> keys;
+  for (auto const &map: aggressor_to_addr) keys.push_back(map.first);
+  std::sort(keys.begin(), keys.end());
+
+  // iterate over keys and build text representation
+  size_t cnt = 0;
+  std::stringstream mapping_str;
+  for (const auto &k : keys) {
+    if (cnt > 0 && cnt%3==0) mapping_str << std::endl;
+    mapping_str << std::setw(3) << std::left << k
+                << " -> "
+                << std::setw(13) << std::left << aggressor_to_addr.at(k).to_string_compact()
+                << "   ";
+    cnt++;
+  }
+
+  return mapping_str.str();
+}
+
 #ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
+  if (p.code_jitter==nullptr) {
+    Logger::log_error("CodeJitter is nullptr! Cannot serialize PatternAddressMapper without causing segfault.");
+    return;
+  }
+
   j = nlohmann::json{{"id", p.get_instance_id()},
                      {"aggressor_to_addr", p.aggressor_to_addr},
                      {"bit_flips", p.bit_flips},
                      {"min_row", p.min_row},
                      {"max_row", p.max_row},
                      {"bank_no", p.bank_no},
-                     {"reproducibility_score", p.reproducibility_score}
+                     {"reproducibility_score", p.reproducibility_score},
+                     {"code_jitter", *p.code_jitter}
   };
 }
 
@@ -218,6 +236,8 @@ void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("max_row").get_to(p.max_row);
   j.at("bank_no").get_to(p.bank_no);
   j.at("reproducibility_score").get_to(p.reproducibility_score);
+  p.code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  j.at("code_jitter").get_to(*p.code_jitter);
 }
 
 #endif
@@ -242,4 +262,62 @@ std::vector<volatile char *> PatternAddressMapper::get_random_nonaccessed_rows(i
     addresses.push_back((volatile char *) DRAMAddr(bank_no, row_no, 0).to_virt());
   }
   return addresses;
+}
+
+void PatternAddressMapper::shift_mapping(int rows) {
+  std::set<int> occupied_rows;
+  for (auto &agg_acc_patt : aggressor_to_addr) {
+    agg_acc_patt.second.row += rows;
+    occupied_rows.insert(agg_acc_patt.second.row);
+  }
+  // this works as sets are always ordered
+  min_row = *occupied_rows.begin();
+  max_row = *occupied_rows.rbegin();
+}
+
+CodeJitter &PatternAddressMapper::get_code_jitter() const {
+  return *code_jitter.get();
+}
+
+PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
+    : victim_rows(other.victim_rows),
+      instance_id(other.instance_id),
+      min_row(other.min_row),
+      max_row(other.max_row),
+      bank_no(other.bank_no),
+      aggressor_to_addr(other.aggressor_to_addr),
+      bit_flips(other.bit_flips),
+      reproducibility_score(other.reproducibility_score) {
+  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
+  code_jitter->total_activations = other.get_code_jitter().total_activations;
+  code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
+  code_jitter->flushing_strategy = other.get_code_jitter().flushing_strategy;
+  code_jitter->pattern_sync_each_ref = other.get_code_jitter().pattern_sync_each_ref;
+  std::random_device rd;
+  gen = std::mt19937(rd());
+}
+
+PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper &other) {
+  if (this==&other) return *this;
+  victim_rows = other.victim_rows;
+  instance_id = other.instance_id;
+  gen = other.gen;
+
+  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
+  code_jitter->total_activations = other.get_code_jitter().total_activations;
+  code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
+  code_jitter->flushing_strategy = other.get_code_jitter().flushing_strategy;
+  code_jitter->pattern_sync_each_ref = other.get_code_jitter().pattern_sync_each_ref;
+
+  min_row = other.min_row;
+  max_row = other.max_row;
+  bank_no = other.bank_no;
+
+  aggressor_to_addr = other.aggressor_to_addr;
+  bit_flips = other.bit_flips;
+  reproducibility_score = other.reproducibility_score;
+
+  return *this;
 }
