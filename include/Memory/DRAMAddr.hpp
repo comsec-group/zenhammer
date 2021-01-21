@@ -73,8 +73,12 @@ class DRAMAddr {
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 };
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const DRAMAddr &p);
 
 void from_json(const nlohmann::json &j, DRAMAddr &p);
+
+#endif
 
 #endif /* DRAMADDR */

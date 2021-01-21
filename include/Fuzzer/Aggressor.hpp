@@ -31,8 +31,12 @@ class Aggressor {
   static std::vector<Aggressor> create_aggressors(const std::vector<AGGRESSOR_ID_TYPE> &agg_ids);
 };
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const Aggressor &p);
 
 void from_json(const nlohmann::json &j, Aggressor &p);
+
+#endif
 
 #endif /* AGGRESSOR */

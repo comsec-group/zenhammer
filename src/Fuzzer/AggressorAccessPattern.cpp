@@ -19,6 +19,8 @@ void from_json(const nlohmann::json &j, AggressorAccessPattern &p) {
   p.aggressors = Aggressor::create_aggressors(agg_ids);
 }
 
+#endif
+
 bool operator==(const AggressorAccessPattern &lhs, const AggressorAccessPattern &rhs) {
   return
       lhs.frequency==rhs.frequency &&

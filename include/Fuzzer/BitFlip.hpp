@@ -19,8 +19,12 @@ class BitFlip {
   BitFlip(const DRAMAddr &address, uint8_t bitmask, uint8_t data);
 };
 
+#ifdef ENABLE_JSON
+
 void to_json(nlohmann::json &j, const BitFlip &p);
 
 void from_json(const nlohmann::json &j, BitFlip &p);
+
+#endif
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_BITFLIP_HPP_

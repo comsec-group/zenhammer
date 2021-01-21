@@ -1,7 +1,6 @@
 #include "Blacksmith.hpp"
 
 #include <cstdlib>
-#include <cstdint>
 #include <sys/mman.h>
 #include <sys/resource.h>
 
@@ -25,7 +24,7 @@ int main(int argc, char **argv) {
       "=================================================================================================");
 #endif
 
-  // process parameter '-generate_patterns'
+  // process parameter '-generate_patterns' (for ARM)
   const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
   if (cmd_parameter_exists(argv, argv + argc, ARG_GENERATE_PATTERN)) {
     size_t acts = strtoul(get_cmd_parameter(argv, argv + argc, ARG_GENERATE_PATTERN), nullptr, 10);
