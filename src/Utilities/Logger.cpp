@@ -65,7 +65,7 @@ std::string Logger::format_timestamp(unsigned long ts) {
 void Logger::log_timestamp() {
   std::stringstream ss;
   auto current_time = (unsigned long) time(nullptr);
-  ss << "Remaining execution time: "
+  ss << "Time elapsed: "
      << format_timestamp(current_time - instance.timestamp_start)
      << ".";
   log_info(ss.str());
