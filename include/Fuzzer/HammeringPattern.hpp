@@ -16,6 +16,9 @@
 #include "PatternAddressMapper.hpp"
 
 class HammeringPattern {
+ private:
+  int get_num_digits(size_t x);
+
  public:
   std::string instance_id;
 
@@ -42,6 +45,12 @@ class HammeringPattern {
   HammeringPattern();
 
   explicit HammeringPattern(size_t base_period);
+
+  std::string get_pattern_text_repr();
+
+  std::string get_agg_access_pairs_text_repr();
+
+  AggressorAccessPattern &get_access_pattern_by_aggressor(Aggressor &agg);
 };
 
 #ifdef ENABLE_JSON
