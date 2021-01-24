@@ -29,7 +29,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     Logger::log_analysis_stage("1:1 REPLAYING");
     const auto num_reps_org_replaying = 1;
     size_t best_mapping_bitflips = 0;
-    std::string best_mapping_instance_id;
+    std::string best_mapping_instance_id = "ANY";
     for (auto it = patt.address_mappings.begin(); it!=patt.address_mappings.end(); ++it) {
       Logger::log_info(format_string("Mapping %s given as agg ID -> (bank,rank,column):",
           (*it).get_instance_id().c_str()));
@@ -59,6 +59,10 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     // strategy: remove all patterns except the one that triggered the most bit flips
     Logger::log_info(format_string("Keeping mapping %s as it triggered the most bit flips.",
         best_mapping_instance_id.c_str()));
+    // if we run this on another DIMM, we just want to take any mapping because none of the existing mappings may work
+    if (best_mapping_bitflips == 0) {
+      best_mapping_instance_id = patt.address_mappings.begin()->get_instance_id();
+    }
     for (auto it = patt.address_mappings.begin(); it!=patt.address_mappings.end();) {
       if ((*it).get_instance_id()!=best_mapping_instance_id) {
         it = patt.address_mappings.erase(it);
