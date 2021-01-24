@@ -156,7 +156,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // == fix values/formulas that must be configured before running this program ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
+  agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
@@ -185,11 +185,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range<int>(21, 384).get_random_number(gen);
+  num_aggressors = Range<int>(5, 32).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 6).get_random_number(gen));
+  num_refresh_intervals = std::pow(2, Range<int>(0, 7).get_random_number(gen));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
