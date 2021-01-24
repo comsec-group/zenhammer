@@ -45,8 +45,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
     PatternBuilder pattern_builder(hammering_pattern);
     pattern_builder.generate_frequency_based_pattern(fuzzing_params);
 
-    //  Logger::log_info("Abstract pattern based on aggressor IDs:");
-//  Logger::log_data(pattern.get_pattern_text_repr());
+    Logger::log_info("Abstract pattern based on aggressor IDs:");
+    Logger::log_data(hammering_pattern.get_pattern_text_repr());
     Logger::log_info("Aggressor pairs, given as \"(id ...) : freq, amp, start_offset\":");
     Logger::log_data(hammering_pattern.get_agg_access_pairs_text_repr());
 
@@ -54,8 +54,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
     // rows in order of the AggressorAccessPatterns map
     // (e.g., the first element in AggressorAccessPatterns is assigned to the lowest DRAM row).
     std::shuffle(hammering_pattern.agg_access_patterns.begin(),
-                 hammering_pattern.agg_access_patterns.end(),
-                 gen);
+        hammering_pattern.agg_access_patterns.end(),
+        gen);
 
     // then test this pattern with N different address sets
     while (cnt_pattern_probes++ < probes_per_pattern) {
@@ -172,7 +172,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory,
       } while (cur_reproducibility_round <= reproducibility_rounds);
 
       // assign the computed reproducibility score to this pattern s.t. it is included in the JSON export
-      mapper.reproducibility_score = (double)reproducibility_rounds_with_bitflips / (double)reproducibility_rounds;
+      mapper.reproducibility_score = (double) reproducibility_rounds_with_bitflips/(double) reproducibility_rounds;
 
       // it is important that we store this mapper after we did memory.check_memory to include the found BitFlip
       hammering_pattern.address_mappings.push_back(mapper);
