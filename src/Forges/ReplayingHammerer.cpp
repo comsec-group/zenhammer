@@ -138,7 +138,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(sweep_MB);
       auto row_end = DRAMAddr((void *) max_address).row;
       auto num_rows = row_end - row_start;
-      const int num_reps_per_address = 2;
+      const int num_reps_per_address = 100; // TODO: set this based on reproducibility score
       Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
           sweep_MB, num_rows, num_reps_per_address));
 
@@ -160,7 +160,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
         // call hammer_pattern
         size_t num_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            10, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false);
+            num_reps_per_address, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false);
 
         init_ss(ss);
         ss << std::setw(10) << r << std::setw(12) << mapper.min_row
