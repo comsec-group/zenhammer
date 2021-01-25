@@ -26,10 +26,10 @@ class Memory {
   size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start, const volatile char *end,
                                size_t check_margin_rows, bool reproducibility_mode, bool verbose);
 
+ public:
+
   // the flipped bits detected during the last call to check_memory
   std::vector<DRAMAddr> flipped_bits;
-
- public:
 
   explicit Memory(bool use_superpage);
 
