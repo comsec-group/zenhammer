@@ -10,6 +10,9 @@ class ReplayingHammerer {
                                                                        const char *pattern_ids);
 
  public:
+
+  static double last_reproducibility_score;
+
   static size_t hammer_pattern(Memory &memory,
                                FuzzingParameterSet &fuzz_params,
                                CodeJitter &code_jitter,
@@ -23,7 +26,9 @@ class ReplayingHammerer {
                                int num_activations,
                                bool verbose_sync,
                                bool verbose_memcheck,
-                               bool verbose_params);
+                               bool verbose_params,
+                               bool wait_before_hammering,
+                               bool check_flips_after_each_rep);
 
   static void replay_patterns(Memory &mem, const char *json_filename, const char *pattern_ids, int acts_per_tref);
 };

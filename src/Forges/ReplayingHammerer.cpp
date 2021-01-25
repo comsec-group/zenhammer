@@ -8,6 +8,9 @@
 #define M(VAL) (VAL ## 000000)
 #define K(VAL) (VAL ## 000)
 
+// initialize static variable
+double ReplayingHammerer::last_reproducibility_score = 0;
+
 void ReplayingHammerer::replay_patterns(Memory &mem,
                                         const char *json_filename,
                                         const char *pattern_ids,
@@ -17,9 +20,10 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
   std::random_device rd;
   std::mt19937 gen(rd());
 
+  int num_reps;
+
   // replay each loaded patter
   for (auto &patt : patterns) {
-
     const int pattern_total_acts = patt.total_activations;
 
     // ==== 1:1 Replaying to test if original pattern/replaying works =================================================
@@ -27,9 +31,12 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     // try the original location where this pattern initially triggered a bit flip to be sure we are trying a pattern
     // that actually works when replaying it
     Logger::log_analysis_stage("1:1 REPLAYING");
-    const auto num_reps_org_replaying = 10;
+    const auto num_reps_org_replaying = 150;
+    Logger::log_info(format_string("Trying pattern with original mapping (from JSON) using %d repetitions.",
+        num_reps_org_replaying));
     size_t best_mapping_bitflips = 0;
     std::string best_mapping_instance_id = "ANY";
+    double best_reproducibility_score = 0;
     for (auto it = patt.address_mappings.begin(); it!=patt.address_mappings.end(); ++it) {
       Logger::log_info(format_string("Mapping %s given as agg ID -> (bank,rank,column):",
           (*it).get_instance_id().c_str()));
@@ -38,12 +45,13 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       CodeJitter &jitter = *(*it).code_jitter;
       size_t triggered_bitflips = hammer_pattern(mem, params, jitter, patt, *it, jitter.flushing_strategy,
           jitter.fencing_strategy, num_reps_org_replaying, jitter.pattern_sync_each_ref, jitter.num_aggs_for_sync,
-          M(10), false, false, false);
+          jitter.total_activations, false, false, false, true, true);
 
       Logger::log_success(format_string("Mapping triggered %d bit flips.", triggered_bitflips));
       if (triggered_bitflips > best_mapping_bitflips) {
         best_mapping_bitflips = triggered_bitflips;
         best_mapping_instance_id = (*it).get_instance_id();
+        best_reproducibility_score = ReplayingHammerer::last_reproducibility_score;
       }
 
       // strategy: keep all mappings that produce bit flips
@@ -60,13 +68,20 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     Logger::log_info(format_string("Keeping mapping %s as it triggered the most bit flips.",
         best_mapping_instance_id.c_str()));
     // if we run this on another DIMM, we just want to take any mapping because none of the existing mappings may work
-    if (best_mapping_bitflips == 0) {
+    if (best_mapping_bitflips==0) {
       best_mapping_instance_id = patt.address_mappings.begin()->get_instance_id();
     }
     for (auto it = patt.address_mappings.begin(); it!=patt.address_mappings.end();) {
       if ((*it).get_instance_id()!=best_mapping_instance_id) {
         it = patt.address_mappings.erase(it);
       } else {
+        // e.g., if reproducibility_score = 0.1, i.e., we trigger a bit flips in 1/10 times, we compute
+        // (1/0.1) * 1.2 = 12 as the number of repetitions we need to do to trigger the bit flip
+        num_reps =
+            (best_reproducibility_score > 0)
+            ? (int) std::ceil((1.0f/best_reproducibility_score)*2.0)
+            : 150;
+        Logger::log_info(format_string("Given the measured reproducibility score, we set num_reps to %d.", num_reps));
         it++;
       }
     }
@@ -74,7 +89,6 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     // ==== Slightly modify execution/pattern by changing single parameters ============================================
 
     // configuration
-    const auto num_reps = 10;
     bool verbose_sync = false;
     bool verbose_memcheck = false;
     bool verbose_params = false;
@@ -92,37 +106,54 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       Logger::log_highlight(format_string("Analyzing pattern %s using mapping %s.",
           patt.instance_id.c_str(), mapper.get_instance_id().c_str()));
 
-      // execution probing: systematically randomize parameters that decide how a pattern is executed
-      Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
-      // - FLUSHING_STRATEGY / FENCING_STRATEGY
-      for (const auto &ff_strategy : get_valid_strategies()) {
-        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, ff_strategy.first, ff_strategy.second,
-            num_reps, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params);
-        Logger::log_info(format_string("FLUSHING_STRATEGY = %-17s, FENCING_STRATEGY = %-19s => %d bit flips",
-            to_string(ff_strategy.first).c_str(),
-            to_string(ff_strategy.second).c_str(),
-            num_bit_flips));
+      // ==== Experiment: Does alignment play a role?
+
+      Logger::log_analysis_stage("Experiment: Alignment");
+      Logger::log_info("Hammering pattern for 10x100M activations.");
+      {
+        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
+            10, sync_each_ref, num_sync_aggs, M(100), verbose_sync, verbose_memcheck, verbose_params, false, true);
+        Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
       }
+
+      Logger::log_info("Hammering pattern for 10x10M activations.");
+      {
+        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy, 10,
+            sync_each_ref, num_sync_aggs, M(10), verbose_sync, verbose_memcheck, verbose_params, false, true);
+        Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
+      }
+
+      // ==== Execution probing: systematically randomize parameters that decide how a pattern is executed
+      Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
+//      // - FLUSHING_STRATEGY / FENCING_STRATEGY
+//      for (const auto &ff_strategy : get_valid_strategies()) {
+//        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, ff_strategy.first, ff_strategy.second,
+//            num_reps, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params);
+//        Logger::log_info(format_string("FLUSHING_STRATEGY = %-17s, FENCING_STRATEGY = %-19s => %d bit flips",
+//            to_string(ff_strategy.first).c_str(),
+//            to_string(ff_strategy.second).c_str(),
+//            num_bit_flips));
+//      }
 
       // - sync_each_ref
       for (auto &sync : {true, false}) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync, num_sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params);
+            num_reps, sync, num_sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params, true, true);
         Logger::log_info(format_string("sync_each_ref = %-8s => %d bit flips",
             (sync ? "true" : "false"), num_bit_flips));
       }
 
       // - num_aggs_for_sync
-      for (const auto &sync_aggs : {1, 2, 3, 4}) {
+      for (const auto &sync_aggs : {1, 2}) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync_each_ref, sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params);
+            num_reps, sync_each_ref, sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params, true, true);
         Logger::log_info(format_string("num_aggs_for_sync = %-7d => %d bit flips", sync_aggs, num_bit_flips));
       }
 
       // - hammering_total_num_activations
-      for (int a = M(10); a > K(500); a -= K(500)) {
+      for (int a = M(10); a > M(1); a -= M(1)) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync_each_ref, num_sync_aggs, a, verbose_sync, verbose_memcheck, verbose_params);
+            num_reps, sync_each_ref, num_sync_aggs, a, verbose_sync, verbose_memcheck, verbose_params, true, true);
         Logger::log_info(format_string("total_num_acts_hammering = %-12d => %d bit flips", a, num_bit_flips));
       }
 
@@ -130,7 +161,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       Logger::log_analysis_stage("SPATIAL PROBING");
       // a. sweep over a chunk of N MByte to see whether this pattern also works on other locations
       // compute the bound of the memory area we want to check using this pattern
-      auto sweep_MB = 64;
+      auto sweep_MB = 256;
 #ifdef DEBUG_SAMSUNG
       sweep_MB = 1; // 8 rows
 #endif
@@ -138,9 +169,8 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(sweep_MB);
       auto row_end = DRAMAddr((void *) max_address).row;
       auto num_rows = row_end - row_start;
-      const int num_reps_per_address = 100; // TODO: set this based on reproducibility score
       Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
-          sweep_MB, num_rows, num_reps_per_address));
+          sweep_MB, num_rows, num_reps));
 
       auto init_ss = [](std::stringstream &stringstream) {
         stringstream.str("");
@@ -160,7 +190,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
         // call hammer_pattern
         size_t num_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps_per_address, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false);
+            num_reps, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false, true, true);
 
         init_ss(ss);
         ss << std::setw(10) << r << std::setw(12) << mapper.min_row
@@ -248,7 +278,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
         // do jitting + hammering
         size_t num_triggered_bitflips = hammer_pattern(mem, params, jitter, patt, mapper, jitter.flushing_strategy,
             jitter.fencing_strategy, num_reps, jitter.pattern_sync_each_ref,
-            jitter.num_aggs_for_sync, jitter.total_activations, false, false, false);
+            jitter.num_aggs_for_sync, jitter.total_activations, false, false, false, true, true);
 
         // check if pattern still triggers bit flip to see whether this AggressorAccessPattern matters
         if (num_triggered_bitflips > 0) {
@@ -398,7 +428,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
               mapper.randomize_addresses(params, patt.agg_access_patterns, false);
               auto num_bitflips = ReplayingHammerer::hammer_pattern(mem, params, jitter, patt, mapper,
                   flushing_strategy, fencing_strategy, fpa_probing_num_reps, sync_each_ref, num_sync_aggs, total_acts,
-                  false, false, false);
+                  false, false, false, true, true);
               if (num_bitflips==0) {
                 Logger::log_failure("No bit flips found.");
               } else {
@@ -422,6 +452,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       }
     }
   }
+
 }
 
 std::vector<HammeringPattern> ReplayingHammerer::get_matching_patterns_from_json(const char *json_filename,
@@ -464,12 +495,23 @@ std::vector<HammeringPattern> ReplayingHammerer::get_matching_patterns_from_json
   return patterns;
 }
 
-size_t ReplayingHammerer::hammer_pattern(Memory &memory, FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter,
-                                         HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                         FLUSHING_STRATEGY flushing_strategy, FENCING_STRATEGY fencing_strategy,
-                                         unsigned long num_reps, bool sync_each_ref, int aggressors_for_sync,
-                                         int num_activations, bool verbose_sync, bool verbose_memcheck,
-                                         bool verbose_params) {
+size_t ReplayingHammerer::hammer_pattern(Memory &memory,
+                                         FuzzingParameterSet &fuzz_params,
+                                         CodeJitter &code_jitter,
+                                         HammeringPattern &pattern,
+                                         PatternAddressMapper &mapper,
+                                         FLUSHING_STRATEGY flushing_strategy,
+                                         FENCING_STRATEGY fencing_strategy,
+                                         unsigned long num_reps,
+                                         bool sync_each_ref,
+                                         int aggressors_for_sync,
+                                         int num_activations,
+                                         bool verbose_sync,
+                                         bool verbose_memcheck,
+                                         bool verbose_params,
+                                         bool wait_before_hammering,
+                                         bool check_flips_after_each_rep) {
+  size_t reps_with_bitflips = 0;
   size_t num_bitflips = 0;
 
   // load victims for memory check
@@ -483,14 +525,19 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory, FuzzingParameterSet &fu
   code_jitter.jit_strict(fuzz_params, flushing_strategy, fencing_strategy, hammering_accesses_vec, sync_each_ref,
       aggressors_for_sync, num_activations);
 
+  // dirty hack to get correct output of flipped rows
+  std::vector<DRAMAddr> flipped_bits_acc;
+
   for (unsigned long num_tries = 0; num_tries < num_reps; num_tries++) {
     // TODO: Analyze using Hynix whether this waiting really makes sense, otherwise remove it
     // wait a specific time while doing some random accesses before starting hammering
     auto wait_until_hammering_us = fuzz_params.get_random_wait_until_start_hammering_microseconds();
+
     if (verbose_params) {
       FuzzingParameterSet::print_dynamic_parameters2(sync_each_ref, wait_until_hammering_us, aggressors_for_sync);
     }
-    if (wait_until_hammering_us > 0) {
+
+    if (wait_before_hammering && wait_until_hammering_us > 0) {
       std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(fuzz_params.get_max_row_no());
       FuzzyHammerer::do_random_accesses(random_rows, wait_until_hammering_us);
     }
@@ -498,10 +545,18 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory, FuzzingParameterSet &fu
     // do hammering
     code_jitter.hammer_pattern(fuzz_params, verbose_sync);
 
-    // check if any bit flips happened
-    // it's important that we run in reproducibility mode, otherwise the bitflips vec in the mapping is changed!
-    num_bitflips += memory.check_memory(mapper, true, verbose_memcheck);
+    if (check_flips_after_each_rep || num_tries==num_reps - 1) {
+      // check if any bit flips happened
+      // it's important that we run in reproducibility mode, otherwise the bit flips vec in the mapping is changed!
+      num_bitflips += memory.check_memory(mapper, true, verbose_memcheck);
+      reps_with_bitflips += (num_bitflips > 0);
+      flipped_bits_acc.insert(flipped_bits_acc.end(), memory.flipped_bits.begin(), memory.flipped_bits.end());
+    }
   }
+
+  ReplayingHammerer::last_reproducibility_score = (int) std::ceil(reps_with_bitflips/num_reps);
+
+  memory.flipped_bits = std::move(flipped_bits_acc);
 
   code_jitter.cleanup();
 
