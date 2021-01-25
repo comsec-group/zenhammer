@@ -27,7 +27,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     // try the original location where this pattern initially triggered a bit flip to be sure we are trying a pattern
     // that actually works when replaying it
     Logger::log_analysis_stage("1:1 REPLAYING");
-    const auto num_reps_org_replaying = 1;
+    const auto num_reps_org_replaying = 10;
     size_t best_mapping_bitflips = 0;
     std::string best_mapping_instance_id = "ANY";
     for (auto it = patt.address_mappings.begin(); it!=patt.address_mappings.end(); ++it) {
@@ -38,7 +38,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       CodeJitter &jitter = *(*it).code_jitter;
       size_t triggered_bitflips = hammer_pattern(mem, params, jitter, patt, *it, jitter.flushing_strategy,
           jitter.fencing_strategy, num_reps_org_replaying, jitter.pattern_sync_each_ref, jitter.num_aggs_for_sync,
-          jitter.total_activations, false, false, false);
+          M(10), false, false, false);
 
       Logger::log_success(format_string("Mapping triggered %d bit flips.", triggered_bitflips));
       if (triggered_bitflips > best_mapping_bitflips) {
@@ -74,7 +74,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
     // ==== Slightly modify execution/pattern by changing single parameters ============================================
 
     // configuration
-    const auto num_reps = 2;
+    const auto num_reps = 10;
     bool verbose_sync = false;
     bool verbose_memcheck = false;
     bool verbose_params = false;
@@ -160,7 +160,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
         // call hammer_pattern
         size_t num_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            1, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false);
+            10, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false);
 
         init_ss(ss);
         ss << std::setw(10) << r << std::setw(12) << mapper.min_row
@@ -220,55 +220,55 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
         direct_effective_aggs.insert(fr.second.second);
       }
 
-//      // a. change temporal access pattern
-//      // change mapping of AggressorAccessPatterns, those which don't cause the bit flip, one-by-one then check if pattern still
-//      // triggers bit flips, if so, continue checking the next one otherwise revert change and the continue with next one
-//      // at the end report which of the AggressorAccessPattern are really necessary to trigger the bit flip
+      // a. change temporal access pattern
+      // change mapping of AggressorAccessPatterns, those which don't cause the bit flip, one-by-one then check if pattern still
+      // triggers bit flips, if so, continue checking the next one otherwise revert change and the continue with next one
+      // at the end report which of the AggressorAccessPattern are really necessary to trigger the bit flip
       std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
-//      for (const auto &agg_pair : patt.agg_access_patterns) {
-//        // if this is the aggressor access pattern that caused the bit flip: skip it
-//        if (direct_effective_aggs.count(agg_pair) > 0) continue;
-//
-//        // store old location of aggressors in this aggressor access pattern
-//        std::unordered_map<int, DRAMAddr> old_mappings;
-//        // store the lowest row number of the aggressors as we will later need it to compute its new row
-//        unsigned long lowest_row_no = std::numeric_limits<unsigned long>::max();
-//        for (const auto agg : agg_pair.aggressors) {
-//          old_mappings[agg.id] = cur_mapping.at(agg.id);
-//          lowest_row_no = std::min(lowest_row_no, old_mappings[agg.id].row);
-//        }
-//
-//        // randomize row of this aggressor by mapping it to a row outside of the [min,max] area of the current pattern
-//        auto max_row = params.get_max_row_no();
-//        auto offset = (mapper.max_row - lowest_row_no + Range<int>(1, 256).get_random_number(gen))%max_row;
-//        for (const auto agg : agg_pair.aggressors) {
-//          cur_mapping.at(agg.id).row += offset;
-//        }
-//
-//        // do jitting + hammering
-//        size_t num_triggered_bitflips = hammer_pattern(mem, params, jitter, patt, mapper, jitter.flushing_strategy,
-//            jitter.fencing_strategy, num_reps, jitter.pattern_sync_each_ref,
-//            jitter.num_aggs_for_sync, jitter.total_activations, false, false, false);
-//
-//        // check if pattern still triggers bit flip to see whether this AggressorAccessPattern matters
-//        if (num_triggered_bitflips > 0) {
-//          Logger::log_info(
-//              format_string("Shifting agg pair [%s] by %d rows.\n"
-//                            "Found %d bit flips  => agg pair is non-essential.",
-//                  agg_pair.to_string().c_str(), offset, num_triggered_bitflips));
-//        } else {
-//          Logger::log_success(
-//              format_string("Shifting agg pair [%s] by %d rows.\n"
-//                            "Found no bit flips anymore  => agg pair is essential.",
-//                  agg_pair.to_string().c_str(), offset));
-//          // mark this AggressorAccessPattern as effective/essential for trigger bit flips
-//          indirect_effective_aggs.insert(agg_pair);
-//          // restore the original mapping as this AggressorAccessPattern matters!
-//          for (const auto agg : agg_pair.aggressors) cur_mapping[agg.id] = old_mappings[agg.id];
-//        }
-//      }
-//      Logger::log_info("Mapping after randomizing all non-effective aggressor pairs:");
-//      Logger::log_data(mapper.get_mapping_text_repr());
+      for (const auto &agg_pair : patt.agg_access_patterns) {
+        // if this is the aggressor access pattern that caused the bit flip: skip it
+        if (direct_effective_aggs.count(agg_pair) > 0) continue;
+
+        // store old location of aggressors in this aggressor access pattern
+        std::unordered_map<int, DRAMAddr> old_mappings;
+        // store the lowest row number of the aggressors as we will later need it to compute its new row
+        unsigned long lowest_row_no = std::numeric_limits<unsigned long>::max();
+        for (const auto agg : agg_pair.aggressors) {
+          old_mappings[agg.id] = cur_mapping.at(agg.id);
+          lowest_row_no = std::min(lowest_row_no, old_mappings[agg.id].row);
+        }
+
+        // randomize row of this aggressor by mapping it to a row outside of the [min,max] area of the current pattern
+        auto max_row = params.get_max_row_no();
+        auto offset = (mapper.max_row - lowest_row_no + Range<int>(1, 256).get_random_number(gen))%max_row;
+        for (const auto agg : agg_pair.aggressors) {
+          cur_mapping.at(agg.id).row += offset;
+        }
+
+        // do jitting + hammering
+        size_t num_triggered_bitflips = hammer_pattern(mem, params, jitter, patt, mapper, jitter.flushing_strategy,
+            jitter.fencing_strategy, num_reps, jitter.pattern_sync_each_ref,
+            jitter.num_aggs_for_sync, jitter.total_activations, false, false, false);
+
+        // check if pattern still triggers bit flip to see whether this AggressorAccessPattern matters
+        if (num_triggered_bitflips > 0) {
+          Logger::log_info(
+              format_string("Shifting agg pair [%s] by %d rows.\n"
+                            "Found %d bit flips  => agg pair is non-essential.",
+                  agg_pair.to_string().c_str(), offset, num_triggered_bitflips));
+        } else {
+          Logger::log_success(
+              format_string("Shifting agg pair [%s] by %d rows.\n"
+                            "Found no bit flips anymore  => agg pair is essential.",
+                  agg_pair.to_string().c_str(), offset));
+          // mark this AggressorAccessPattern as effective/essential for trigger bit flips
+          indirect_effective_aggs.insert(agg_pair);
+          // restore the original mapping as this AggressorAccessPattern matters!
+          for (const auto agg : agg_pair.aggressors) cur_mapping[agg.id] = old_mappings[agg.id];
+        }
+      }
+      Logger::log_info("Mapping after randomizing all non-effective aggressor pairs:");
+      Logger::log_data(mapper.get_mapping_text_repr());
 
       // b. change temporal props, which decide how the pattern is accessed, only for agg(s) that triggered bit flip
       // systematically test combinations of (amplitude, frequency, phase) for this aggressor access pattern
