@@ -127,8 +127,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   N_sided = Range<int>(1, 2);
 
   // [exported as part of AggressorAccessPattern]
-  // choosing as max 'base_period/N_sided.min' allows hammering an aggressor for a whole base period
-  amplitude = Range<int>(1, base_period/N_sided.min);
+  // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
+  // we set the upper bound in dependent of N_sided.min but exclude 1 because an amplitude>1 does not make sense for a
+  // single aggressor
+  amplitude = Range<int>(1, num_activations_per_tREFI/(N_sided.min == 1 ? 2 : N_sided.min));
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
