@@ -13,7 +13,7 @@ double ReplayingHammerer::last_reproducibility_score = 0;
 
 void ReplayingHammerer::replay_patterns(Memory &mem,
                                         const char *json_filename,
-                                        const char *pattern_ids,
+                                        const std::unordered_set<std::string>& pattern_ids,
                                         int acts_per_tref) {
 
   std::vector<HammeringPattern> patterns = load_patterns_from_json(json_filename, pattern_ids);
@@ -457,7 +457,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 }
 
 std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const char *json_filename,
-                                                                         const char *pattern_ids) {
+                                                                         const std::unordered_set<std::string>& pattern_ids) {
   // open the JSON file
   std::ifstream ifs(json_filename);
   if (!ifs.is_open()) {
@@ -473,7 +473,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
   int best_pattern_num_bitflips = 0;
 
   // if pattern_ids==nullptr: look for the best pattern (w.r.t. number of bit flips) instead
-  if (pattern_ids==nullptr) {
+  if (pattern_ids.empty()) {
     for (auto const &json_hammering_patt : json_file) {
       HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
@@ -486,14 +486,6 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
     }
     patterns.push_back(best_pattern);
   } else {
-    // extract all HammeringPattern IDs from the given comma-separated string
-    std::stringstream ids_str(pattern_ids);
-    std::unordered_set<std::string> ids;
-    while (ids_str.good()) {
-      std::string substr;
-      getline(ids_str, substr, ',');
-      ids.insert(substr);
-    }
 
     // find the patterns that have these IDs
     for (auto const &json_hammering_patt : json_file) {
@@ -502,7 +494,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
       // after parsing, check if this pattern's ID matches one of the IDs given to '-replay_patterns'
       // Note: Due to a bug in the implementation, old raw_data.json files may contain multiple HammeringPatterns with the
       // same ID and the exact same pattern but a different mapping. In this case, we load ALL such patterns.
-      if (ids.count(pattern.instance_id) > 0) {
+      if (pattern_ids.count(pattern.instance_id) > 0) {
         Logger::log_info(format_string("Found pattern %s and assoc. mappings:", pattern.instance_id.c_str()));
         for (const auto &mp : pattern.address_mappings) {
           Logger::log_data(format_string("%s (min row: %d, max row: %d)", mp.get_instance_id().c_str(),
