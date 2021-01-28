@@ -13,7 +13,7 @@ class FuzzyHammerer {
   // track of whether we need to generate new pattern or only randomize the mapping of an existing one
   static HammeringPattern hammering_pattern;
 
-  static void do_random_accesses(std::vector<volatile char *> random_rows, size_t duration_us);
+  static void do_random_accesses(const std::vector<volatile char *>& random_rows, size_t duration_us);
 
   static void n_sided_frequency_based_hammering(Memory &memory,
                                                 int acts,
@@ -24,6 +24,12 @@ class FuzzyHammerer {
                                        int *rows_to_access,
                                        int max_accesses,
                                        size_t probes_per_pattern);
+
+  static void log_overall_statistics(const size_t probes_per_pattern,
+                                     std::unordered_map<std::string,
+                                                        std::unordered_map<std::string,
+                                                                           int>> &map,
+                                     int cur_round);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_
