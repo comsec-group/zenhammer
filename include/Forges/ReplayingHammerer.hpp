@@ -6,8 +6,8 @@
 
 class ReplayingHammerer {
  private:
-  static std::vector<HammeringPattern> get_matching_patterns_from_json(const char *json_filename,
-                                                                       const char *pattern_ids);
+  static std::vector<HammeringPattern> load_patterns_from_json(const char *json_filename,
+                                                               const char *pattern_ids);
 
  public:
 

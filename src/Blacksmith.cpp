@@ -99,16 +99,13 @@ int main(int argc, char **argv) {
   const std::string ARG_LOAD_PATTERN = "-load_json";
   if (cmd_parameter_exists(argv, argv + argc, ARG_LOAD_PATTERN)) {
     const std::string ARG_PATTERN_IDs = "-replay_patterns";
+    char *pattern_ids = nullptr;
     if (!cmd_parameter_exists(argv, argv + argc, ARG_PATTERN_IDs)) {
-      Logger::log_error(format_string("Parameter %s expects parameter %s.\n"
-                                      "Ex.: blacksmith [-load_json filename] [-replay_patterns PatternUUID ...]",
-          ARG_LOAD_PATTERN.c_str(),
-          ARG_PATTERN_IDs.c_str()));
-      Logger::close();
-      return EXIT_FAILURE;
+      Logger::log_info("Parameter -replay_patterns not given, doing replaying with best pattern instead.");
+    } else {
+      pattern_ids = get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs);
     }
     char *filename = get_cmd_parameter(argv, argv + argc, ARG_LOAD_PATTERN);
-    char *pattern_ids = get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs);
     ReplayingHammerer::replay_patterns(memory, filename, pattern_ids, act);
   } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     FuzzyHammerer::n_sided_frequency_based_hammering(memory, act, run_time_limit, PROBES_PER_PATTERN);
