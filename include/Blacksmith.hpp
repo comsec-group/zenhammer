@@ -18,7 +18,7 @@ struct ProgramArguments {
   std::unordered_set<std::string> pattern_ids{};
   // total number of (different) locations (i.e., Aggressor ID -> DRAM rows mapping) where we try a pattern
   size_t probes_per_pattern = 3;
-  // whether to sweep the 'best pattern' that was found during fuzzing over a contiguous chunk of memory
+  // whether to sweep the 'best pattern' that was found during fuzzing afterward over a contiguous chunk of memory
   bool sweeping = false;
 };
 

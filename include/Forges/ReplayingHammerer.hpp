@@ -34,11 +34,10 @@ class ReplayingHammerer {
                                bool wait_before_hammering,
                                bool check_flips_after_each_rep);
 
-  static void replay_patterns(Memory &mem,
-                              const char *json_filename,
-                              const std::unordered_set<std::string> &pattern_ids,
-                              int acts_per_tref);
+  static void replay_patterns(Memory &mem, const char *json_filename,
+                              const std::unordered_set<std::string> &pattern_ids);
 
+  static void sweep_pattern(Memory &mem, HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_

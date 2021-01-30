@@ -55,10 +55,10 @@ int main(int argc, char **argv) {
   if (args.acts_per_ref==0) args.acts_per_ref = dram_analyzer.count_acts_per_ref();
 
   if (args.load_json_filename!=nullptr) {
-    ReplayingHammerer::replay_patterns(memory, args.load_json_filename, args.pattern_ids, args.acts_per_ref);
+    ReplayingHammerer::replay_patterns(memory, args.load_json_filename, args.pattern_ids);
   } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     FuzzyHammerer::n_sided_frequency_based_hammering(memory,
-        args.acts_per_ref, args.runtime_limit, args.probes_per_pattern);
+        args.acts_per_ref, args.runtime_limit, args.probes_per_pattern, args.sweeping);
   } else if (!USE_FREQUENCY_BASED_FUZZING) {
     TraditionalHammerer::n_sided_hammer(memory, args.acts_per_ref, args.runtime_limit);
   } else {

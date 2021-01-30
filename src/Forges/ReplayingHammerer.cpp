@@ -11,20 +11,20 @@
 // initialize static variable
 double ReplayingHammerer::last_reproducibility_score = 0;
 
-void ReplayingHammerer::replay_patterns(Memory &mem,
-                                        const char *json_filename,
-                                        const std::unordered_set<std::string>& pattern_ids,
-                                        int acts_per_tref) {
-
-  std::vector<HammeringPattern> patterns = load_patterns_from_json(json_filename, pattern_ids);
-  FuzzingParameterSet params(acts_per_tref);
+void ReplayingHammerer::replay_patterns(Memory &mem, const char *json_filename,
+                                        const std::unordered_set<std::string> &pattern_ids) {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  int num_reps;
-
   // replay each loaded patter
-  for (auto &patt : patterns) {
+  int num_reps;
+  for (auto &patt : load_patterns_from_json(json_filename, pattern_ids)) {
+    // as we always choose the number of activations of a pattern in a way that it is a multiple of the number of
+    // activations within a refresh interval, we can use these two values to reconstruct the num activations per tREFI
+    // that we assumed/measured (experimentally determined)
+    auto const acts_per_tref = (patt.total_activations/patt.num_refresh_intervals);
+    FuzzingParameterSet params(acts_per_tref);
+
     const int pattern_total_acts = patt.total_activations;
 
     // ==== 1:1 Replaying to test if original pattern/replaying works =================================================
@@ -100,7 +100,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       // save these original values as each call to jit_strict (see hammer_pattern) overwrites them by the passed values
       const auto flushing_strategy = jitter.flushing_strategy;
       const auto fencing_strategy = jitter.fencing_strategy;
-      const int total_acts = jitter.total_activations;
+      const auto total_acts = jitter.total_activations;
       const bool sync_each_ref = jitter.pattern_sync_each_ref;
       const int num_sync_aggs = jitter.num_aggs_for_sync;
 
@@ -163,44 +163,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
       // spatial probing
       Logger::log_analysis_stage("SPATIAL PROBING");
-      // a. sweep over a chunk of N MByte to see whether this pattern also works on other locations
-      // compute the bound of the memory area we want to check using this pattern
-      auto sweep_MB = 256;
-#ifdef DEBUG_SAMSUNG
-      sweep_MB = 1; // 8 rows
-#endif
-      auto row_start = DRAMAddr((void *) mem.get_starting_address()).row;
-      auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(sweep_MB);
-      auto row_end = DRAMAddr((void *) max_address).row;
-      auto num_rows = row_end - row_start;
-      Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
-          sweep_MB, num_rows, num_reps));
-
-      auto init_ss = [](std::stringstream &stringstream) {
-        stringstream.str("");
-        stringstream.clear();
-        stringstream << std::setfill(' ') << std::left;
-      };
-      std::stringstream ss;
-      init_ss(ss);
-      ss << std::setw(10) << "Offset" << std::setw(12) << "Min. Row"
-         << std::setw(12) << "Max. Row" << std::setw(13) << "#Bit Flips" << "Flipped Rows"
-         << std::endl << "--------------------------------------------------------------";
-      Logger::log_data(ss.str());
-
-      for (unsigned long r = 1; r <= num_rows; ++r) {
-        // modify assignment of agg ID to DRAM address by shifting rows by 1
-        mapper.shift_mapping(1);
-
-        // call hammer_pattern
-        size_t num_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync_each_ref, num_sync_aggs, total_acts, verbose_sync, false, false, true, true);
-
-        init_ss(ss);
-        ss << std::setw(10) << r << std::setw(12) << mapper.min_row
-           << std::setw(12) << mapper.max_row << std::setw(13) << num_flips << mem.get_flipped_rows_text_repr();
-        Logger::log_data(ss.str());
-      }
+      sweep_pattern(mem, patt, mapper, num_reps);
 
       // temporal probing
       Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
@@ -346,7 +309,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       };
 
       const auto base_period = patt.base_period;
-      std::vector<int> allowed_frequencies = builder.get_available_multiplicators(total_acts/base_period);
+      std::vector<int> allowed_frequencies = builder.get_available_multiplicators(total_acts/(int)base_period);
 
       size_t max_trials_per_aap = 48;
       const auto fpa_probing_num_reps = 5;
@@ -510,22 +473,16 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
   return patterns;
 }
 
-size_t ReplayingHammerer::hammer_pattern(Memory &memory,
-                                         FuzzingParameterSet &fuzz_params,
-                                         CodeJitter &code_jitter,
-                                         HammeringPattern &pattern,
-                                         PatternAddressMapper &mapper,
-                                         FLUSHING_STRATEGY flushing_strategy,
-                                         FENCING_STRATEGY fencing_strategy,
-                                         unsigned long num_reps,
-                                         bool sync_each_ref,
-                                         int aggressors_for_sync,
-                                         int num_activations,
-                                         bool verbose_sync,
-                                         bool verbose_memcheck,
-                                         bool verbose_params,
-                                         bool wait_before_hammering,
+size_t ReplayingHammerer::hammer_pattern(Memory &memory, FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter,
+                                         HammeringPattern &pattern, PatternAddressMapper &mapper,
+                                         FLUSHING_STRATEGY flushing_strategy, FENCING_STRATEGY fencing_strategy,
+                                         size_t num_reps, int aggressors_for_sync, int num_activations,
+                                         bool early_stopping, bool sync_each_ref, bool verbose_sync,
+                                         bool verbose_memcheck, bool verbose_params, bool wait_before_hammering,
                                          bool check_flips_after_each_rep) {
+
+  // early_stopping: stop after the first repetition in that we observe any bit flips
+
   size_t reps_with_bitflips = 0;
   size_t total_bitflips_all_reps = 0;
 
@@ -582,4 +539,72 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory,
   code_jitter.cleanup();
 
   return total_bitflips_all_reps;
+}
+
+void ReplayingHammerer::sweep_pattern(Memory &mem, HammeringPattern &pattern, PatternAddressMapper &mapper,
+                                      size_t num_reps) {
+
+
+  // a. sweep over a chunk of N MByte to see whether this pattern also works on other locations
+  // compute the bound of the mem area we want to check using this pattern
+  auto sweep_MB = 256;
+
+#ifdef DEBUG_SAMSUNG
+  sweep_MB = 8;
+#endif
+
+  auto &jitter = mapper.get_code_jitter();
+  auto const acts_per_tref = (pattern.total_activations/pattern.num_refresh_intervals);
+  FuzzingParameterSet params(acts_per_tref);
+
+  auto row_start = DRAMAddr((void *) mem.get_starting_address()).row;
+  auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(sweep_MB);
+  auto row_end = DRAMAddr((void *) max_address).row;
+  auto num_rows = row_end - row_start;
+  Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
+      sweep_MB, num_rows, num_reps));
+
+  auto init_ss = [](std::stringstream &stringstream) {
+    stringstream.str("");
+    stringstream.clear();
+    stringstream << std::setfill(' ') << std::left;
+  };
+  std::stringstream ss;
+  init_ss(ss);
+  ss << std::setw(10) << "Offset" << std::setw(12) << "Min. Row"
+     << std::setw(12) << "Max. Row" << std::setw(13) << "#Bit Flips" << "Flipped Rows"
+     << std::endl << "--------------------------------------------------------------";
+  Logger::log_data(ss.str());
+
+  auto total_bit_flips_sweeping = 0;
+  std::vector<BitFlip> bflips;
+  for (unsigned long r = 1; r <= num_rows; ++r) {
+    // modify assignment of agg ID to DRAM address by shifting rows of all aggressors by 1
+    mapper.shift_mapping(1);
+
+    // call hammer_pattern
+    auto num_flips = hammer_pattern(mem, params, jitter, pattern, mapper, jitter.flushing_strategy,
+        jitter.fencing_strategy, num_reps, jitter.num_aggs_for_sync, jitter.total_activations, true,
+        jitter.pattern_sync_each_ref, false, false, false, true, true);
+    // note the use of early_stopping in hammer_pattern: we repeat hammering at maximum num_reps times but do stop
+    // after observing any bit flip - this is the number that we report
+    total_bit_flips_sweeping += num_flips;
+    bflips.insert(bflips.end(), mem.flipped_bits.begin(), mem.flipped_bits.end());
+
+    init_ss(ss);
+    ss << std::setw(10) << r << std::setw(12) << mapper.min_row
+       << std::setw(12) << mapper.max_row << std::setw(13) << num_flips << mem.get_flipped_rows_text_repr();
+    Logger::log_data(ss.str());
+  }
+
+  Logger::log_info("Printing summary of sweeping pattern.");
+  Logger::log_data(format_string("Total corruptions: ", total_bit_flips_sweeping));
+  size_t z2o_corruptions = 0;
+  size_t o2z_corruptions = 0;
+  for (const auto &bf : bflips) {
+    z2o_corruptions += bf.count_z2o_corruptions();
+    o2z_corruptions += bf.count_o2z_corruptions();
+  }
+  Logger::log_data(format_string("0->1 flips: %lu", z2o_corruptions));
+  Logger::log_data(format_string("1->0 flips: %lu", o2z_corruptions));
 }
