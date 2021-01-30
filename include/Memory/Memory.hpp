@@ -29,7 +29,7 @@ class Memory {
  public:
 
   // the flipped bits detected during the last call to check_memory
-  std::vector<DRAMAddr> flipped_bits;
+  std::vector<BitFlip> flipped_bits;
 
   explicit Memory(bool use_superpage);
 

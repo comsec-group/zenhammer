@@ -45,8 +45,8 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
       CodeJitter &jitter = *(*it).code_jitter;
       size_t triggered_bitflips = hammer_pattern(mem, params, jitter, patt, *it, jitter.flushing_strategy,
-          jitter.fencing_strategy, num_reps_org_replaying, jitter.pattern_sync_each_ref, jitter.num_aggs_for_sync,
-          jitter.total_activations, false, false, false, true, true);
+          jitter.fencing_strategy, num_reps_org_replaying, jitter.num_aggs_for_sync,
+          jitter.total_activations, false, jitter.pattern_sync_each_ref, false, false, false, true, true);
 
       Logger::log_success(format_string("Mapping triggered %d bit flips.", triggered_bitflips));
       if (triggered_bitflips > best_mapping_bitflips) {
@@ -112,15 +112,15 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       Logger::log_analysis_stage("Experiment: Alignment");
       Logger::log_info("Hammering pattern for 10x100M activations.");
       {
-        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            10, sync_each_ref, num_sync_aggs, M(100), verbose_sync, verbose_memcheck, verbose_params, false, true);
+        auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy, 10,
+            num_sync_aggs, M(100), false, sync_each_ref, verbose_sync, verbose_memcheck, verbose_params, false, true);
         Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
       }
 
       Logger::log_info("Hammering pattern for 10x10M activations.");
       {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy, 10,
-            sync_each_ref, num_sync_aggs, M(10), verbose_sync, verbose_memcheck, verbose_params, false, true);
+            num_sync_aggs, M(10), false, sync_each_ref, verbose_sync, verbose_memcheck, verbose_params, false, true);
         Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
       }
 
@@ -139,7 +139,8 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       // - sync_each_ref
       for (auto &sync : {true, false}) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync, num_sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params, true, true);
+            num_reps, num_sync_aggs, total_acts, false, sync, verbose_sync, verbose_memcheck, verbose_params,
+            true, true);
         Logger::log_info(format_string("sync_each_ref = %-8s => %d bit flips",
             (sync ? "true" : "false"), num_bit_flips));
       }
@@ -147,14 +148,16 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
       // - num_aggs_for_sync
       for (const auto &sync_aggs : {1, 2}) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync_each_ref, sync_aggs, total_acts, verbose_sync, verbose_memcheck, verbose_params, true, true);
+            num_reps, sync_aggs, total_acts, false, sync_each_ref, verbose_sync, verbose_memcheck, verbose_params,
+            true, true);
         Logger::log_info(format_string("num_aggs_for_sync = %-7d => %d bit flips", sync_aggs, num_bit_flips));
       }
 
       // - hammering_total_num_activations
       for (int a = M(10); a > M(1); a -= M(1)) {
         auto num_bit_flips = hammer_pattern(mem, params, jitter, patt, mapper, flushing_strategy, fencing_strategy,
-            num_reps, sync_each_ref, num_sync_aggs, a, verbose_sync, verbose_memcheck, verbose_params, true, true);
+            num_reps, num_sync_aggs, a, false, sync_each_ref, verbose_sync, verbose_memcheck, verbose_params,
+            true, true);
         Logger::log_info(format_string("total_num_acts_hammering = %-12d => %d bit flips", a, num_bit_flips));
       }
 
@@ -278,8 +281,8 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 
         // do jitting + hammering
         size_t num_triggered_bitflips = hammer_pattern(mem, params, jitter, patt, mapper, jitter.flushing_strategy,
-            jitter.fencing_strategy, num_reps, jitter.pattern_sync_each_ref,
-            jitter.num_aggs_for_sync, jitter.total_activations, false, false, false, true, true);
+            jitter.fencing_strategy, num_reps, jitter.num_aggs_for_sync, jitter.total_activations, false,
+            jitter.pattern_sync_each_ref, false, false, false, true, true);
 
         // check if pattern still triggers bit flip to see whether this AggressorAccessPattern matters
         if (num_triggered_bitflips > 0) {
@@ -428,8 +431,8 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
               //  don't see any bit flips, it's not because of a bad location
               mapper.randomize_addresses(params, patt.agg_access_patterns, false);
               auto num_bitflips = ReplayingHammerer::hammer_pattern(mem, params, jitter, patt, mapper,
-                  flushing_strategy, fencing_strategy, fpa_probing_num_reps, sync_each_ref, num_sync_aggs, total_acts,
-                  false, false, false, true, true);
+                  flushing_strategy, fencing_strategy, fpa_probing_num_reps, num_sync_aggs, total_acts, false,
+                  sync_each_ref, false, false, false, true, true);
               if (num_bitflips==0) {
                 Logger::log_failure("No bit flips found.");
               } else {
@@ -457,7 +460,7 @@ void ReplayingHammerer::replay_patterns(Memory &mem,
 }
 
 std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const char *json_filename,
-                                                                         const std::unordered_set<std::string>& pattern_ids) {
+                                                                         const std::unordered_set<std::string> &pattern_ids) {
   // open the JSON file
   std::ifstream ifs(json_filename);
   if (!ifs.is_open()) {
@@ -524,7 +527,7 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory,
                                          bool wait_before_hammering,
                                          bool check_flips_after_each_rep) {
   size_t reps_with_bitflips = 0;
-  size_t num_bitflips = 0;
+  size_t total_bitflips_all_reps = 0;
 
   // load victims for memory check
   mapper.determine_victims(pattern.agg_access_patterns);
@@ -537,10 +540,11 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory,
   code_jitter.jit_strict(fuzz_params, flushing_strategy, fencing_strategy, hammering_accesses_vec, sync_each_ref,
       aggressors_for_sync, num_activations);
 
-  // dirty hack to get correct output of flipped rows
-  std::vector<DRAMAddr> flipped_bits_acc;
+  // dirty hack to get correct output of flipped rows as we need to aggregate the results over all tries
+  std::vector<BitFlip> flipped_bits_acc;
 
-  for (unsigned long num_tries = 0; num_tries < num_reps; num_tries++) {
+  size_t num_tries = 0;
+  for (; num_tries < num_reps; num_tries++) {
     // TODO: Analyze using Hynix whether this waiting really makes sense, otherwise remove it
     // wait a specific time while doing some random accesses before starting hammering
     auto wait_until_hammering_us = fuzz_params.get_random_wait_until_start_hammering_microseconds();
@@ -557,20 +561,25 @@ size_t ReplayingHammerer::hammer_pattern(Memory &memory,
     // do hammering
     code_jitter.hammer_pattern(fuzz_params, verbose_sync);
 
+    // check for bit flips if check_flips_after_each_rep=true or if we're in the last iteration
     if (check_flips_after_each_rep || num_tries==num_reps - 1) {
       // check if any bit flips happened
       // it's important that we run in reproducibility mode, otherwise the bit flips vec in the mapping is changed!
-      num_bitflips += memory.check_memory(mapper, true, verbose_memcheck);
+      auto num_bitflips = memory.check_memory(mapper, true, verbose_memcheck);
+      total_bitflips_all_reps += num_bitflips;
       reps_with_bitflips += (num_bitflips > 0);
       flipped_bits_acc.insert(flipped_bits_acc.end(), memory.flipped_bits.begin(), memory.flipped_bits.end());
+
+      // in early_stopping mode, we do not carry out all repetitions but stop after we have found at least one bit flip
+      if (num_bitflips > 0 && early_stopping) break;
     }
   }
 
-  ReplayingHammerer::last_reproducibility_score = (int) std::ceil(reps_with_bitflips/num_reps);
+  ReplayingHammerer::last_reproducibility_score = (int) std::ceil(reps_with_bitflips/num_tries);
 
   memory.flipped_bits = std::move(flipped_bits_acc);
 
   code_jitter.cleanup();
 
-  return num_bitflips;
+  return total_bitflips_all_reps;
 }

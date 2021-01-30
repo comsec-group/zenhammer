@@ -160,11 +160,12 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
             Logger::log_bitflip(flipped_address, flipped_addr_dram.row, offset%getpagesize(), expected_value,
                 flipped_addr_value, (size_t) time(nullptr));
           }
-          if (!reproducibility_mode) {
-            mapping.bit_flips
-                .emplace_back(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
-          }
-          flipped_bits.emplace_back(flipped_addr_dram);
+          // store detailed information about the bit flip
+          BitFlip bitflip(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
+          // ..in the mapping that triggered this bit flip
+          if (!reproducibility_mode) mapping.bit_flips.push_back(bitflip);
+          // ..in an attribute of this class so that it can be retrived by the caller
+          flipped_bits.push_back(bitflip);
           found_bitflips++;
         }
       }
@@ -203,7 +204,9 @@ std::string Memory::get_flipped_rows_text_repr() {
   // first extract all rows, otherwise it will not be possible to know in advance whether we we still
   // need to add a separator (comma) to the string as upcoming DRAMAddr instances might refer to the same row
   std::set<int> flipped_rows;
-  for (const auto &da : flipped_bits) flipped_rows.insert(da.row);
+  for (const auto &da : flipped_bits) {
+    flipped_rows.insert(da.address.row);
+  }
 
   std::stringstream ss;
   for (const auto &row : flipped_rows) {
