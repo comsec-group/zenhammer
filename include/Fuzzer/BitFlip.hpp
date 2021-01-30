@@ -8,15 +8,19 @@ class BitFlip {
   // the address where the bit flip was observed
   DRAMAddr address;
 
-  // mask of the bits that flipped, i.e., positions where value == 1 flipped
+  // mask of the bits that flipped, i.e., positions where value == 1 -> flipped bit
   uint8_t bitmask;
 
   // data containing the bit flips
-  uint8_t data;
+  uint8_t corrupted_data;
 
   BitFlip();
 
-  BitFlip(const DRAMAddr &address, uint8_t bitmask, uint8_t data);
+  BitFlip(const DRAMAddr &address, uint8_t flips_bitmask, uint8_t corrupted_data);
+
+  size_t count_z2o_corruptions() const;
+
+  size_t count_o2z_corruptions() const;
 };
 
 #ifdef ENABLE_JSON

@@ -223,7 +223,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
   if (err) throw std::runtime_error("[-] Error occurred while jitting code. Aborting execution!");
 
   // uncomment the following line to see the jitted ASM code
-  // printf("[DEBUG] asmjit logger content:\n%s\n", logger->data());
+  // printf("[DEBUG] asmjit logger content:\n%s\n", logger->corrupted_data());
 #endif
 #ifndef ENABLE_JITTING
   Logger::log_error("Cannot do code jitting. Set option ENABLE_JITTING to ON in CMakeLists.txt and do a rebuild.");
