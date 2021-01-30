@@ -52,11 +52,12 @@ void Memory::allocate_memory(size_t mem_size) {
   }
 
   // initialize memory with random but reproducible sequence of numbers
-  initialize();
+  initialize(DATA_PATTERN::RANDOM);
 }
 
-void Memory::initialize() {
+void Memory::initialize(DATA_PATTERN data_pattern) {
   Logger::log_info("Initializing memory with pseudorandom sequence.");
+
   // for each page in the address space [start, end]
   for (uint64_t i = 0; i < size; i += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
@@ -64,8 +65,18 @@ void Memory::initialize() {
     srand(i*getpagesize());
     for (uint64_t j = 0; j < (uint64_t) getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
+      int fill_value;
+      if (data_pattern == DATA_PATTERN::RANDOM) {
+        fill_value = rand();
+      } else if (data_pattern == DATA_PATTERN::ZEROES) {
+        fill_value = 0;
+      } else if (data_pattern == DATA_PATTERN::ONES) {
+        fill_value = 1;
+      } else {
+        Logger::log_error("Could not initialize memory with given (unknown) DATA_PATTERN.");
+      }
       // write (pseudo)random 4 bytes to target[offset] = target[i+j]
-      *((int *) (start_address + offset)) = rand();
+      *((int *) (start_address + offset)) = fill_value;
     }
   }
 }

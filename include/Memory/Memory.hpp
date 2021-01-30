@@ -8,6 +8,10 @@
 #include "Memory/DramAnalyzer.hpp"
 #include "Fuzzer/PatternAddressMapper.hpp"
 
+enum class DATA_PATTERN : char {
+  ZEROES, ONES, RANDOM
+};
+
 class Memory {
  private:
   /// the starting address of the allocated memory area
@@ -37,7 +41,7 @@ class Memory {
 
   void allocate_memory(size_t mem_size);
 
-  void initialize();
+  void initialize(DATA_PATTERN data_pattern);
 
   size_t check_memory(const volatile char *start, const volatile char *end, size_t check_offset);
 

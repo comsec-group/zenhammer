@@ -33,7 +33,7 @@ class Memory {
                     const volatile char *end,
                     size_t check_offset);
 
-  void initialize();
+  void initialize(DATA_PATTERN data_pattern);
 
   volatile char *get_starting_address() const;
 
