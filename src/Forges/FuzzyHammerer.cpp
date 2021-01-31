@@ -33,9 +33,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
 
   HammeringPattern best_hammering_pattern;
   PatternAddressMapper best_mapping;
+  size_t best_mapping_bitflips = 0;
   size_t best_hammering_pattern_bitflips = 0;
   const long execution_time_limit = get_timestamp_sec() + runtime_limit;
-  for (size_t cr = 1; get_timestamp_sec() < execution_time_limit; ++cr) {
+  size_t cr = 1;
+  for (; get_timestamp_sec() < execution_time_limit; ++cr) {
     Logger::log_timestamp();
     Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cr));
     fuzzing_params.randomize_parameters(true);
@@ -72,7 +74,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
       // find the best mapping of this pattern (generally it doesn't matter as we're sweeping anyway over a chunk of
       // memory but the mapper also contains a reference to the CodeJitter, which in turn uses some parameters that we
       // want to reuse during sweeping; other mappings could differ in these parameters)
-      size_t best_mapping_bitflips = 0;
       for (const auto &m : hammering_pattern.address_mappings) {
         const auto num_bitlfips = m.bit_flips.size();
         if (num_bitlfips > best_mapping_bitflips) {
@@ -82,19 +83,12 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
       }
     }
 
-    log_overall_statistics(probes_per_pattern, cr);
-
 #ifdef ENABLE_JSON
     // export the current HammeringPattern including all of its associated PatternAddressMappers
     arr.push_back(hammering_pattern);
 #endif
 
   } // end of fuzzing
-
-  // apply the 'best' pattern over a contiguous chunk of memory
-  if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
-    ReplayingHammerer::sweep_pattern(memory, best_hammering_pattern, best_mapping, 3);
-  }
 
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
@@ -103,6 +97,16 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
   json_export << arr;
   json_export.close();
 #endif
+
+  log_overall_statistics(probes_per_pattern, cr, best_mapping.get_instance_id(), best_mapping_bitflips);
+
+  // apply the 'best' pattern over a contiguous chunk of memory
+  // note that log_overall_statistics shows the number of bit flips of the best pattern's most effective mapping, as
+  // metric to determine the best pattern we use the number of bit flips over all mappings of that pattern
+  if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
+    ReplayingHammerer replaying_hammerer(memory);
+    replaying_hammerer.sweep_pattern(best_hammering_pattern, best_mapping, fuzzing_params, 3);
+  }
 }
 
 void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,

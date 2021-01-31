@@ -32,9 +32,11 @@ class FuzzyHammerer {
                                        int max_accesses,
                                        size_t probes_per_pattern);
 
-  static void log_overall_statistics(size_t probes_per_pattern, size_t cur_round);
 
   static void probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory, FuzzingParameterSet &fuzzing_params);
+
+  static void log_overall_statistics(const size_t probes_per_pattern, size_t cur_round, const std::string &best_mapping_id,
+                                     int best_mapping_num_bitflips);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_
