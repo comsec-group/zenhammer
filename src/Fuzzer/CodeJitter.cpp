@@ -44,6 +44,7 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
   if (verbose) {
     Logger::log_info("Synchronization stats:");
     Logger::log_data(format_string("Total sync acts: %d", total_sync_acts));
+
     const auto total_acts_pattern = fuzzing_parameters.get_total_acts_pattern();
     auto pattern_rounds = fuzzing_parameters.get_hammering_total_num_activations()/total_acts_pattern;
     auto acts_per_pattern_round = pattern_sync_each_ref
@@ -62,7 +63,7 @@ int CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool ver
   return total_sync_acts;
 }
 
-void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
+void CodeJitter::jit_strict(int num_acts_per_trefi,
                             FLUSHING_STRATEGY flushing,
                             FENCING_STRATEGY fencing,
                             const std::vector<volatile char *> &aggressor_pairs,
@@ -196,7 +197,7 @@ void CodeJitter::jit_strict(FuzzingParameterSet &fuzzing_params,
     }
 
     if (sync_each_ref
-        && ((cnt_total_activations%fuzzing_params.get_num_activations_per_t_refi())==0)) {
+        && ((cnt_total_activations%num_acts_per_trefi)==0)) {
       std::vector<volatile char *> aggs(aggressor_pairs.begin() + i,
           std::min(aggressor_pairs.begin() + i + NUM_TIMED_ACCESSES,
               aggressor_pairs.end()));

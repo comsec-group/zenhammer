@@ -18,7 +18,6 @@
 class CodeJitter {
  private:
 #ifdef ENABLE_JITTING
-
   /// runtime for JIT code execution, can be reused by cleaning the function ptr (see cleanup method)
   asmjit::JitRuntime runtime;
 
@@ -47,7 +46,7 @@ class CodeJitter {
   ~CodeJitter();
 
   /// generates the jitted function and assigns the function pointer fn to it
-  void jit_strict(FuzzingParameterSet &fuzzing_params,
+  void jit_strict(int num_acts_per_trefi,
                   FLUSHING_STRATEGY flushing,
                   FENCING_STRATEGY fencing,
                   const std::vector<volatile char *> &aggressor_pairs,
