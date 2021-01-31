@@ -111,6 +111,18 @@ class FuzzingParameterSet {
   int get_num_refresh_intervals() const;
 
   int get_num_base_periods() const;
+
+  void set_total_acts_pattern(size_t pattern_total_acts);
+
+  void set_hammering_total_num_activations(int hammering_total_acts);
+
+  void set_agg_intra_distance(int agg_intra_dist);
+
+  void set_agg_inter_distance(int agg_inter_dist);
+
+  void set_use_sequential_aggressors(const Range<int> &use_seq_addresses);
+
+  void print_semi_dynamic_parameters() const;
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

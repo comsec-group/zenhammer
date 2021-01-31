@@ -298,3 +298,23 @@ int FuzzingParameterSet::get_random_start_row() {
 int FuzzingParameterSet::get_num_refresh_intervals() const {
   return num_refresh_intervals;
 }
+
+void FuzzingParameterSet::set_total_acts_pattern(size_t pattern_total_acts) {
+  FuzzingParameterSet::total_acts_pattern = pattern_total_acts;
+}
+
+void FuzzingParameterSet::set_hammering_total_num_activations(int hammering_total_acts) {
+  FuzzingParameterSet::hammering_total_num_activations = hammering_total_acts;
+}
+
+void FuzzingParameterSet::set_agg_intra_distance(int agg_intra_dist) {
+  FuzzingParameterSet::agg_intra_distance = agg_intra_dist;
+}
+
+void FuzzingParameterSet::set_agg_inter_distance(int agg_inter_dist) {
+  FuzzingParameterSet::agg_inter_distance = agg_inter_dist;
+}
+
+void FuzzingParameterSet::set_use_sequential_aggressors(const Range<int> &use_seq_addresses) {
+  FuzzingParameterSet::use_sequential_aggressors = use_seq_addresses;
+}
