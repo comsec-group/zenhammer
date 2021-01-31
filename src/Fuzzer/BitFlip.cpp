@@ -25,9 +25,9 @@ BitFlip::BitFlip(const DRAMAddr &address, uint8_t flips_bitmask, uint8_t corrupt
 BitFlip::BitFlip() : address(DRAMAddr()), bitmask(0), corrupted_data(0) {}
 
 size_t BitFlip::count_z2o_corruptions() const {
-  const auto bitmask_nbits = sizeof(bitmask)/8;
+  const auto bitmask_nbits = sizeof(bitmask)*8;
   std::bitset<bitmask_nbits> mask_bits(bitmask);
-  const auto data_nbits = sizeof(corrupted_data)/8;
+  const auto data_nbits = sizeof(corrupted_data)*8;
   std::bitset<data_nbits> data_bits(corrupted_data);
   // we assume that both (corrupted_data, bitmask) have the same no. of bits
   auto z2o_corruptions = 0;
@@ -38,9 +38,9 @@ size_t BitFlip::count_z2o_corruptions() const {
 }
 
 size_t BitFlip::count_o2z_corruptions() const {
-  const auto bitmask_nbits = sizeof(bitmask)/8;
+  const auto bitmask_nbits = sizeof(bitmask)*8;
   std::bitset<bitmask_nbits> mask_bits(bitmask);
-  const auto data_nbits = sizeof(corrupted_data)/8;
+  const auto data_nbits = sizeof(corrupted_data)*8;
   std::bitset<data_nbits> data_bits(corrupted_data);
   // we assume that both (corrupted_data, bitmask) have the same no. of bits
   auto o2z_corruptions = 0;
