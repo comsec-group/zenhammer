@@ -143,7 +143,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
 #ifdef DEBUG_SAMSUNG
   const int reproducibility_rounds = 20;
 #else
-  const int reproducibility_rounds = 150;
+  const int reproducibility_rounds = 50;
 #endif
   int cur_reproducibility_round = 1;
   int reproducibility_rounds_with_bitflips = 0;
