@@ -281,7 +281,7 @@ void PatternAddressMapper::shift_mapping(int rows) {
 }
 
 CodeJitter &PatternAddressMapper::get_code_jitter() const {
-  return *code_jitter.get();
+  return *code_jitter;
 }
 
 PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
@@ -325,4 +325,41 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
   reproducibility_score = other.reproducibility_score;
 
   return *this;
+}
+
+void PatternAddressMapper::compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns,
+                                                 int &agg_intra_distance, int &agg_inter_distance,
+                                                 bool uses_seq_addresses) {
+  Logger::log_info("Deriving mapping parameters from AggressorAccessPatterns.");
+
+  // find first AggressorAccessPattern with more than one aggressor, then compute distance in-between aggressors
+  agg_intra_distance = 0;
+  for (auto it = agg_access_patterns.begin(); it != agg_access_patterns.end(); ++it) {
+    if (it->aggressors.size() > 1) {
+      auto r1 = aggressor_to_addr.at(it->aggressors.at(1).id).row;
+      auto r0 = aggressor_to_addr.at(it->aggressors.at(0).id).row;
+      agg_intra_distance = r1-r0;
+      break;
+    }
+  }
+
+  // if all consecutive AggressorAccessPatterns have the same inter-distance, then they use "sequential addresses"
+  uses_seq_addresses = true;
+  agg_inter_distance = -1;
+  for (auto it = agg_access_patterns.begin(); it+1 != agg_access_patterns.end(); ++it) {
+    auto this_size = it->aggressors.size();
+    auto this_row = aggressor_to_addr.at(it->aggressors.at(this_size-1).id).row;
+    auto next_row = aggressor_to_addr.at((it+1)->aggressors.at(0).id).row;
+    int distance = next_row - this_row;
+    if (agg_inter_distance == -1) {
+        agg_inter_distance = distance;
+    } else if (agg_inter_distance != distance) {
+      uses_seq_addresses = false;
+      break;
+    }
+  }
+
+  Logger::log_data(format_string("inter-distance v = %d", agg_inter_distance));
+  Logger::log_data(format_string("intra-distance d = %d", agg_intra_distance));
+  Logger::log_data(format_string("use_seq_addresses = %s", (uses_seq_addresses ? "true" : "false")));
 }

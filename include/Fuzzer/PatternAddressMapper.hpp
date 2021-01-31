@@ -83,6 +83,9 @@ class PatternAddressMapper {
   void shift_mapping(int rows);
 
   CodeJitter & get_code_jitter() const;
+
+  void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
+                             int &agg_inter_distance, bool uses_seq_addresses);
 };
 
 #ifdef ENABLE_JSON
