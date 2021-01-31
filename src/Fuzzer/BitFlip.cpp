@@ -49,3 +49,15 @@ size_t BitFlip::count_o2z_corruptions() const {
   }
   return o2z_corruptions;
 }
+
+size_t BitFlip::count_bit_corruptions() const {
+  auto n = bitmask;
+  unsigned int count = 0;
+  // based on Brian Kernighan's algorithm (https://www.geeksforgeeks.org/count-set-bits-in-an-integer/) that counts the
+  // number of set bits of an integer in O(log n)
+  while (n > 0) {
+    n &= (n - 1);
+    count++;
+  }
+  return count;
+}

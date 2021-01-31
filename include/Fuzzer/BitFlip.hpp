@@ -21,6 +21,8 @@ class BitFlip {
   size_t count_z2o_corruptions() const;
 
   size_t count_o2z_corruptions() const;
+
+  size_t count_bit_corruptions() const;
 };
 
 #ifdef ENABLE_JSON
