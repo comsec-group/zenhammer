@@ -126,7 +126,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
   bool sync_at_each_ref = fuzzing_params.get_random_sync_each_ref();
   int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
   Logger::log_info("Creating ASM code for hammering.");
-  code_jitter.jit_strict(fuzzing_params,
+  code_jitter.jit_strict(fuzzing_params.get_num_activations_per_t_refi(),
       FLUSHING_STRATEGY::EARLIEST_POSSIBLE, FENCING_STRATEGY::LATEST_POSSIBLE,
       hammering_accesses_vec, sync_at_each_ref, num_aggs_for_sync,
       fuzzing_params.get_hammering_total_num_activations());
@@ -164,32 +164,31 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
     // this if/else block is only executed in the very first round: it decides whether to start the reproducibility
     // check (if any bit flips were found) or not
     if (!reproducibility_mode) {
-      if (flipped_bits==0) {
-        // don't do reproducibility check if this pattern does not seem to be working
-        break;
-      } else if (flipped_bits > 0) { // start/continue reproducibility check
-        // mark this probe as successful (but only once, not each reproducibility round!)
-        num_successful_probes++;
+      // don't do reproducibility check if this pattern does not seem to be working
+      if (flipped_bits==0) break;
 
-        // store info about this bit flips (pattern ID, mapping ID, no. of bit flips)
-        auto map_record = std::make_pair(mapper.get_instance_id(), flipped_bits);
-        map_pattern_mappings_bitflips[hammering_pattern.instance_id].insert(map_record);
+      // start/continue reproducibility check ...
 
-        // start reproducibility check
-        reproducibility_mode = true;
-        Logger::log_info("Testing bit flip's reproducibility.");
-      }
+      // mark this probe as successful (but only once, not each reproducibility round!)
+      num_successful_probes++;
+
+      // store info about this bit flips (pattern ID, mapping ID, no. of bit flips)
+      auto map_record = std::make_pair(mapper.get_instance_id(), flipped_bits);
+      map_pattern_mappings_bitflips[hammering_pattern.instance_id].insert(map_record);
+
+      // start reproducibility check
+      reproducibility_mode = true;
+      Logger::log_info("Testing bit flip's reproducibility.");
     }
 
     ss << flipped_bits;
-    if (cur_reproducibility_round < reproducibility_rounds) ss << " ";
 
-    // last round: finish reproducibility check by printing pattern's reproducibility coefficient
-    if (cur_reproducibility_round==reproducibility_rounds) {
+    if (cur_reproducibility_round < reproducibility_rounds) {
+      ss << " ";
+    } else if (cur_reproducibility_round==reproducibility_rounds) {
+      // last round: finish reproducibility check by printing pattern's reproducibility coefficient
       Logger::log_info(format_string("Bit flip's reproducibility score: %d/%d (#flips: %s)",
-          reproducibility_rounds_with_bitflips,
-          reproducibility_rounds,
-          ss.str().c_str()));
+          reproducibility_rounds_with_bitflips, reproducibility_rounds, ss.str().c_str()));
 
       // derive number of reps we need to do to trigger a bit flip based on the current reproducibility coefficient
       // this might look counterintuitive but makes sense, assume we trigger bit flips in 3 of 20 runs, so we need
@@ -209,9 +208,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
     }
 
     // wait a bit and do some random accesses before checking reproducibility of the pattern
-    if (random_rows.empty()) {
-      random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
-    }
+    if (random_rows.empty()) random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
     do_random_accesses(random_rows, 64000); // 64000us (retention time)
 
     cur_reproducibility_round++;
@@ -227,27 +224,14 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
   code_jitter.cleanup();
 }
 
-void FuzzyHammerer::log_overall_statistics(const size_t probes_per_pattern, size_t cur_round) {
-  Logger::log_info("Fuzzing run finished successfully. Printing some statistics:");
-  Logger::log_data(format_string("#Tested patterns: %lu", cur_round));
-  Logger::log_data(format_string("#Tested locations per pattern: %lu", probes_per_pattern));
-  Logger::log_data(format_string("#Effective patterns: %lu", map_pattern_mappings_bitflips.size()));
-
-  // there's nothing like a 'best pattern' if none of the tested patterns triggered a bit flip
-  if (!map_pattern_mappings_bitflips.empty()) {
-    std::string best_mapping;
-    int best_mapping_bitflips = 0;
-    for (const auto &p : map_pattern_mappings_bitflips) {
-      for (const auto &m : p.second) {
-        if (best_mapping_bitflips > 0 || m.second > best_mapping_bitflips) {
-          best_mapping = m.first;
-          best_mapping_bitflips = m.second;
-        }
-      }
-    }
-    Logger::log_data(format_string("Best pattern+mapping: %s", best_mapping.c_str()));
-    Logger::log_data(format_string("Best pattern+mapping | #bitflips: %d", best_mapping_bitflips));
-  }
+void FuzzyHammerer::log_overall_statistics(const size_t probes_per_pattern, size_t cur_round,
+                                           const std::string& best_mapping_id, int best_mapping_num_bitflips) {
+  Logger::log_info("Fuzzing run finished successfully. Printing basic statistics:");
+  Logger::log_data(format_string("Number of tested patterns: %lu", cur_round));
+  Logger::log_data(format_string("Number of tested locations per pattern: %lu", probes_per_pattern));
+  Logger::log_data(format_string("Number of effective patterns: %lu", map_pattern_mappings_bitflips.size()));
+  Logger::log_data(format_string("Best pattern ID: %s", best_mapping_id.c_str()));
+  Logger::log_data(format_string("Best pattern #bitflips: %d", best_mapping_num_bitflips));
 }
 
 void FuzzyHammerer::generate_pattern_for_ARM(int acts,
