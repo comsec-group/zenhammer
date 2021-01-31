@@ -65,7 +65,7 @@ void Memory::initialize(DATA_PATTERN data_pattern) {
     srand(i*getpagesize());
     for (uint64_t j = 0; j < (uint64_t) getpagesize(); j += sizeof(int)) {
       uint64_t offset = i + j;
-      int fill_value;
+      int fill_value = 0;
       if (data_pattern == DATA_PATTERN::RANDOM) {
         fill_value = rand();
       } else if (data_pattern == DATA_PATTERN::ZEROES) {
@@ -177,7 +177,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           if (!reproducibility_mode) mapping.bit_flips.push_back(bitflip);
           // ..in an attribute of this class so that it can be retrived by the caller
           flipped_bits.push_back(bitflip);
-          found_bitflips++;
+          found_bitflips += bitflip.count_bit_corruptions();
         }
       }
 
