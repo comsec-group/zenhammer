@@ -9,6 +9,8 @@
 #include "GlobalDefines.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
 
+FuzzingParameterSet::FuzzingParameterSet() {}
+
 FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
   std::random_device rd;
   gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
@@ -86,6 +88,11 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
+  if (num_activations_per_tREFI == -1) {
+    Logger::log_error("Called FuzzingParameterSet::randomize_parameters without valid num_activations_per_tREFI.");
+    return;
+  }
+
   if (print) Logger::log_info("Randomizing fuzzing parameters.");
 
   // experimentally-determined debug parameters that very soon trigger bit flips on Samsung DIMMs (about 1-5 minutes)

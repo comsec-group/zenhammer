@@ -21,7 +21,8 @@ class FuzzingParameterSet {
 
   int agg_inter_distance;
 
-  int num_activations_per_tREFI;
+  // initialized with -1 to add check for undefined/default value
+  int num_activations_per_tREFI = -1;
 
   int hammering_total_num_activations;
 
@@ -57,9 +58,9 @@ class FuzzingParameterSet {
 
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
-  void print_semi_dynamic_parameters() const;
-
  public:
+  FuzzingParameterSet();
+
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
 
   int get_random_bank_no();
