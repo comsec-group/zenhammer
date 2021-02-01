@@ -163,6 +163,7 @@ void PatternAddressMapper::export_pattern_internal(
     Logger::log_error(
         "Found at least an invalid aggressor in the pattern. "
         "These aggressors were NOT added but printed to visualize their position.");
+    Logger::log_data(pattern_str.str());
   }
 }
 
