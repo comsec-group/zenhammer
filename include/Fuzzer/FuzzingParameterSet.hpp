@@ -93,21 +93,13 @@ class FuzzingParameterSet {
 
   bool get_random_sync_each_ref();
 
-  void print_static_parameters() const;
-
   void randomize_parameters(bool print = true);
-
-  static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
 
   int get_max_row_no() const;
 
   int get_random_num_aggressors_for_sync();
 
   int get_random_wait_until_start_hammering_microseconds();
-
-  static void print_dynamic_parameters2(bool sync_at_each_ref,
-                                        int wait_until_hammering_us,
-                                        int num_aggs_for_sync);
 
   int get_num_refresh_intervals() const;
 
@@ -124,6 +116,12 @@ class FuzzingParameterSet {
   void set_use_sequential_aggressors(const Range<int> &use_seq_addresses);
 
   void print_semi_dynamic_parameters() const;
+
+  void print_static_parameters() const;
+
+  static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
+
+  static void print_dynamic_parameters2(bool sync_at_each_ref, int wait_until_hammering_us, int num_aggs_for_sync);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

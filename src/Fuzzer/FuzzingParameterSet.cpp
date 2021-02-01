@@ -149,13 +149,15 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
-  sync_each_ref = Range<int>(0, 1);
+  sync_each_ref = Range<int>(0, 1);  // TODO: take a look in data and decide
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   wait_until_start_hammering_refs = Range<int>(10, 128);
+  // TODO: split into two params: if true -> 64 ms with random accesses
+  // TODO: other params (alignment) wait before hammering [0,32] REFs
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  num_aggressors_for_sync = Range<int>(1, 1);
+  num_aggressors_for_sync = Range<int>(1, 2);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   start_row = Range<int>(0, 2048);
@@ -205,6 +207,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   base_period = get_random_even_divisior(num_activations_per_tREFI, 4);
+  // TODO: should be max = number of refresh intervals
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
