@@ -7,14 +7,14 @@
 void to_json(nlohmann::json &j, const BitFlip &p) {
   j = nlohmann::json{{"dram_addr", p.address},
                      {"bitmask", p.bitmask},
-                     {"corrupted_data", p.corrupted_data},
+                     {"data", p.corrupted_data},
   };
 }
 
 void from_json(const nlohmann::json &j, BitFlip &p) {
   j.at("dram_addr").get_to(p.address);
   j.at("bitmask").get_to(p.bitmask);
-  j.at("corrupted_data").get_to(p.corrupted_data);
+  j.at("data").get_to(p.corrupted_data);
 }
 
 #endif
