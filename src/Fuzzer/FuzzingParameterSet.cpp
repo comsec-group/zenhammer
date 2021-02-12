@@ -122,6 +122,35 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
 
+#elif DEBUG_DIMM10
+
+  num_activations_per_tREFI = 94;
+
+  // dynamic params
+  N_sided = Range<int>(2, 2);
+  amplitude = Range<int>(1, 8);
+  bank_no = Range<int>(0, NUM_BANKS - 1);
+  use_sequential_aggressors = Range<int>(1, 1);
+  sync_each_ref = Range<int>(0, 0);
+  wait_until_start_hammering_refs = Range<int>(0, 0);
+  num_aggressors_for_sync = Range<int>(1, 2);
+  start_row = Range<int>(0, 4096);
+
+  // static params
+  agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
+  flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+  fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
+  set_distribution(N_sided, {{2, 100}});
+  hammering_total_num_activations = 5000000;
+  max_row_no = 8192;
+
+  // semi-dynamic params
+  num_aggressors = Range<int>(6, 39).get_random_number(gen);
+  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));
+  total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
+  base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
+  agg_inter_distance = Range<int>(3, 64).get_random_number(gen);
+
 #else // regular run
 
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████

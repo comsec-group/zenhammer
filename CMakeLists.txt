@@ -13,6 +13,7 @@ set(EXECUTABLE_NAME blacksmith)
 option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
 option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
 option(WITH_SAMSUNG_PARAMETERS "Use debugging parameters for Samsung DIMMs" OFF)
+option(WITH_DIMM10_PARAMETERS "Use debugging parameters for DIMM 10, Hynix" OFF)
 
 # credits to https://stackoverflow.com/a/19578320/3017719
 if (NOT WIN32)
@@ -106,6 +107,12 @@ if (WITH_SAMSUNG_PARAMETERS)
     message("==============================================================================${ColourReset}")
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
 endif ()
+if (WITH_DIMM10_PARAMETERS)
+    message("${BoldRed}==============================================================================")
+    message(">>> ATTENTION: WITH_DIMM10_PARAMETERS=ON. This is intended for debugging only!")
+    message("==============================================================================${ColourReset}")
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_DIMM10=1")
+endif ()
 
 if (ENABLE_JITTING)
     target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
@@ -122,8 +129,12 @@ target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT
 if (WITH_SAMSUNG_PARAMETERS)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
 endif ()
+if (WITH_DIMM10_PARAMETERS)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10=1")
+endif ()
 
 # forces CMake to delete variable's value from CMake cache: uses either the default value or the value passed as param
 # e.g., cmake -DWITH_SAMSUNG_PARAMETERS=ON ..
 # https://stackoverflow.com/a/53159688/3017719
 unset(WITH_SAMSUNG_PARAMETERS CACHE)
+unset(WITH_DIMM10_PARAMETERS CACHE)
