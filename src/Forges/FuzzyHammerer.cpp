@@ -11,7 +11,7 @@
 // initialize the static variables
 size_t FuzzyHammerer::cnt_pattern_probes = 0UL;
 size_t FuzzyHammerer::num_successful_probes = 0UL;
-std::unordered_map<std::string, std::unordered_map<std::string, int>> FuzzyHammerer::map_pattern_mappings_bitflips{};
+std::unordered_map<std::string, std::unordered_map<std::string, int>> FuzzyHammerer::map_pattern_mappings_bitflips;
 HammeringPattern FuzzyHammerer::hammering_pattern = HammeringPattern(); /* NOLINT */
 
 void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, long runtime_limit,

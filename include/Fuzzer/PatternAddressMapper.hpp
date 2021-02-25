@@ -3,6 +3,7 @@
 
 #include <random>
 #include <set>
+#include <utility>
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
@@ -21,7 +22,7 @@ class PatternAddressMapper {
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
-  std::vector<std::pair<volatile char *, volatile char *>> victim_rows{};
+  std::vector<std::pair<volatile char *, volatile char *> > victim_rows;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
@@ -41,21 +42,21 @@ class PatternAddressMapper {
   PatternAddressMapper& operator=(const PatternAddressMapper& other);
 
   // information about the mapping (required for determining rows not belonging to this mapping)
-  int min_row{};
-  int max_row{};
-  int bank_no{};
+  int min_row = 0;
+  int max_row = 0;
+  int bank_no = 0;
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
-  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr{};
+  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
 
   // the bit flips that were detected while running the pattern with this mapping
-  std::vector<BitFlip> bit_flips{};
+  std::vector<BitFlip> bit_flips;
 
   // the reproducibility score of this mapping, e.g.,
   //    1   => 100%: was reproducible in all reproducibility runs executed,
   //    0.4 => 40%: was reproducible in 40% of all reproducibility runs executed
   // (note: is zero initialized, i.e., value is also 0 in case that this pattern does not trigger bit flips at all)
-  double reproducibility_score{};
+  double reproducibility_score = 0.0;
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
