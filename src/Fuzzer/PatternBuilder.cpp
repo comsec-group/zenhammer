@@ -117,8 +117,8 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
 
   // we call this method also for filling up a prefilled pattern (during analysis stage) that already contains some
   // aggressor accesses, in that case we should not clear the aggressors vector
-  if (pattern.aggressors.size()==0) {
-    pattern.aggressors = std::vector<Aggressor>(params.get_total_acts_pattern(), Aggressor());
+  if (pattern.aggressors.empty()) {
+    pattern.aggressors = std::vector<Aggressor>(pattern_length, Aggressor());
   } else {
     // go through aggressors list and figure out prefilled slots but only keep the index of the start slot of a
     // prefilled contiguous area (e.g., "_ _ _ A1 A2 A3 _ _ A4 A5 _ _ _" would only record index of A1 and A4)
