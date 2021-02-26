@@ -54,8 +54,10 @@ void PatternBuilder::fill_slots(const size_t start_period,
       // .. fill in the aggressors
       for (size_t agg_idx = 0; agg_idx < aggressors.size(); ++agg_idx) {
         auto next_target = period + (aggressors.size()*amp) + agg_idx;
-        if (next_target >= pattern_length) break;
-        accesses[next_target] = aggressors[agg_idx];
+        if (next_target >= accesses.size()) {
+          break;
+        }
+        accesses[next_target] = aggressors.at(agg_idx);
       }
     }
   }
