@@ -5,6 +5,10 @@
 
 #include "Forges/FuzzyHammerer.hpp"
 
+#ifdef ENABLE_JSON
+#include <nlohmann/json.hpp>
+#endif
+
 #define M(VAL) (VAL ## 000000)
 #define K(VAL) (VAL ## 000)
 

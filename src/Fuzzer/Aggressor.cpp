@@ -1,5 +1,7 @@
 #include "Fuzzer/Aggressor.hpp"
 
+#include <unordered_map>
+
 std::string Aggressor::to_string() const {
   if (id==ID_PLACEHOLDER_AGG) return "EMPTY";
   std::stringstream ss;

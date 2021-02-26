@@ -10,8 +10,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(LIBRARY_NAME bs)
 set(EXECUTABLE_NAME blacksmith)
 
-option(ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
-option(ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
+option(OPT_ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
+option(OPT_ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
 option(WITH_SAMSUNG_PARAMETERS "Use debugging parameters for Samsung DIMMs" OFF)
 option(WITH_DIMM10_PARAMETERS "Use debugging parameters for DIMM 10, Hynix" OFF)
 
@@ -20,33 +20,6 @@ if (NOT WIN32)
     string(ASCII 27 Esc)
     set(ColourReset "${Esc}[m")
     set(BoldRed "${Esc}[1;31m")
-endif ()
-
-if (ENABLE_JSON)
-    add_definitions(-DENABLE_JSON)
-    find_package(nlohmann_json QUIET)
-    if (NOT nlohmann_json_FOUND)
-        message("Library nlohmann/json not found. Downloading nlohmann_json...")
-        include(FetchContent)
-        set(JSON_BuildTests OFF CACHE INTERNAL "")
-        set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
-        FetchContent_Declare(
-                nlohmann_json
-                GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
-                GIT_TAG v3.7.3)
-        FetchContent_MakeAvailable(nlohmann_json)
-    endif ()
-endif ()
-
-if (ENABLE_JITTING)
-    add_definitions(-DENABLE_JITTING)
-    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
-    find_package(AsmJit)
-    if (NOT ASMJIT_FOUND)
-        message("Install asmjit manually: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
-        message("or set ENABLE_JITTING=OFF in the CMakeLists.txt prior building.")
-        return()
-    endif ()
 endif ()
 
 # Add some compiler options if they are supported
@@ -114,27 +87,50 @@ if (WITH_DIMM10_PARAMETERS)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_DIMM10=1")
 endif ()
 
-if (ENABLE_JITTING)
+if (OPT_ENABLE_JITTING)
+    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
+    find_package(AsmJit)
+    if (NOT ASMJIT_FOUND)
+        message("Install asmjit manually: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
+        message("or set ENABLE_JITTING=OFF in the CMakeLists.txt prior building.")
+        return()
+    endif ()
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING")
     target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
     target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
 endif ()
 
-if (ENABLE_JSON)
+if (OPT_ENABLE_JSON)
+    find_package(nlohmann_json QUIET)
+    if (NOT nlohmann_json_FOUND)
+        message("Library nlohmann/json not found. Downloading nlohmann_json...")
+        include(FetchContent)
+        set(JSON_BuildTests OFF CACHE INTERNAL "")
+        set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+        FetchContent_Declare(
+                nlohmann_json
+                GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
+                GIT_TAG v3.7.3)
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif ()
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON")
     target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
 endif ()
 
 add_executable(${EXECUTABLE_NAME} src/Blacksmith.cpp include/Blacksmith.hpp)
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBRARY_NAME})
+
 target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
-if (WITH_SAMSUNG_PARAMETERS)
-    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
-endif ()
-if (WITH_DIMM10_PARAMETERS)
-    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10=1")
-endif ()
+target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON=${OPT_ENABLE_JSON}")
+target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=${OPT_ENABLE_JITTING}")
+
+target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_SAMSUNG=${WITH_SAMSUNG_PARAMETERS}")
+target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10${WITH_DIMM10_PARAMETERS}")
 
 # forces CMake to delete variable's value from CMake cache: uses either the default value or the value passed as param
 # e.g., cmake -DWITH_SAMSUNG_PARAMETERS=ON ..
 # https://stackoverflow.com/a/53159688/3017719
 unset(WITH_SAMSUNG_PARAMETERS CACHE)
 unset(WITH_DIMM10_PARAMETERS CACHE)
+unset(OPT_ENABLE_JSON CACHE)
+unset(OPT_ENABLE_JITTING CACHE)

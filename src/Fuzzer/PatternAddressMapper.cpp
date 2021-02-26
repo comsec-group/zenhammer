@@ -3,6 +3,7 @@
 #include <set>
 #include <memory>
 #include <iomanip>
+#include <algorithm>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"

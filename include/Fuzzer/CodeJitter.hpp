@@ -61,7 +61,9 @@ class CodeJitter {
   /// cleaning up is required to release memory before jit_strict can be called again
   void cleanup();
 
+#ifdef ENABLE_JITTING
   static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
+#endif
 };
 
 #ifdef ENABLE_JSON

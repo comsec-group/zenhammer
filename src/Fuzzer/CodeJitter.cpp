@@ -231,6 +231,7 @@ void CodeJitter::jit_strict(int num_acts_per_trefi,
 #endif
 }
 
+#ifdef ENABLE_JITTING
 void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler) {
   asmjit::Label wbegin = assembler.newLabel();
   asmjit::Label wend = assembler.newLabel();
@@ -279,6 +280,7 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &aggressor_pairs, a
   assembler.jmp(wbegin);  // ... or jump back to the loop's beginning
   assembler.bind(wend);
 }
+#endif
 
 #ifdef ENABLE_JSON
 
