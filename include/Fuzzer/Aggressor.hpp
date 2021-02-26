@@ -16,10 +16,10 @@ typedef int AGGRESSOR_ID_TYPE;
 
 class Aggressor {
  public:
-  AGGRESSOR_ID_TYPE id;
+  AGGRESSOR_ID_TYPE id = ID_PLACEHOLDER_AGG;
 
   // default constructor: required to enable vector initialization
-  Aggressor();;
+  Aggressor() = default;
 
   // creates a new Aggressor; the caller must ensure that the ID is valid
   explicit Aggressor(int id);

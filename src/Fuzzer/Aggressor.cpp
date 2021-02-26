@@ -1,7 +1,5 @@
 #include "Fuzzer/Aggressor.hpp"
 
-#include <unordered_map>
-
 std::string Aggressor::to_string() const {
   if (id==ID_PLACEHOLDER_AGG) return "EMPTY";
   std::stringstream ss;
@@ -28,12 +26,7 @@ std::vector<AGGRESSOR_ID_TYPE> Aggressor::get_agg_ids(const std::vector<Aggresso
   return agg_ids;
 }
 
-Aggressor::Aggressor() : id(ID_PLACEHOLDER_AGG) {
-}
-
-Aggressor::Aggressor(int id) : id(id) {
-
-}
+Aggressor::Aggressor(int id) : id(id) {}
 
 std::vector<Aggressor> Aggressor::create_aggressors(const std::vector<AGGRESSOR_ID_TYPE> &agg_ids) {
   std::vector<Aggressor> result_list;
