@@ -25,13 +25,19 @@ class AggressorAccessPattern {
 
   AggressorAccessPattern(size_t frequency,
                          int amplitude,
-                         std::vector<Aggressor> aggressors,
+                         std::vector<Aggressor> &aggs,
                          size_t absolute_offset)
       : frequency(frequency),
         amplitude(amplitude),
         start_offset(absolute_offset),
-        aggressors(std::move(aggressors)) {
+        aggressors(aggs) {
   }
+
+  ~AggressorAccessPattern() = default;
+
+  AggressorAccessPattern(const AggressorAccessPattern &other) = default;
+
+  AggressorAccessPattern& operator=(const AggressorAccessPattern &other);
 
   std::string to_string() const;
 };

@@ -29,6 +29,13 @@ class Aggressor {
   static std::vector<AGGRESSOR_ID_TYPE> get_agg_ids(const std::vector<Aggressor> &aggressors);
 
   static std::vector<Aggressor> create_aggressors(const std::vector<AGGRESSOR_ID_TYPE> &agg_ids);
+
+  ~Aggressor() = default;
+
+  Aggressor(const Aggressor &other) = default;
+
+  Aggressor& operator=(const Aggressor &other);
+
 };
 
 #ifdef ENABLE_JSON

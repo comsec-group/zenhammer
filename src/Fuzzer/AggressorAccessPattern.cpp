@@ -45,3 +45,12 @@ std::string AggressorAccessPattern::to_string() const {
   ss << aggs.str() << frequency << ", " << amplitude << "⨉, " << start_offset;
   return ss.str();
 }
+
+AggressorAccessPattern &AggressorAccessPattern::operator=(const AggressorAccessPattern &other) {
+  if (this == &other) return *this;
+  this->frequency = other.frequency;
+  this->amplitude = other.amplitude;
+  this->start_offset = other.start_offset;
+  this->aggressors = other.aggressors;
+  return *this;
+}
