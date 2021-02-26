@@ -19,7 +19,7 @@ PatternAddressMapper::PatternAddressMapper()
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
-                                               std::vector<AggressorAccessPattern> &agg_access_patterns,
+                                               const std::vector<AggressorAccessPattern> &agg_access_patterns,
                                                bool verbose) {
   // clear any already existing mapping
   aggressor_to_addr.clear();
@@ -45,7 +45,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
-      Aggressor &current_agg = acc_pattern.aggressors[i];
+      const Aggressor &current_agg = acc_pattern.aggressors.at(i);
       if (aggressor_to_addr.count(current_agg.id) > 0) {
         row = aggressor_to_addr.at(current_agg.id).row;
       } else if (i > 0) {
@@ -95,7 +95,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
-void PatternAddressMapper::determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns) {
+void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns) {
   // a set to make sure we add victims only once
   std::set<volatile char *> victim_addresses;
   victim_rows.clear();

@@ -35,9 +35,9 @@ int PatternBuilder::all_slots_full(size_t offset, size_t period, int pattern_len
   return -1;
 };
 
-void PatternBuilder::fill_slots(size_t start_period,
-                                size_t period_length,
-                                size_t amplitude,
+void PatternBuilder::fill_slots(const size_t start_period,
+                                const size_t period_length,
+                                const size_t amplitude,
                                 std::vector<Aggressor> &aggressors,
                                 std::vector<Aggressor> &accesses,
                                 size_t pattern_length) {

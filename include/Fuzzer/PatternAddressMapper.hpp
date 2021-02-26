@@ -60,7 +60,7 @@ class PatternAddressMapper {
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
-                           std::vector<AggressorAccessPattern> &agg_access_patterns,
+                           const std::vector<AggressorAccessPattern> &agg_access_patterns,
                            bool verbose);
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows);
@@ -77,7 +77,7 @@ class PatternAddressMapper {
 
   std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
 
-  void determine_victims(std::vector<AggressorAccessPattern> &agg_access_patterns);
+  void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns);
 
   std::string get_mapping_text_repr();
 
