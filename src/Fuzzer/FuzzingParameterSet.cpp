@@ -209,7 +209,10 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-  set_distribution(N_sided, {{1, 20}, {2, 80}});
+  std::unordered_map<int,int> probs;
+  probs.insert(std::make_pair(1, 20));
+  probs.insert(std::make_pair(2, 80));
+  set_distribution(N_sided, probs);
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:

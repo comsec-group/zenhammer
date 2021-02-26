@@ -22,9 +22,13 @@ size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
 }
 
 void PatternBuilder::remove_smaller_than(std::vector<int> &vec, int N) {
-  vec.erase(std::remove_if(vec.begin(), vec.end(), [&](const int &x) {
-    return x < N;
-  }), vec.end());
+  for (auto it = vec.begin(); it != vec.end(); ) {
+    if (*it < N) {
+      it = vec.erase(it);
+    } else {
+      ++it;
+    }
+  }
 };
 
 int PatternBuilder::all_slots_full(size_t offset, size_t period, int pattern_length, std::vector<Aggressor> &aggs) {
@@ -69,7 +73,7 @@ void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, in
 
   // increment the ID cyclically until we added N aggressors
   for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1)%max_num_aggressors)) {
-    aggs.emplace_back((int) aggressor_id_counter);
+    aggs.push_back(Aggressor(aggressor_id_counter));
     added_aggs++;
   }
 };
@@ -89,6 +93,26 @@ std::vector<int> PatternBuilder::get_available_multiplicators(int num_base_perio
   return allowed_multiplicators;
 }
 
+int PatternBuilder::get_next_prefilled_slot(size_t cur_idx, std::vector<int> start_indices_prefilled_slots, int base_period,
+                            int &cur_prefilled_slots_idx) {
+  // no prefilled pattern: use base_period as bound
+  if (start_indices_prefilled_slots.size() == 0)
+    return (int)base_period;
+
+  // prefilled pattern
+  if ((int) cur_idx < start_indices_prefilled_slots[cur_prefilled_slots_idx]) {
+    // keep using the current index of the next occupied slot
+    return start_indices_prefilled_slots[cur_prefilled_slots_idx];
+  } else if ((size_t)cur_prefilled_slots_idx+1 < start_indices_prefilled_slots.size()) {
+    // increment the index by one as we still didn't reach the end
+    cur_prefilled_slots_idx++;
+    return start_indices_prefilled_slots[cur_prefilled_slots_idx];
+  } else {
+    // we already reached the end, from now on only the base period is our bound
+    return (int)base_period;
+  }
+};
+
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &params,
                                                       int pattern_length,
                                                       size_t base_period) {
@@ -96,24 +120,6 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
   auto cur_prefilled_slots_idx = 0;
   // this is a helper function that takes the current index (of base_period) and then returns the index of either the
   // next prefilled slot (if pattern was prefilled) or just returns the last index of the base period
-  auto get_next_prefilled_slot = [&](size_t cur_idx) {
-    // no prefilled pattern: use base_period as bound
-    if (start_indices_prefilled_slots.size() == 0)
-      return (int)base_period;
-
-    // prefilled pattern
-    if ((int) cur_idx < start_indices_prefilled_slots[cur_prefilled_slots_idx]) {
-      // keep using the current index of the next occupied slot
-      return start_indices_prefilled_slots[cur_prefilled_slots_idx];
-    } else if ((size_t)cur_prefilled_slots_idx+1 < start_indices_prefilled_slots.size()) {
-      // increment the index by one as we still didn't reach the end
-      cur_prefilled_slots_idx++;
-      return start_indices_prefilled_slots[cur_prefilled_slots_idx];
-    } else {
-      // we already reached the end, from now on only the base period is our bound
-      return (int)base_period;
-    }
-  };
 
   // we call this method also for filling up a prefilled pattern (during analysis stage) that already contains some
   // aggressor accesses, in that case we should not clear the aggressors vector
@@ -160,7 +166,8 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
       } else {
         // if there are prefilled slots we need to pay attention to not overwrite them either by choosing too many
         // aggressors or by choosing an amplitude that is too large
-        auto next_prefilled_idx = get_next_prefilled_slot(k);
+        auto next_prefilled_idx = get_next_prefilled_slot(k, start_indices_prefilled_slots,
+            base_period, cur_prefilled_slots_idx);
         num_aggressors = ((next_prefilled_idx - k)==1) ? 1 : params.get_random_N_sided(next_prefilled_idx - k);
         cur_amplitude = params.get_random_amplitude((int) std::floor((next_prefilled_idx - k)/num_aggressors));
       }

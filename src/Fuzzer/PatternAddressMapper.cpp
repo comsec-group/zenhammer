@@ -81,7 +81,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
-      aggressor_to_addr.insert({current_agg.id, DRAMAddr(bank_no, row, 0)});
+      aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(bank_no, row, 0)));
     }
   }
 
@@ -113,8 +113,10 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
 
         auto victim_start = DRAMAddr(dram_addr.bank, cur_row_candidate, 0);
         if (victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
-          victim_rows.emplace_back((volatile char *) victim_start.to_virt(),
-              (volatile char *) DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
+          auto addr_pair = std::make_pair<volatile char*, volatile char*>(
+              (volatile char*)victim_start.to_virt(),
+              (volatile char*)DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
+          victim_rows.push_back(addr_pair);
           victim_addresses.insert((volatile char *) victim_start.to_virt());
         }
 
