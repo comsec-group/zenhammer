@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 
   if (args.load_json_filename!=nullptr) {
     ReplayingHammerer replayer(memory);
-    replayer.replay_patterns(args.load_json_filename, args.pattern_ids);
+    replayer.replay_patterns(args.load_json_filename, args.pattern_ids, args.sweeping);
   } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
     FuzzyHammerer::n_sided_frequency_based_hammering(memory, args.acts_per_ref, args.runtime_limit,
         args.probes_per_pattern, args.sweeping);

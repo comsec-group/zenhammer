@@ -58,7 +58,7 @@ PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPat
   return *best_mapping;
 }
 
-void ReplayingHammerer::replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids) {
+void ReplayingHammerer::replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids, bool sweep_only) {
   // replay each loaded pattern
   for (auto &patt : load_patterns_from_json(json_filename, pattern_ids)) {
 
@@ -75,37 +75,41 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
     params.print_static_parameters();
     params.print_semi_dynamic_parameters();
 
-    // ==== Experiment: Does alignment with REF play a role?
+    if (!sweep_only) {
+      // ==== Experiment: Does alignment with REF play a role?
 
-    Logger::log_analysis_stage("Running REF alignment experiment.");
-    run_refresh_alignment_experiment(mapper);
+      Logger::log_analysis_stage("Running REF alignment experiment.");
+      run_refresh_alignment_experiment(mapper);
 
-    // ==== Execution probing: systematically randomize parameters that decide how a pattern is jitted/executed
+      // ==== Execution probing: systematically randomize parameters that decide how a pattern is jitted/executed
 
-    Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
-    run_code_jitting_probing(mapper);
+      Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
+      run_code_jitting_probing(mapper);
+    }
 
     // ==== Spatial probing: sweep pattern over a contiguous chunk of memory
 
     Logger::log_analysis_stage("SPATIAL PROBING");
     sweep_pattern_internal(patt, mapper, hammering_num_reps);
 
-    // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
+    if (!sweep_only) {
+      // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
 
-    // first, check which is the most obvious AggressorAccessPattern that triggered the bit flip by measuring the row
-    // distance from the flipped row to all AggressorAccessPatterns
-    Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
-    Logger::log_info("Determining AggressorAccessPattern that most probably triggered bit flip.");
-    std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
-    find_direct_effective_aggs(mapper, direct_effective_aggs);
+      // first, check which is the most obvious AggressorAccessPattern that triggered the bit flip by measuring the row
+      // distance from the flipped row to all AggressorAccessPatterns
+      Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
+      Logger::log_info("Determining AggressorAccessPattern that most probably triggered bit flip.");
+      std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
+      find_direct_effective_aggs(mapper, direct_effective_aggs);
 
-    std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
-    find_indirect_effective_aggs(mapper, direct_effective_aggs, indirect_effective_aggs);
+      std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
+      find_indirect_effective_aggs(mapper, direct_effective_aggs, indirect_effective_aggs);
 
-    // ==== Pattern-specific params probing: check if tweaking the AggressorAccessPattern(s) causing the bit flip(s) can
-    // increase the pattern's effectiveness
+      // ==== Pattern-specific params probing: check if tweaking the AggressorAccessPattern(s) causing the bit flip(s) can
+      // increase the pattern's effectiveness
 
-    run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
+      run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
+    }
   }
 }
 
