@@ -1,6 +1,7 @@
 #include "Forges/ReplayingHammerer.hpp"
 
 #include <unordered_set>
+#include <chrono>
 #include <Fuzzer/PatternBuilder.hpp>
 
 #include "Forges/FuzzyHammerer.hpp"
@@ -58,7 +59,7 @@ PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPat
   return *best_mapping;
 }
 
-void ReplayingHammerer::replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids, bool sweep_only) {
+void ReplayingHammerer::replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids) {
   // replay each loaded pattern
   for (auto &patt : load_patterns_from_json(json_filename, pattern_ids)) {
 
@@ -75,42 +76,100 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
     params.print_static_parameters();
     params.print_semi_dynamic_parameters();
 
-    if (!sweep_only) {
-      // ==== Experiment: Does alignment with REF play a role?
+    // ==== Experiment: Does alignment with REF play a role?
 
-      Logger::log_analysis_stage("Running REF alignment experiment.");
-      run_refresh_alignment_experiment(mapper);
+    Logger::log_analysis_stage("Running REF alignment experiment.");
+    run_refresh_alignment_experiment(mapper);
 
-      // ==== Execution probing: systematically randomize parameters that decide how a pattern is jitted/executed
+    // ==== Execution probing: systematically randomize parameters that decide how a pattern is jitted/executed
 
-      Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
-      run_code_jitting_probing(mapper);
-    }
+    Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
+    run_code_jitting_probing(mapper);
 
     // ==== Spatial probing: sweep pattern over a contiguous chunk of memory
 
     Logger::log_analysis_stage("SPATIAL PROBING");
     sweep_pattern_internal(patt, mapper, hammering_num_reps);
 
-    if (!sweep_only) {
-      // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
+    // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
 
-      // first, check which is the most obvious AggressorAccessPattern that triggered the bit flip by measuring the row
-      // distance from the flipped row to all AggressorAccessPatterns
-      Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
-      Logger::log_info("Determining AggressorAccessPattern that most probably triggered bit flip.");
-      std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
-      find_direct_effective_aggs(mapper, direct_effective_aggs);
+    // first, check which is the most obvious AggressorAccessPattern that triggered the bit flip by measuring the row
+    // distance from the flipped row to all AggressorAccessPatterns
+    Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
+    Logger::log_info("Determining AggressorAccessPattern that most probably triggered bit flip.");
+    std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
+    find_direct_effective_aggs(mapper, direct_effective_aggs);
 
-      std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
-      find_indirect_effective_aggs(mapper, direct_effective_aggs, indirect_effective_aggs);
+    std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
+    find_indirect_effective_aggs(mapper, direct_effective_aggs, indirect_effective_aggs);
 
-      // ==== Pattern-specific params probing: check if tweaking the AggressorAccessPattern(s) causing the bit flip(s) can
-      // increase the pattern's effectiveness
+    // ==== Pattern-specific params probing: check if tweaking the AggressorAccessPattern(s) causing the bit flip(s) can
+    // increase the pattern's effectiveness
 
-      run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
-    }
+    run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
   }
+}
+
+void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids)
+{
+#ifdef ENABLE_JSON
+  nlohmann::json runs;
+  auto start = std::chrono::system_clock::now();
+#endif
+
+  int pattern_index = 1;
+  for (auto &pattern : load_patterns_from_json(json_filename, pattern_ids)) {
+    // If we're just sweeping, we don't care too much about the address mapping.
+    // Instead of selecting the most effective mapping, simply select the first.
+    PatternAddressMapper &mapper = pattern.address_mappings.front();
+
+    Logger::log_highlight(
+        format_string("Sweeping pattern %s (%d/%d) using mapping %s",
+                      pattern.instance_id.c_str(), pattern_index++,
+                      pattern_ids.size(), mapper.get_instance_id().c_str()));
+    Logger::log_timestamp();
+
+    // TODO: necessary?
+    load_parameters_from_pattern(pattern, mapper);
+
+    // TODO: make num reps configurable?
+    struct SweepSummary summary = sweep_pattern_internal(pattern, mapper, 10);
+
+#ifdef ENABLE_JSON
+    nlohmann::json entry;
+    entry["pattern"] = pattern.instance_id;
+    entry["mapping"] = mapper.get_instance_id();
+
+    nlohmann::json flips;
+    flips["zero_to_one"] = summary.num_flips_z2o;
+    flips["one_to_zero"] = summary.num_flips_o2z;
+    flips["total"] = summary.num_flips_z2o + summary.num_flips_o2z;
+    entry["flips"] = flips;
+
+    runs.push_back(entry);
+#endif
+  }
+  Logger::log_timestamp();
+
+#ifdef ENABLE_JSON
+  auto end = std::chrono::system_clock::now();
+
+  nlohmann::json meta;
+  meta["start"] =
+      std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch())
+          .count();
+  meta["end"] =
+      std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch())
+          .count();
+  meta["num_patterns"] = pattern_ids.size();
+
+  nlohmann::json root;
+  root["metadata"] = meta;
+  root["sweeps"] = runs;
+
+  std::ofstream stream("sweep-summary.json");
+  stream << root << std::endl;
+#endif
 }
 
 std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const char *json_filename,
@@ -245,16 +304,17 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
   return total_bitflips_all_reps;
 }
 
-void ReplayingHammerer::sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps) {
+struct SweepSummary ReplayingHammerer::sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps) {
   // calls the public function by passing the object's FuzzingParameterSet attribute
-  sweep_pattern(pattern, mapper, params, num_reps);
+  return sweep_pattern(pattern, mapper, params, num_reps);
 }
 
-void ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
+struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
                                       FuzzingParameterSet &fuzz_params, size_t num_reps) {
   // sweep over a chunk of N MBytes to see whether this pattern also works on other locations
   // compute the bound of the mem area we want to check using this pattern
-  auto sweep_MB = 256;
+  // TODO: don't forget to change this back in case of any non-sweeping experiment!
+  auto sweep_MB = 8;
 
 #ifdef DEBUG_SAMSUNG
   sweep_MB = 8;
@@ -312,6 +372,11 @@ void ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressM
   }
   Logger::log_data(format_string("0->1 flips: %lu", z2o_corruptions));
   Logger::log_data(format_string("1->0 flips: %lu", o2z_corruptions));
+
+  return (struct SweepSummary){
+      .num_flips_z2o = z2o_corruptions,
+      .num_flips_o2z = o2z_corruptions,
+  };
 }
 
 ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
