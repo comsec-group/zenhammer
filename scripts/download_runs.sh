@@ -13,7 +13,7 @@ declare -rA log_colors=(
 )
 
 declare -rA log_prefixes=(
-    ["error"]="[*]"
+    ["fail"]="[*]"
     ["info"]="[>]"
 )
 
@@ -29,7 +29,7 @@ function download() {
 
     # Get list of all files in the Blacksmith bucket
     readonly aws="$(aws s3 ls --recursive s3://blacksmith-evaluation/)" || {
-        log error "failed to access the AWS S3 bucket!"
+        log fail "failed to access the AWS S3 bucket!"
         exit 1
     }
 
@@ -66,7 +66,7 @@ function download() {
 
         log info "downloading (${count}/${file_count}) -> ${target}..."
         aws s3 cp "s3://blacksmith-evaluation/${file}" "${target}" || {
-            log error "failed to download from the AWS S3 bucket!"
+            log fail "failed to download from the AWS S3 bucket!"
             exit 1
         }
         ((count++))
