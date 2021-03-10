@@ -6,6 +6,14 @@
 
 #include <unordered_set>
 
+struct SweepSummary {
+  // Number of observed corruptions from zero to one.
+  size_t num_flips_z2o;
+
+  // Number of observed corruptions from one to zero.
+  size_t num_flips_o2z;
+};
+
 class ReplayingHammerer {
  private:
   // the Memory instance for hammering
@@ -63,7 +71,7 @@ class ReplayingHammerer {
 
   void load_parameters_from_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper);
 
-  void sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps);
+  struct SweepSummary sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps);
 
  public:
 
@@ -71,7 +79,9 @@ class ReplayingHammerer {
 
   void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 
-  void sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
+  void replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
+
+  struct SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
                      FuzzingParameterSet &fuzz_params, size_t num_reps);
 };
 

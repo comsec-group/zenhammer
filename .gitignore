@@ -26,3 +26,5 @@ cmake-build-*
 # visualization scripts
 visualize/venv/
 visualize/data/*
+
+scripts/portability_experiment/*
