@@ -317,8 +317,7 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
                                       FuzzingParameterSet &fuzz_params, size_t num_reps) {
   // sweep over a chunk of N MBytes to see whether this pattern also works on other locations
   // compute the bound of the mem area we want to check using this pattern
-  // TODO: don't forget to change this back in case of any non-sweeping experiment!
-  auto sweep_MB = 8;
+  auto sweep_MB = 256;
 
 #ifdef DEBUG_SAMSUNG
   sweep_MB = 8;
