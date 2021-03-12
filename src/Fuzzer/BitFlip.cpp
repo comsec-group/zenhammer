@@ -16,7 +16,11 @@ void from_json(const nlohmann::json &j, BitFlip &p) {
   j.at("dram_addr").get_to(p.address);
   j.at("bitmask").get_to(p.bitmask);
   j.at("data").get_to(p.corrupted_data);
-  j.at("observed_at").get_to(p.observation_time);
+  if (j.contains("observed_at")) {
+    j.at("observed_at").get_to(p.observation_time);
+  } else {
+    p.observation_time = 0;
+  }
 }
 
 #endif
