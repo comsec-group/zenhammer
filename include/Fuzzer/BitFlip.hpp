@@ -4,10 +4,6 @@
 #include "Memory/DRAMAddr.hpp"
 
 class BitFlip {
- private:
-  // seconds since epoch when fuzzer started
-  static time_t fuzzer_run_start_ts;
-
  public:
   // the address where the bit flip was observed
   DRAMAddr address;
@@ -28,8 +24,7 @@ class BitFlip {
 
   size_t count_bit_corruptions() const;
 
-  // time from start of fuzzer run when bit flip was observed
-  time_t observed_at;
+  time_t observation_time;
 };
 
 #ifdef ENABLE_JSON

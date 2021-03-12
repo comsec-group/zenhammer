@@ -2,15 +2,13 @@
 
 #include <bitset>
 
-time_t BitFlip::fuzzer_run_start_ts = time(nullptr);
-
 #ifdef ENABLE_JSON
 
 void to_json(nlohmann::json &j, const BitFlip &p) {
   j = nlohmann::json{{"dram_addr", p.address},
                      {"bitmask", p.bitmask},
                      {"data", p.corrupted_data},
-                     {"observed_at", p.observed_at}
+                     {"observed_at", p.observation_time}
   };
 }
 
@@ -18,18 +16,18 @@ void from_json(const nlohmann::json &j, BitFlip &p) {
   j.at("dram_addr").get_to(p.address);
   j.at("bitmask").get_to(p.bitmask);
   j.at("data").get_to(p.corrupted_data);
-  j.at("observed_at").get_to(p.observed_at);
+  j.at("observed_at").get_to(p.observation_time);
 }
 
 #endif
 
 BitFlip::BitFlip(const DRAMAddr &address, uint8_t flips_bitmask, uint8_t corrupted_data)
     : address(address), bitmask(flips_bitmask), corrupted_data(corrupted_data) {
-  observed_at = time(nullptr)-fuzzer_run_start_ts;
+  observation_time = time(nullptr);
 }
 
 BitFlip::BitFlip() {
-  observed_at = time(nullptr)-fuzzer_run_start_ts;
+  observation_time = time(nullptr);
 }
 
 size_t BitFlip::count_z2o_corruptions() const {
