@@ -93,7 +93,7 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
     // ==== Spatial probing: sweep pattern over a contiguous chunk of memory
 
     Logger::log_analysis_stage("SPATIAL PROBING");
-    sweep_pattern_internal(patt, mapper, hammering_num_reps);
+    sweep_pattern(patt, mapper, hammering_num_reps);
 
     // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
 
@@ -114,7 +114,12 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
   }
 }
 
-void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids)
+void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids) {
+  auto patterns = load_patterns_from_json(json_filename, pattern_ids);
+}
+
+
+void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns)
 {
 #ifdef ENABLE_JSON
   nlohmann::json runs;
@@ -122,7 +127,7 @@ void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const s
 #endif
 
   int pattern_index = 1;
-  for (auto &pattern : load_patterns_from_json(json_filename, pattern_ids)) {
+  for (auto &pattern : hammering_patterns) {
     // If we're just sweeping, we don't care too much about the address mapping.
     // Instead of selecting the most effective mapping, simply select the first.
     PatternAddressMapper &mapper = pattern.address_mappings.front();
@@ -130,14 +135,14 @@ void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const s
     Logger::log_highlight(
         format_string("Sweeping pattern %s (%d/%d) using mapping %s",
                       pattern.instance_id.c_str(), pattern_index++,
-                      pattern_ids.size(), mapper.get_instance_id().c_str()));
+                      hammering_patterns.size(), mapper.get_instance_id().c_str()));
     Logger::log_timestamp();
 
     // TODO: necessary?
     load_parameters_from_pattern(pattern, mapper);
 
     // TODO: make num reps configurable?
-    struct SweepSummary summary = sweep_pattern_internal(pattern, mapper, 10);
+    struct SweepSummary summary = sweep_pattern(pattern, mapper, 10);
 
 #ifdef ENABLE_JSON
     nlohmann::json entry;
@@ -148,6 +153,7 @@ void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const s
     flips["zero_to_one"] = summary.num_flips_z2o;
     flips["one_to_zero"] = summary.num_flips_o2z;
     flips["total"] = summary.num_flips_z2o + summary.num_flips_o2z;
+    flips["details"] = summary.observed_bitflips;
     entry["flips"] = flips;
 
     runs.push_back(entry);
@@ -159,13 +165,10 @@ void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const s
   auto end = std::chrono::system_clock::now();
 
   nlohmann::json meta;
-  meta["start"] =
-      std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch())
-          .count();
-  meta["end"] =
-      std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch())
-          .count();
-  meta["num_patterns"] = pattern_ids.size();
+  meta["start"] = std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch()).count();
+  meta["end"] = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch()).count();
+  meta["num_patterns"] = hammering_patterns.size();
+  meta["memory_config"] = DRAMAddr::get_memcfg_json();
 
   nlohmann::json root;
   root["metadata"] = meta;
@@ -173,6 +176,7 @@ void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const s
 
   std::ofstream stream("sweep-summary.json");
   stream << root << std::endl;
+  stream.close();
 #endif
 }
 
@@ -192,10 +196,15 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
   HammeringPattern best_pattern;
   int best_pattern_num_bitflips = 0;
 
+  // this is for downwards-compatibility with the old JSON format where we just had a JSON array of HammeringPatterns,
+  // i.e., without a separate 'metadata' section
+  nlohmann::json patterns_array;
+  patterns_array = json_file.contains("hammering_patterns") ? json_file["hammering_patterns"] : json_file;
+
   // if pattern_ids == nullptr: user did not provide --replay_patterns program arg
   if (pattern_ids.empty()) {
     // look for the best pattern (w.r.t. number of bit flips) instead
-    for (auto const &json_hammering_patt : json_file) {
+    for (auto const &json_hammering_patt : patterns_array) {
       HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
       auto num_bitflips = 0;
@@ -217,7 +226,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
 
   } else {
     // find the patterns that have the provided IDs
-    for (auto const &json_hammering_patt : json_file) {
+    for (auto const &json_hammering_patt : patterns_array) {
       HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
       // after parsing, check if this pattern's ID matches one of the IDs given to '-replay_patterns'
@@ -308,13 +317,8 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
   return total_bitflips_all_reps;
 }
 
-struct SweepSummary ReplayingHammerer::sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps) {
-  // calls the public function by passing the object's FuzzingParameterSet attribute
-  return sweep_pattern(pattern, mapper, params, num_reps);
-}
-
 struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                      FuzzingParameterSet &fuzz_params, size_t num_reps) {
+                                      size_t num_reps) {
   // sweep over a chunk of N MBytes to see whether this pattern also works on other locations
   // compute the bound of the mem area we want to check using this pattern
   auto sweep_MB = 256;
@@ -346,18 +350,22 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
 
   auto total_bit_flips_sweeping = 0;
   std::vector<BitFlip> bflips;
+  std::vector<BitFlip> bitflips_list;
   for (unsigned long r = 1; r <= num_rows; ++r) {
     // modify assignment of agg ID to DRAM address by shifting rows of all aggressors by 1
     mapper.shift_mapping(1);
 
     // call hammer_pattern
-    auto num_flips = hammer_pattern(fuzz_params, jitter, pattern, mapper, jitter.flushing_strategy,
+    auto num_flips = hammer_pattern(params, jitter, pattern, mapper, jitter.flushing_strategy,
         jitter.fencing_strategy, num_reps, jitter.num_aggs_for_sync, jitter.total_activations, true,
         jitter.pattern_sync_each_ref, false, false, false, true, true);
     // note the use of early_stopping in hammer_pattern: we repeat hammering at maximum hammering_num_reps times but do stop
     // after observing any bit flip - this is the number that we report
     total_bit_flips_sweeping += num_flips;
     bflips.insert(bflips.end(), mem.flipped_bits.begin(), mem.flipped_bits.end());
+    for (auto bf : mem.flipped_bits) {
+      bitflips_list.push_back(bf);
+    }
 
     init_ss(ss);
     ss << std::setw(10) << r << std::setw(12) << mapper.min_row
@@ -379,6 +387,7 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
   return (struct SweepSummary){
       .num_flips_z2o = z2o_corruptions,
       .num_flips_o2z = o2z_corruptions,
+      .observed_bitflips = bitflips_list
   };
 }
 
@@ -735,4 +744,8 @@ void ReplayingHammerer::load_parameters_from_pattern(HammeringPattern &pattern, 
   // - max_row_no
   // - bank_no  (can be derived from the mapping)
   // - start_row
+}
+
+void ReplayingHammerer::set_params(const FuzzingParameterSet &params) {
+  ReplayingHammerer::params = params;
 }

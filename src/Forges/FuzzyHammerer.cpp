@@ -14,8 +14,9 @@ size_t FuzzyHammerer::num_successful_probes = 0UL;
 std::unordered_map<std::string, std::unordered_map<std::string, int>> FuzzyHammerer::map_pattern_mappings_bitflips;
 HammeringPattern FuzzyHammerer::hammering_pattern = HammeringPattern(); /* NOLINT */
 
-void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, long runtime_limit,
-                                                      const size_t probes_per_pattern, bool sweep_best_pattern) {
+void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
+                                                      long runtime_limit, const size_t probes_per_pattern,
+                                                      bool sweep_best_pattern) {
   Logger::log_info("Starting frequency-based hammering.");
 
   num_successful_probes = 0;
@@ -35,11 +36,12 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
   PatternAddressMapper best_mapping;
   size_t best_mapping_bitflips = 0;
   size_t best_hammering_pattern_bitflips = 0;
-  const long execution_time_limit = get_timestamp_sec() + runtime_limit;
-  size_t cr = 1;
-  for (; get_timestamp_sec() < execution_time_limit; ++cr) {
+  const auto start_ts = get_timestamp_sec();
+  const auto execution_time_limit = start_ts + runtime_limit;
+  size_t current_round = 1;
+  for (; get_timestamp_sec() < execution_time_limit; ++current_round) {
     Logger::log_timestamp();
-    Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cr));
+    Logger::log_highlight(format_string("Generating hammering pattern #%lu.", current_round));
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
@@ -61,7 +63,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
     for (cnt_pattern_probes = 0; cnt_pattern_probes < probes_per_pattern; ++cnt_pattern_probes) {
       PatternAddressMapper mapper;
       Logger::log_info(format_string("Running pattern #%lu (%s) for address set %d (%s).",
-          cr, hammering_pattern.instance_id.c_str(), cnt_pattern_probes, mapper.get_instance_id().c_str()));
+          current_round, hammering_pattern.instance_id.c_str(), cnt_pattern_probes, mapper.get_instance_id().c_str()));
       probe_mapping_and_scan(mapper, memory, fuzzing_params);
       sum_flips_one_pattern_all_mappings += mapper.bit_flips.size();
     }
@@ -102,20 +104,31 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
 
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
-  std::ofstream json_export;
-  json_export.open("raw_data.json");
-  json_export << arr;
+  std::ofstream json_export("fuzzing-summary.json");
+
+  nlohmann::json meta;
+  meta["start"] = start_ts;
+  meta["end"] = get_timestamp_sec();
+  meta["num_patterns"] = arr.size();
+  meta["memory_config"] = DRAMAddr::get_memcfg_json();
+
+  nlohmann::json root;
+  root["metadata"] = meta;
+  root["hammering_patterns"] = arr;
+
+  json_export << root << std::endl;
   json_export.close();
 #endif
 
-  log_overall_statistics(probes_per_pattern, cr, best_mapping.get_instance_id(), best_mapping_bitflips);
+  log_overall_statistics(probes_per_pattern, current_round, best_mapping.get_instance_id(), best_mapping_bitflips);
 
   // apply the 'best' pattern over a contiguous chunk of memory
   // note that log_overall_statistics shows the number of bit flips of the best pattern's most effective mapping, as
   // metric to determine the best pattern we use the number of bit flips over all mappings of that pattern
   if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
     ReplayingHammerer replaying_hammerer(memory);
-    replaying_hammerer.sweep_pattern(best_hammering_pattern, best_mapping, fuzzing_params, 3);
+    replaying_hammerer.set_params(fuzzing_params);
+    replaying_hammerer.replay_patterns_brief({best_hammering_pattern});
   }
 }
 

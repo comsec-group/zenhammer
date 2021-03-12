@@ -12,6 +12,8 @@ struct SweepSummary {
 
   // Number of observed corruptions from one to zero.
   size_t num_flips_o2z;
+
+  std::vector<BitFlip> observed_bitflips;
 };
 
 class ReplayingHammerer {
@@ -24,6 +26,10 @@ class ReplayingHammerer {
 
   // the FuzzingParameterSet instance belonging to the
   FuzzingParameterSet params;
+ public:
+  void set_params(const FuzzingParameterSet &params);
+
+ private:
 
   // maps: (mapping ID) -> (HammeringPattern), because there's no back-reference from mapping to HammeringPattern
   std::unordered_map<std::string, HammeringPattern> map_mapping_id_to_pattern;
@@ -71,18 +77,18 @@ class ReplayingHammerer {
 
   void load_parameters_from_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper);
 
-  struct SweepSummary sweep_pattern_internal(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps);
-
  public:
 
   explicit ReplayingHammerer(Memory &mem);
 
   void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 
+  struct SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
+                     size_t num_reps);
+
   void replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 
-  struct SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                     FuzzingParameterSet &fuzz_params, size_t num_reps);
+  void replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
