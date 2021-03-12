@@ -20,6 +20,7 @@
 typedef size_t mem_config_t;
 
 typedef struct {
+  size_t IDENTIFIER;
   size_t BK_SHIFT;
   size_t BK_MASK;
   size_t ROW_SHIFT;
@@ -71,6 +72,8 @@ class DRAMAddr {
   DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
 
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
+
+  static nlohmann::json get_memcfg_json();
 };
 
 #ifdef ENABLE_JSON

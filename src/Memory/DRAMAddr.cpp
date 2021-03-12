@@ -76,19 +76,19 @@ void *DRAMAddr::to_virt() const {
 std::string DRAMAddr::to_string() {
   char buff[1024];
   sprintf(buff, "DRAMAddr(b: %zu, r: %zu, c: %zu) = %p",
-          this->bank,
-          this->row,
-          this->col,
-          this->to_virt());
+      this->bank,
+      this->row,
+      this->col,
+      this->to_virt());
   return std::string(buff);
 }
 
 std::string DRAMAddr::to_string_compact() const {
   char buff[1024];
   sprintf(buff, "(%ld,%ld,%ld)",
-          this->bank,
-          this->row,
-          this->col);
+      this->bank,
+      this->row,
+      this->col);
   return std::string(buff);
 }
 
@@ -107,9 +107,32 @@ MemConfiguration DRAMAddr::MemConfig;
 size_t DRAMAddr::base_msb;
 bool DRAMAddr::valid_memcfg;
 
+#ifdef ENABLE_JSON
+
+nlohmann::json DRAMAddr::get_memcfg_json() {
+  std::map<size_t, nlohmann::json> memcfg_to_json = {
+      {(CHANS(1UL) | DIMMS(1UL) | RANKS(1UL) | BANKS(16UL)),
+       nlohmann::json{
+           {"channels", 1},
+           {"dimms", 1},
+           {"ranks", 1},
+           {"banks", 16}}},
+      {(CHANS(1UL) | DIMMS(1UL) | RANKS(2UL) | BANKS(16UL)),
+       nlohmann::json{
+           {"channels", 1},
+           {"dimms", 1},
+           {"ranks", 2},
+           {"banks", 16}}}
+  };
+  return memcfg_to_json[MemConfig.IDENTIFIER];
+}
+
+#endif
+
 std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
     {(CHANS(1UL) | DIMMS(1UL) | RANKS(1UL) | BANKS(16UL)),
      {
+         .IDENTIFIER = (CHANS(1UL) | DIMMS(1UL) | RANKS(1UL) | BANKS(16UL)),
          .BK_SHIFT =  26,
          .BK_MASK =  (0b1111),
          .ROW_SHIFT =  0,
@@ -181,6 +204,7 @@ std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
      }},
     {(CHANS(1UL) | DIMMS(1UL) | RANKS(2UL) | BANKS(16UL)),
      {
+         .IDENTIFIER = (CHANS(1UL) | DIMMS(1UL) | RANKS(2UL) | BANKS(16UL)),
          .BK_SHIFT =  25,
          .BK_MASK =  (0b11111),
          .ROW_SHIFT =  0,
