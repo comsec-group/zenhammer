@@ -10,10 +10,10 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(LIBRARY_NAME bs)
 set(EXECUTABLE_NAME blacksmith)
 
-option(OPT_ENABLE_JSON "Add functionality for JSON export using nlohmann/json library." ON)
-option(OPT_ENABLE_JITTING "Add functionality for jitting the hammering code using asmjit library." ON)
-option(WITH_SAMSUNG_PARAMETERS "Use debugging parameters for Samsung DIMMs" OFF)
-option(WITH_DIMM10_PARAMETERS "Use debugging parameters for DIMM 10, Hynix" OFF)
+SET(OPT_ENABLE_JSON ON BOOL FORCE "Add functionality for JSON export using nlohmann/json library.")
+SET(OPT_ENABLE_JITTING ON BOOL FORCE "Add functionality for jitting the hammering code using asmjit library.")
+SET(WITH_SAMSUNG_PARAMETERS OFF BOOL FORCE "Use debugging parameters for Samsung DIMMs".)
+SET(WITH_DIMM10_PARAMETERS OFF BOOL FORCE "Use debugging parameters for DIMM 10, Hynix.")
 
 # credits to https://stackoverflow.com/a/19578320/3017719
 if (NOT WIN32)
@@ -74,20 +74,27 @@ set(HEADER_ONLY
 
 add_library(${LIBRARY_NAME} ${SOURCES} ${HEADER_ONLY})
 target_include_directories(${LIBRARY_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
-if (WITH_SAMSUNG_PARAMETERS)
+
+add_executable(${EXECUTABLE_NAME} src/Blacksmith.cpp include/Blacksmith.hpp)
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBRARY_NAME})
+
+if (WITH_SAMSUNG_PARAMETERS MATCHES ON)
     message("${BoldRed}==============================================================================")
     message(">>> ATTENTION: WITH_SAMSUNG_PARAMETERS=ON. This is intended for debugging only!")
     message("==============================================================================${ColourReset}")
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
-endif ()
-if (WITH_DIMM10_PARAMETERS)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_SAMSUNG=1")
+endif()
+if (WITH_DIMM10_PARAMETERS MATCHES ON)
     message("${BoldRed}==============================================================================")
     message(">>> ATTENTION: WITH_DIMM10_PARAMETERS=ON. This is intended for debugging only!")
     message("==============================================================================${ColourReset}")
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DDEBUG_DIMM10=1")
-endif ()
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10=1")
+endif()
 
-if (OPT_ENABLE_JITTING)
+
+if (OPT_ENABLE_JITTING MATCHES ON)
     set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
     find_package(AsmJit)
     if (NOT ASMJIT_FOUND)
@@ -98,9 +105,10 @@ if (OPT_ENABLE_JITTING)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING")
     target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
     target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=1")
 endif ()
 
-if (OPT_ENABLE_JSON)
+if (OPT_ENABLE_JSON MATCHES ON)
     find_package(nlohmann_json QUIET)
     if (NOT nlohmann_json_FOUND)
         message("Library nlohmann/json not found. Downloading nlohmann_json...")
@@ -115,22 +123,15 @@ if (OPT_ENABLE_JSON)
     endif ()
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON")
     target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON=1")
 endif ()
 
-add_executable(${EXECUTABLE_NAME} src/Blacksmith.cpp include/Blacksmith.hpp)
-target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBRARY_NAME})
-
 target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
-target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON=${OPT_ENABLE_JSON}")
-target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=${OPT_ENABLE_JITTING}")
-
-target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_SAMSUNG=${WITH_SAMSUNG_PARAMETERS}")
-target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10${WITH_DIMM10_PARAMETERS}")
 
 # forces CMake to delete variable's value from CMake cache: uses either the default value or the value passed as param
 # e.g., cmake -DWITH_SAMSUNG_PARAMETERS=ON ..
 # https://stackoverflow.com/a/53159688/3017719
-unset(WITH_SAMSUNG_PARAMETERS CACHE)
-unset(WITH_DIMM10_PARAMETERS CACHE)
-unset(OPT_ENABLE_JSON CACHE)
-unset(OPT_ENABLE_JITTING CACHE)
+unset(WITH_SAMSUNG_PARAMETERS)
+unset(WITH_DIMM10_PARAMETERS)
+unset(OPT_ENABLE_JSON)
+unset(OPT_ENABLE_JITTING)
