@@ -15,8 +15,7 @@ FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOL
   std::random_device rd;
   gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
 
-  // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
-  num_activations_per_tREFI = (measured_num_acts_per_ref/2)*2;
+  set_num_activations_per_t_refi(measured_num_acts_per_ref);
 
   // call randomize_parameters once to initialize static values
   randomize_parameters(false);
@@ -85,6 +84,11 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
 
   Logger::log_error(format_string("Could not determine a random even divisor of n=%d. Using n.", n));
   return n;
+}
+
+void FuzzingParameterSet::set_num_activations_per_t_refi(int num_activations_per_t_refi) {
+  // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
+  this->num_activations_per_tREFI = (num_activations_per_t_refi/2)*2;
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {

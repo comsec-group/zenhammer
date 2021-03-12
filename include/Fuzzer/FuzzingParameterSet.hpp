@@ -122,6 +122,8 @@ class FuzzingParameterSet {
   static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
 
   static void print_dynamic_parameters2(bool sync_at_each_ref, int wait_until_hammering_us, int num_aggs_for_sync);
+
+  void set_num_activations_per_t_refi(int num_activations_per_t_refi);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_
