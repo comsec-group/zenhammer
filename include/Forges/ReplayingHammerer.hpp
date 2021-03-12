@@ -39,7 +39,7 @@ class ReplayingHammerer {
 
   // the number of times in which hammering a pattern (at the same location) is repeated; this is only the initial
   // parameter as later we optimize this value
-  const int initial_hammering_num_reps = 150;
+  const int initial_hammering_num_reps = 50;
 
   // the number of repetitions where we hammer the same pattern at the same location:
   // this is a dynamically learned parameter that is derived from the result of the reproducibility runs; optimizing
@@ -58,7 +58,8 @@ class ReplayingHammerer {
   std::vector<HammeringPattern> load_patterns_from_json(const char *json_filename,
                                                         const std::unordered_set<std::string> &pattern_ids);
 
-  PatternAddressMapper &get_most_effective_mapping(HammeringPattern &patt);
+  PatternAddressMapper &get_most_effective_mapping(HammeringPattern &patt,
+                                                   bool optimize_hammering_num_reps);
 
   void run_refresh_alignment_experiment(PatternAddressMapper &mapper);
 
@@ -84,7 +85,7 @@ class ReplayingHammerer {
   void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 
   struct SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                     size_t num_reps);
+                                    size_t num_reps, size_t size_mb);
 
   void replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 

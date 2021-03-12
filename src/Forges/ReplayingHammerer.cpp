@@ -17,12 +17,16 @@
 // initialize static variable
 double ReplayingHammerer::last_reproducibility_score = 0;
 
-PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPattern &patt) {
+PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPattern &patt,
+                                                                    bool optimize_hammering_num_reps) {
+
+  int cur_reps = optimize_hammering_num_reps ? initial_hammering_num_reps : hammering_num_reps;
+
   // try the original location where this pattern initially triggered a bit flip to be sure we are trying a pattern
   // that actually works when replaying it
   Logger::log_analysis_stage("1:1 REPLAYING");
   Logger::log_info(format_string("Running pattern using orig. mapping with %d repetitions.",
-      initial_hammering_num_reps));
+      cur_reps));
 
   size_t best_mapping_bitflips = 0;
   std::string best_mapping_instance_id = "ANY";
@@ -36,7 +40,7 @@ PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPat
 
     CodeJitter &jitter = *(*it).code_jitter;
     size_t triggered_bitflips = hammer_pattern(params, jitter, patt, *it, jitter.flushing_strategy,
-        jitter.fencing_strategy, initial_hammering_num_reps, jitter.num_aggs_for_sync,
+        jitter.fencing_strategy, cur_reps, jitter.num_aggs_for_sync,
         jitter.total_activations, false, jitter.pattern_sync_each_ref, false, false, false, true, true);
 
     Logger::log_success(format_string("Mapping triggered %d bit flips.", triggered_bitflips));
@@ -54,12 +58,15 @@ PatternAddressMapper &ReplayingHammerer::get_most_effective_mapping(HammeringPat
   }
 
   Logger::log_info(format_string("Best mapping (based on #bitflips): %s.", best_mapping->get_instance_id().c_str()));
-  // e.g., if reproducibility_score = 0.1, i.e., we trigger a bit flips in 1/10 times, we compute
-  // (1/0.1) * 1.2 = 12 as the number of repetitions we need to do to trigger the bit flip
-  hammering_num_reps = (best_reproducibility_score > 0)
-                       ? (int) std::ceil((1.0f/best_reproducibility_score)*2.0)
-                       : initial_hammering_num_reps;
-  Logger::log_info(format_string("Based on the reproducibility, we set hammering_num_reps to %d.", hammering_num_reps));
+  if (optimize_hammering_num_reps) {
+    // e.g., if reproducibility_score = 0.1, i.e., we trigger a bit flips in 1/10 times, we compute
+    // (1/0.1) * 1.2 = 12 as the number of repetitions we need to do to trigger the bit flip
+    hammering_num_reps = (best_reproducibility_score > 0)
+                         ? (int) std::ceil((1.0f/best_reproducibility_score)*2.0)
+                         : initial_hammering_num_reps;
+    Logger::log_info(format_string("Based on the reproducibility, we set hammering_num_reps to %d.",
+        hammering_num_reps));
+  }
 
   return *best_mapping;
 }
@@ -70,7 +77,7 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
 
     // ==== 1:1 Replaying to test if original pattern/replaying works
 
-    PatternAddressMapper &mapper = get_most_effective_mapping(patt);
+    PatternAddressMapper &mapper = get_most_effective_mapping(patt, true);
 
     load_parameters_from_pattern(patt, mapper);
 
@@ -94,7 +101,7 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
     // ==== Spatial probing: sweep pattern over a contiguous chunk of memory
 
     Logger::log_analysis_stage("SPATIAL PROBING");
-    sweep_pattern(patt, mapper, hammering_num_reps);
+    sweep_pattern(patt, mapper, hammering_num_reps, 256);
 
     // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
 
@@ -131,7 +138,8 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
   for (auto &pattern : hammering_patterns) {
     // If we're just sweeping, we don't care too much about the address mapping.
     // Instead of selecting the most effective mapping, simply select the first.
-    PatternAddressMapper &mapper = pattern.address_mappings.front();
+    hammering_num_reps = 10;
+    PatternAddressMapper &mapper = get_most_effective_mapping(pattern, false);
 
     Logger::log_highlight(
         format_string("Sweeping pattern %s (%d/%d) using mapping %s",
@@ -139,11 +147,9 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
                       hammering_patterns.size(), mapper.get_instance_id().c_str()));
     Logger::log_timestamp();
 
-    // TODO: necessary?
     load_parameters_from_pattern(pattern, mapper);
 
-    // TODO: make num reps configurable?
-    struct SweepSummary summary = sweep_pattern(pattern, mapper, 10);
+    struct SweepSummary summary = sweep_pattern(pattern, mapper, 10, 8);
 
 #ifdef ENABLE_JSON
     nlohmann::json entry;
@@ -320,23 +326,21 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
 }
 
 struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                      size_t num_reps) {
+                                                     size_t num_reps, size_t size_mb) {
   // sweep over a chunk of N MBytes to see whether this pattern also works on other locations
   // compute the bound of the mem area we want to check using this pattern
-  auto sweep_MB = 256;
-
 #ifdef DEBUG_SAMSUNG
-  sweep_MB = 8;
+  size_mb = 8;
 #endif
 
   auto &jitter = mapper.get_code_jitter();
 
   auto row_start = DRAMAddr((void *) mem.get_starting_address()).row;
-  auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(sweep_MB);
+  auto max_address = (__uint64_t) mem.get_starting_address() + (__uint64_t) MB(size_mb);
   auto row_end = DRAMAddr((void *) max_address).row;
   auto num_rows = row_end - row_start;
   Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
-      sweep_MB, num_rows, num_reps));
+      size_mb, num_rows, num_reps));
 
   auto init_ss = [](std::stringstream &stringstream) {
     stringstream.str("");
