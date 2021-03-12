@@ -12,6 +12,8 @@
 #include "Memory/DRAMAddr.hpp"
 #include "Utilities/Logger.hpp"
 
+ProgramArguments program_args;
+
 int main(int argc, char **argv) {
   Logger::initialize();
 
@@ -23,11 +25,10 @@ int main(int argc, char **argv) {
       "=================================================================================================");
 #endif
 
-  ProgramArguments args;
-  handle_args(args, argc, argv);
+  handle_args(program_args, argc, argv);
 
   // prints the current git commit and some program metadata
-  Logger::log_metadata(GIT_COMMIT_HASH, args.runtime_limit);
+  Logger::log_metadata(GIT_COMMIT_HASH, program_args.runtime_limit);
 
   // give this process the highest CPU priority
   int ret = setpriority(PRIO_PROCESS, 0, -20);
@@ -40,8 +41,8 @@ int main(int argc, char **argv) {
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
   dram_analyzer.find_bank_conflicts();
-  if (args.num_ranks!=0) {
-    dram_analyzer.load_known_functions(args.num_ranks);
+  if (program_args.num_ranks!=0) {
+    dram_analyzer.load_known_functions(program_args.num_ranks);
   } else {
     // determine the row and bank/rank functions
     dram_analyzer.find_functions(memory.is_superpage());
@@ -52,20 +53,20 @@ int main(int argc, char **argv) {
   dram_analyzer.find_bank_rank_masks();
 
   // count the number of possible activations per refresh interval, if not given as program argument
-  if (args.acts_per_ref==0) args.acts_per_ref = dram_analyzer.count_acts_per_ref();
+  if (program_args.acts_per_ref==0) program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
 
-  if (args.load_json_filename!=nullptr) {
+  if (program_args.load_json_filename!=nullptr) {
     ReplayingHammerer replayer(memory);
-    if (args.sweeping) {
-      replayer.replay_patterns_brief(args.load_json_filename, args.pattern_ids);
+    if (program_args.sweeping) {
+      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids);
     } else {
-      replayer.replay_patterns(args.load_json_filename, args.pattern_ids);
+      replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
     }
   } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
-    FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, args.acts_per_ref, args.runtime_limit,
-        args.probes_per_pattern, args.sweeping);
+    FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, program_args.acts_per_ref, program_args.runtime_limit,
+        program_args.probes_per_pattern, program_args.sweeping);
   } else if (!USE_FREQUENCY_BASED_FUZZING) {
-    TraditionalHammerer::n_sided_hammer(memory, args.acts_per_ref, args.runtime_limit);
+    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
   } else {
     Logger::log_error("Invalid combination of program control-flow arguments given. "
                       "Note: Fuzzing is only supported with synchronized hammering.");
@@ -154,6 +155,14 @@ void handle_args(ProgramArguments &args, int argc, char **argv) {
   const std::string ARG_SWEEPING = "-sweeping";
   if (cmd_parameter_exists(argv, argv + argc, ARG_SWEEPING)) {
     args.sweeping = true;
+  }
+
+  const std::string ARG_DIMM_ID = "-dimm_id";
+  if (cmd_parameter_exists(argv, argv + argc, ARG_DIMM_ID)) {
+    args.dimm_id = strtol(get_cmd_parameter(argv, argv + argc, ARG_DIMM_ID), nullptr, 10);
+  } else {
+    Logger::log_error("Program argument '-dimm_id <number>' is mandatory! Cannot continue.");
+    exit(EXIT_FAILURE);
   }
 }
 

@@ -8,6 +8,7 @@
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#include <Blacksmith.hpp>
 #endif
 
 #define M(VAL) (VAL ## 000000)
@@ -169,6 +170,7 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
   meta["end"] = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch()).count();
   meta["num_patterns"] = hammering_patterns.size();
   meta["memory_config"] = DRAMAddr::get_memcfg_json();
+  meta["dimm_id"] = program_args.dimm_id;
 
   nlohmann::json root;
   root["metadata"] = meta;

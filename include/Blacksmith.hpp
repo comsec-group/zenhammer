@@ -20,10 +20,11 @@ struct ProgramArguments {
   size_t probes_per_pattern = 3;
   // whether to sweep the 'best pattern' that was found during fuzzing afterward over a contiguous chunk of memory
   bool sweeping = false;
+  // the ID of the DIMM that is currently inserted
+  long dimm_id = -1;
 };
 
-// number of repetitions we hammer the same pattern at the same location
-int REPS_PER_PATTERN = 1;
+extern ProgramArguments program_args;
 
 int main(int argc, char **argv);
 

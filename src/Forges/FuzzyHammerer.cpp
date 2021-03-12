@@ -2,6 +2,7 @@
 
 #include <unordered_set>
 #include <complex>
+#include <Blacksmith.hpp>
 
 #include "Utilities/TimeHelper.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
@@ -104,13 +105,14 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
-  std::ofstream json_export("fuzzing-summary.json");
+  std::ofstream json_export("fuzz-summary.json");
 
   nlohmann::json meta;
   meta["start"] = start_ts;
   meta["end"] = get_timestamp_sec();
   meta["num_patterns"] = arr.size();
   meta["memory_config"] = DRAMAddr::get_memcfg_json();
+  meta["dimm_id"] = program_args.dimm_id;
 
   nlohmann::json root;
   root["metadata"] = meta;
