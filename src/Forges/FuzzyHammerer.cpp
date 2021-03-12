@@ -88,6 +88,16 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(Memory &memory, int acts, 
     arr.push_back(hammering_pattern);
 #endif
 
+    if (current_round % 100 == 0) {
+      auto old_nacts = fuzzing_params.get_num_activations_per_t_refi();
+      // repeat measuring the number of possible activations per tREF as it might be that the current value is not optimal
+      fuzzing_params.set_num_activations_per_t_refi(dramAnalyzer.count_acts_per_ref());
+      Logger::log_info(
+          format_string("Recomputed number of ACTs per tREF (old: %d, new: %d).",
+              old_nacts,
+              fuzzing_params.get_num_activations_per_t_refi()));
+    }
+
   } // end of fuzzing
 
 #ifdef ENABLE_JSON

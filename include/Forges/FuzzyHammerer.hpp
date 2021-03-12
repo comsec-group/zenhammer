@@ -24,8 +24,9 @@ class FuzzyHammerer {
 
   static void do_random_accesses(const std::vector<volatile char *>& random_rows, size_t duration_us);
 
-  static void n_sided_frequency_based_hammering(Memory &memory, int acts, long runtime_limit,
-                                                size_t probes_per_pattern, bool sweep_best_pattern);
+  static void n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
+                                                long runtime_limit, const size_t probes_per_pattern,
+                                                bool sweep_best_pattern);
 
   static void generate_pattern_for_ARM(int acts,
                                        int *rows_to_access,
