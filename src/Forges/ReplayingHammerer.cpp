@@ -124,6 +124,7 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
 
 void ReplayingHammerer::replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids) {
   auto patterns = load_patterns_from_json(json_filename, pattern_ids);
+  replay_patterns_brief(patterns);
 }
 
 
