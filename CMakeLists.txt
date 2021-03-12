@@ -12,7 +12,7 @@ set(EXECUTABLE_NAME blacksmith)
 
 SET(OPT_ENABLE_JSON ON BOOL FORCE "Add functionality for JSON export using nlohmann/json library.")
 SET(OPT_ENABLE_JITTING ON BOOL FORCE "Add functionality for jitting the hammering code using asmjit library.")
-SET(WITH_SAMSUNG_PARAMETERS OFF BOOL FORCE "Use debugging parameters for Samsung DIMMs".)
+SET(WITH_SAMSUNG_PARAMETERS OFF BOOL FORCE "Use debugging parameters for Samsung DIMMs.")
 SET(WITH_DIMM10_PARAMETERS OFF BOOL FORCE "Use debugging parameters for DIMM 10, Hynix.")
 
 # credits to https://stackoverflow.com/a/19578320/3017719
