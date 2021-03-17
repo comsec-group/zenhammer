@@ -51,10 +51,13 @@ total_corruptions = dict()
 
 def main():
     for name in glob.glob('portability_experiment/**/sweep-summary.json', recursive=True): 
-        dimm_id = name.split('/')[1].replace('_', ' ')
-        print(f'===== {dimm_id} ===== ')
         with open(name) as f:
             data = json.load(f)
+            if not 'metadata' in data or not 'dimm_id' in data['metadata']:
+                print(f"Error: Could not find 'metadata' in {name}")
+                continue
+            dimm_id = data['metadata']['dimm_id']
+            print(f'===== DIMM {dimm_id} ===== ')
             for probed_pattern in data['sweeps']:
                 pattern_id = probed_pattern['pattern']
                 num_corruptions = probed_pattern['flips']['total']
