@@ -11,7 +11,8 @@ void to_json(nlohmann::json &j, const HammeringPattern &p) {
                      {"num_refresh_intervals", p.num_refresh_intervals},
                      {"access_ids", Aggressor::get_agg_ids(p.aggressors)},
                      {"agg_access_patterns", p.agg_access_patterns},
-                     {"address_mappings", p.address_mappings}
+                     {"address_mappings", p.address_mappings},
+                     {"is_location_dependent", p.is_location_dependent}
   };
 }
 
@@ -21,6 +22,7 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("max_period").get_to(p.max_period);
   j.at("total_activations").get_to(p.total_activations);
   j.at("num_refresh_intervals").get_to(p.num_refresh_intervals);
+  j.at("is_location_dependent").get_to(p.is_location_dependent);
 
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("access_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
@@ -37,14 +39,16 @@ HammeringPattern::HammeringPattern(size_t base_period)
       base_period(base_period),
       max_period(0),
       total_activations(0),
-      num_refresh_intervals(0) {}
+      num_refresh_intervals(0),
+      is_location_dependent(false) {}
 
 HammeringPattern::HammeringPattern()
     : instance_id(uuid::gen_uuid()),
       base_period(0),
       max_period(0),
       total_activations(0),
-      num_refresh_intervals(0) {}
+      num_refresh_intervals(0),
+      is_location_dependent(false) {}
 
 int HammeringPattern::get_num_digits(size_t x) {
   return (x < 10 ? 1 :

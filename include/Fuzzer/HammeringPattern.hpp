@@ -31,6 +31,11 @@ class HammeringPattern {
 
   size_t num_refresh_intervals;
 
+  // is a pattern is location dependent, then there are some aggressors that are bypassing the mitigation because of
+  // their absolute location in DRAM; in this case we need to move only the aggressor pair triggered the bit flips while
+  // sweeping the pattern over memory
+  bool is_location_dependent;
+
   // the order in which aggressor accesses happen
   std::vector<Aggressor> aggressors;
 
