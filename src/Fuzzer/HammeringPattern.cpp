@@ -98,3 +98,17 @@ AggressorAccessPattern &HammeringPattern::get_access_pattern_by_aggressor(Aggres
   Logger::log_error(format_string("Could not find AggressorAccessPattern whose first aggressor has id %s.", agg.id));
   exit(1);
 }
+
+PatternAddressMapper &HammeringPattern::get_most_effective_mapping() {
+  if (address_mappings.empty()) {
+    Logger::log_error("get_most_effective_mapping() failed: No mappings existing!");
+    exit(1);
+  }
+  PatternAddressMapper &best_mapping = address_mappings.front();
+  for (auto mapping : address_mappings) {
+    if (mapping.bit_flips.size() > best_mapping.bit_flips.size()) {
+      best_mapping = mapping;
+    }
+  }
+  return best_mapping;
+}

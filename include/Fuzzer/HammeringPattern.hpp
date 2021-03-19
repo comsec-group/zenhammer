@@ -56,6 +56,8 @@ class HammeringPattern {
   std::string get_agg_access_pairs_text_repr();
 
   AggressorAccessPattern &get_access_pattern_by_aggressor(Aggressor &agg);
+
+  PatternAddressMapper &get_most_effective_mapping();
 };
 
 #ifdef ENABLE_JSON
