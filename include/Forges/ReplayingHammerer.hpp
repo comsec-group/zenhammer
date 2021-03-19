@@ -24,9 +24,6 @@ class ReplayingHammerer {
   // a random number generator, required for std::shuffle
   std::mt19937 gen;
 
-  // the FuzzingParameterSet instance belonging to the
-  FuzzingParameterSet params;
-
  private:
 
   // maps: (mapping ID) -> (HammeringPattern), because there's no back-reference from mapping to HammeringPattern
@@ -99,6 +96,9 @@ class ReplayingHammerer {
 
   static void find_direct_effective_aggs(HammeringPattern &pattern, PatternAddressMapper &mapper,
                                   std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);
+
+// the FuzzingParameterSet instance belonging to the
+FuzzingParameterSet params;
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
