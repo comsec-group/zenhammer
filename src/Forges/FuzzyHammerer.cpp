@@ -148,7 +148,15 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 #endif
   }
 
-  // we do the JSON export after teh repeatability experiment because the export should include the repeatability data
+  if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
+    // do experiment with best pattern to figure out whether during the sweep we need to move all aggressors or only
+    // those that actually triggered the bit flip
+    test_location_dependence(replaying_hammerer, best_hammering_pattern);
+  }
+
+  // we need to do the fuzz-summary.json export after test_location_dependence, otherwise the attribute value
+  // is_location_dependent will not be included into the JSON; similarly,we do the JSON export after the repeatability
+  // experiment because the export should include the repeatability data
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export("fuzz-summary.json");
@@ -169,10 +177,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 #endif
 
   if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
-    // do experiment with best pattern to figure out whether during the sweep we need to move all aggressors or only
-    // those that actually triggered the bit flip
-    test_location_dependence(replaying_hammerer, best_hammering_pattern);
-
     // apply the 'best' pattern over a contiguous chunk of memory
     // note that log_overall_statistics shows the number of bit flips of the best pattern's most effective mapping, as
     // metric to determine the best pattern we use the number of bit flips over all mappings of that pattern
