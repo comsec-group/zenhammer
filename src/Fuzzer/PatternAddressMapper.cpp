@@ -4,6 +4,7 @@
 #include <memory>
 #include <iomanip>
 #include <algorithm>
+#include <unordered_set>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"
@@ -273,12 +274,26 @@ std::vector<volatile char *> PatternAddressMapper::get_random_nonaccessed_rows(i
   return addresses;
 }
 
-void PatternAddressMapper::shift_mapping(int rows) {
+void PatternAddressMapper::shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move) {
   std::set<int> occupied_rows;
-  for (auto &agg_acc_patt : aggressor_to_addr) {
-    agg_acc_patt.second.row += rows;
-    occupied_rows.insert(agg_acc_patt.second.row);
+
+  // collect the aggressor ID of the aggressors given in the aggs_to_move set
+  std::unordered_set<AGGRESSOR_ID_TYPE> movable_ids;
+  for (const auto &agg_pair : aggs_to_move) {
+    for (const auto &agg : agg_pair.aggressors) {
+      movable_ids.insert(agg.id);
+    }
   }
+
+  for (auto &agg_acc_patt : aggressor_to_addr) {
+    // if aggs_to_move is empty, we consider it as 'move all aggressors'; otherwise we check whether the current
+    // aggressor ID is in aggs_to_move prior shifting the aggressor by the given number of rows (param: rows)
+    if (aggs_to_move.empty() || movable_ids.count(agg_acc_patt.first) > 0) {
+      agg_acc_patt.second.row += rows;
+      occupied_rows.insert(agg_acc_patt.second.row);
+    }
+  }
+
   // this works as sets are always ordered
   min_row = *occupied_rows.begin();
   max_row = *occupied_rows.rbegin();

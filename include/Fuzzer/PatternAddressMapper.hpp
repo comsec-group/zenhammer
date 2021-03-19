@@ -7,6 +7,7 @@
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 #endif
 
 #include "Fuzzer/Aggressor.hpp"
@@ -81,12 +82,12 @@ class PatternAddressMapper {
 
   std::string get_mapping_text_repr();
 
-  void shift_mapping(int rows);
-
   CodeJitter & get_code_jitter() const;
 
   void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
                              int &agg_inter_distance, bool uses_seq_addresses);
+
+  void shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move);
 };
 
 #ifdef ENABLE_JSON
