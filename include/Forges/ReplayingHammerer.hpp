@@ -26,8 +26,6 @@ class ReplayingHammerer {
 
   // the FuzzingParameterSet instance belonging to the
   FuzzingParameterSet params;
- public:
-  void set_params(const FuzzingParameterSet &params);
 
  private:
 
@@ -58,15 +56,12 @@ class ReplayingHammerer {
   std::vector<HammeringPattern> load_patterns_from_json(const char *json_filename,
                                                         const std::unordered_set<std::string> &pattern_ids);
 
-  PatternAddressMapper &get_most_effective_mapping(HammeringPattern &patt,
-                                                   bool optimize_hammering_num_reps);
+  PatternAddressMapper &determine_most_effective_mapping(HammeringPattern &patt,
+                                                         bool optimize_hammering_num_reps);
 
   void run_refresh_alignment_experiment(PatternAddressMapper &mapper);
 
   void run_code_jitting_probing(PatternAddressMapper &mapper);
-
-  void find_direct_effective_aggs(PatternAddressMapper &mapper,
-                                  std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);
 
   void find_indirect_effective_aggs(PatternAddressMapper &mapper,
                                     const std::unordered_set<AggressorAccessPattern> &direct_effective_aaps,
@@ -75,21 +70,35 @@ class ReplayingHammerer {
   void run_pattern_params_probing(PatternAddressMapper &mapper,
                                   const std::unordered_set<AggressorAccessPattern> &direct_effective_aggs,
                                   std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs);
-
-  void load_parameters_from_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper);
-
  public:
 
   explicit ReplayingHammerer(Memory &mem);
 
+  void set_params(const FuzzingParameterSet &params);
+
   void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 
-  struct SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                    size_t num_reps, size_t size_mb);
+  void replay_patterns_brief(const char *json_filename,
+                             const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
+                             bool running_on_original_dimm);
 
-  void replay_patterns_brief(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
+  void replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns, size_t sweep_bytes,
+                             size_t num_locations, bool running_on_original_dimm);
 
-  void replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns);
+  void find_direct_effective_aggs(PatternAddressMapper &mapper,
+                                  std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);
+
+  void load_parameters_from_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper);
+
+  SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps,
+                             size_t size_bytes);
+
+  SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps,
+                             size_t size_bytes,
+                             const std::unordered_set<AggressorAccessPattern> &effective_aggs);
+
+  static void find_direct_effective_aggs(HammeringPattern &pattern, PatternAddressMapper &mapper,
+                                  std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_

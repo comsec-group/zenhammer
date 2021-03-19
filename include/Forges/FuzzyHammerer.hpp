@@ -3,6 +3,7 @@
 
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Memory/Memory.hpp"
+#include "ReplayingHammerer.hpp"
 
 class FuzzyHammerer {
  public:
@@ -35,7 +36,8 @@ class FuzzyHammerer {
 
   static void test_location_dependence(ReplayingHammerer &rh, HammeringPattern &pattern);
 
-  static void probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory, FuzzingParameterSet &fuzzing_params);
+  static void probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,
+                                     FuzzingParameterSet &fuzzing_params, bool check_reproducibility);
 
   static void log_overall_statistics(const size_t probes_per_pattern, size_t cur_round, const std::string &best_mapping_id,
                                      int best_mapping_num_bitflips);

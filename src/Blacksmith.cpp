@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   if (program_args.load_json_filename!=nullptr) {
     ReplayingHammerer replayer(memory);
     if (program_args.sweeping) {
-      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids);
+      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids, MB(256), false);
     } else {
       replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
     }
@@ -122,11 +122,13 @@ void handle_args(ProgramArguments &args, int argc, char **argv) {
   const std::string ARG_RUNTIME_LIMIT = "-runtime_limit";
   if (cmd_parameter_exists(argv, argv + argc, ARG_RUNTIME_LIMIT)) {
     args.runtime_limit = strtol(get_cmd_parameter(argv, argv + argc, ARG_RUNTIME_LIMIT), nullptr, 10);
+//    Logger::log_debug(format_string("Parsed -runtime_limit: %ld", args.runtime_limit));
   }
 
   const std::string ARG_NUM_RANKS = "-num_ranks";
   if (cmd_parameter_exists(argv, argv + argc, ARG_NUM_RANKS)) {
     args.num_ranks = (int) strtol(get_cmd_parameter(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
+//    Logger::log_debug(format_string("Parsed -num_ranks: %ld", args.num_ranks));
   }
 
   const std::string ARG_ACTS_PER_REF = "-acts_per_ref";
@@ -155,11 +157,13 @@ void handle_args(ProgramArguments &args, int argc, char **argv) {
   const std::string ARG_SWEEPING = "-sweeping";
   if (cmd_parameter_exists(argv, argv + argc, ARG_SWEEPING)) {
     args.sweeping = true;
+//    Logger::log_debug(format_string("Parsed -sweeping: %s", (args.sweeping ? "true" : "false")));
   }
 
   const std::string ARG_DIMM_ID = "-dimm_id";
   if (cmd_parameter_exists(argv, argv + argc, ARG_DIMM_ID)) {
     args.dimm_id = strtol(get_cmd_parameter(argv, argv + argc, ARG_DIMM_ID), nullptr, 10);
+//    Logger::log_debug(format_string("Parsed -dimm_id: %ld", args.dimm_id));
   } else {
     Logger::log_error("Program argument '-dimm_id <number>' is mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
