@@ -33,6 +33,7 @@ class FuzzyHammerer {
                                        int max_accesses,
                                        size_t probes_per_pattern);
 
+  static void test_location_dependence(ReplayingHammerer &rh, HammeringPattern &pattern);
 
   static void probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory, FuzzingParameterSet &fuzzing_params);
 
