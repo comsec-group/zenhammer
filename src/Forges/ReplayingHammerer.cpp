@@ -358,6 +358,9 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
 struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
                                                      size_t num_reps, size_t size_bytes,
                                                      const std::unordered_set<AggressorAccessPattern> &effective_aggs) {
+  // sweep_pattern modifies the original mapping, thus we create a copy and restore it again before returning from func
+  PatternAddressMapper original_mapping = mapper;
+
   // sweep over a chunk of N MBytes to see whether this pattern also works on other locations
   // compute the bound of the mem area we want to check using this pattern
   auto &jitter = mapper.get_code_jitter();
@@ -416,6 +419,9 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
   }
   Logger::log_data(format_string("0->1 flips: %lu", z2o_corruptions));
   Logger::log_data(format_string("1->0 flips: %lu", o2z_corruptions));
+
+  // restore original mapping
+  mapper = original_mapping;
 
   return (struct SweepSummary) {
       .num_flips_z2o = z2o_corruptions,
@@ -484,6 +490,10 @@ void ReplayingHammerer::run_code_jitting_probing(PatternAddressMapper &mapper) {
 void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
                                                    PatternAddressMapper &mapper,
                                                    std::unordered_set<AggressorAccessPattern> &direct_effective_aggs) {
+  // we consider an aggressor as being responsible for a bit flip if it is at maximum DIST_THRESHOLD rows away from
+  // the flipped row
+  const int DIST_THRESHOLD = 5;
+
   // prerequisite: know which aggressor pair triggered a bit flip
   // get all flipped rows
   std::set<int> flipped_rows;
@@ -517,9 +527,19 @@ void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
       }
     }
   }
+
   // direct_effective_aggs contains an AggressorAccessPattern for each flipped row, that's the pattern with the
   // lowest distance to the flipped row
   for (const auto &fr : matches) {
+    // if the distance to the flipped row is larger than the defined threshold, we don't consider the aggressor as being
+    // the one who triggered the bit flip as probably remapping is going on
+    if (fr.second.first > DIST_THRESHOLD) {
+      Logger::log_info(
+          format_string("Aggressor %d with distance %d from flipped row is too far away for being considered as effective. Skipping it.",
+          fr.first, fr.second.first));
+      continue;
+    }
+
     std::stringstream sstream;
     sstream << "[";
     for (auto &agg : fr.second.second.aggressors) {
