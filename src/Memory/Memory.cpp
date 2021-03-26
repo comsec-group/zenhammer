@@ -124,7 +124,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   start = (volatile char *) start_addr.to_virt();
 
   DRAMAddr end_addr((void *) end);
-  end_addr.row = (check_margin_rows > end_addr.row) ? 0UL : (end_addr.row - check_margin_rows);
+  end_addr.row = (check_margin_rows > end_addr.row) ? 0UL : (end_addr.row + check_margin_rows);
   end = (volatile char *) end_addr.to_virt();
 
   auto start_offset = (uint64_t) (start - start_address);
