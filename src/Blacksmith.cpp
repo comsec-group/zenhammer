@@ -66,7 +66,9 @@ int main(int argc, char **argv) {
     FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, program_args.acts_per_ref, program_args.runtime_limit,
         program_args.probes_per_pattern, program_args.sweeping);
   } else if (!USE_FREQUENCY_BASED_FUZZING) {
-    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
+//    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
+    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
+
   } else {
     Logger::log_error("Invalid combination of program control-flow arguments given. "
                       "Note: Fuzzing is only supported with synchronized hammering.");

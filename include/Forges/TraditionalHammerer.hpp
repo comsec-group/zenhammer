@@ -12,6 +12,9 @@ class TraditionalHammerer {
  public:
   // do n-sided hammering
   static void n_sided_hammer(Memory &memory, int acts, long runtime_limit);
-};
+
+  // run experiment where we systematically try out all possible offsets
+  static void n_sided_hammer_experiment(Memory &memory, int acts);
+  };
 
 #endif //BLACKSMITH_SRC_FORGES_TRADITIONALHAMMERER_HPP_
