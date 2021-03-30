@@ -86,6 +86,20 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
   // Hammer pattern for acts activations
   // Scan for flipped rows
 
+  // check how many rows does the current DIMM have
+//  DRAMAddr da(0, 0, 0);
+//  for (size_t t = 0; t < SIZE_MAX; ++t) {
+//    Logger::log_info(format_string("%04lu: %s / %p", t, da.to_string_compact().c_str(), da.to_virt()));
+//    auto old = da.to_virt();
+//    da.add_inplace(0, 1, 0);
+//    if (da.to_virt() < old) {
+//      break;
+//    }
+//    *(char*)(da.to_virt()) = 0;
+//  }
+//  exit(0);
+  const auto MAX_ROW = 8192;
+
 #ifdef ENABLE_JSON
   nlohmann::json all_results = nlohmann::json::array();
   nlohmann::json current;
@@ -125,7 +139,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
       for (size_t loc = 0; loc < NUM_LOCATIONS; ++loc) {
         // start address/row
         const auto bank_no = rand()%NUM_BANKS;
-        DRAMAddr cur_next_addr(bank_no, rand()%2048, 0);
+        DRAMAddr cur_next_addr(bank_no, rand()%(MAX_ROW/2), 0);
 
         low_row_no = std::numeric_limits<size_t>::max();
         low_row_vaddr = nullptr;
