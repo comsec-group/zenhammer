@@ -170,7 +170,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but exclude 1 because an amplitude>1 does not make sense for a
   // single aggressor
-  amplitude = Range<int>(1, num_activations_per_tREFI/(N_sided.min == 1 ? 2 : N_sided.min));
+  amplitude = Range<int>(1, num_activations_per_tREFI*4);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -182,7 +182,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // sync_each_ref = 1 means that we sync after every refresh interval, otherwise we only sync after hammering
   // the whole pattern (which may consists of more than one REF interval)
-  sync_each_ref = Range<int>(0, 1);  // TODO: take a look in data and decide
+  sync_each_ref = Range<int>(0, 0);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   wait_until_start_hammering_refs = Range<int>(10, 128);
@@ -202,7 +202,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
 
-  // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
 //  auto strategy = get_valid_strategy_pair();
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
@@ -236,7 +235,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 7).get_random_number(gen));
+  num_refresh_intervals = std::pow(2, Range<int>(0, 9).get_random_number(gen));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
