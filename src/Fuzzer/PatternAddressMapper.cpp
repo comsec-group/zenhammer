@@ -44,8 +44,12 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   size_t row;
   int assignment_trial_cnt = 0;
 
+  // probability to map aggressor to same row as another aggressor is already mapped to
+  const auto prob = 4; // 100 mod prob = X% (e.g., 100 mod 2 = 50%)
+
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
+
       const Aggressor &current_agg = acc_pattern.aggressors.at(i);
       if (aggressor_to_addr.count(current_agg.id) > 0) {
         row = aggressor_to_addr.at(current_agg.id).row;
@@ -62,21 +66,29 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
         cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())%fuzzing_params.get_max_row_no();
 
+        bool map_to_existing_agg = ((Range<int>(1,100).get_random_number(gen) % prob) == 0);
+        if (map_to_existing_agg && !occupied_rows.empty()) {
+            auto idx = Range<int>(1, occupied_rows.size()).get_random_number(gen)-1;
+            auto it = occupied_rows.begin();
+            while (idx--) it++;
+            row = *it;
+        } else {
         retry:
-        row = use_seq_addresses ?
-              cur_row :
-              (Range<int>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen)
-                  %fuzzing_params.get_max_row_no());
+          row = use_seq_addresses ?
+                cur_row :
+                (Range<int>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen)
+                    %fuzzing_params.get_max_row_no());
 
-        // check that we haven't assigned this address yet to another aggressor ID
-        // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
-        // around the address range once (because of the modulo operator) so that retrying doesn't make sense
-        if (!use_seq_addresses && occupied_rows.count(row) > 0) {
-          assignment_trial_cnt++;
-          if (assignment_trial_cnt < 7) goto retry;
-          Logger::log_info(format_string(
-              "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
-              current_agg.id));
+          // check that we haven't assigned this address yet to another aggressor ID
+          // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
+          // around the address range once (because of the modulo operator) so that retrying doesn't make sense
+          if (!use_seq_addresses && occupied_rows.count(row) > 0) {
+            assignment_trial_cnt++;
+            if (assignment_trial_cnt < 7) goto retry;
+            Logger::log_info(format_string(
+                "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
+                current_agg.id));
+          }
         }
       }
 
