@@ -20,13 +20,12 @@ void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
 /// Performs synchronized hammering on the given aggressor rows.
 void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, int acts,
                                       volatile char *d1, volatile char *d2) {
-  Logger::log_debug(format_string("acts: %d", acts));
-  Logger::log_debug(format_string("aggressors.size(): %lu", aggressors.size()));
+//  Logger::log_debug(format_string("acts: %d", acts));
+//  Logger::log_debug(format_string("aggressors.size(): %lu", aggressors.size()));
   size_t ref_rounds = std::max(1UL, acts/aggressors.size());
 
   // determines how often we are repeating
   size_t agg_rounds = ref_rounds;
-  Logger::log_debug(format_string("agg_rounds: %lu", agg_rounds));
   uint64_t before = 0;
   uint64_t after = 0;
 
@@ -86,20 +85,6 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
   // Hammer pattern for acts activations
   // Scan for flipped rows
 
-  // check how many rows does the current DIMM have
-//  DRAMAddr da(0, 0, 0);
-//  for (size_t t = 0; t < SIZE_MAX; ++t) {
-//    Logger::log_info(format_string("%04lu: %s / %p", t, da.to_string_compact().c_str(), da.to_virt()));
-//    auto old = da.to_virt();
-//    da.add_inplace(0, 1, 0);
-//    if (da.to_virt() < old) {
-//      break;
-//    }
-//    *(char*)(da.to_virt()) = 0;
-//  }
-//  exit(0);
-  const auto MAX_ROW = 8192;
-
 #ifdef ENABLE_JSON
   nlohmann::json all_results = nlohmann::json::array();
   nlohmann::json current;
@@ -108,8 +93,6 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
   srand(time(nullptr));
   const auto num_aggs = 2;
   const auto pattern_length = (size_t) acts;
-
-  int v = 2;  // distance between aggressors (within a pair)
 
   size_t low_row_no;
   void *low_row_vaddr;
@@ -127,119 +110,119 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
     }
   };
 
+  const auto MAX_ROW = 8192;
+  size_t MAX_AMPLITUDE;
   const auto NUM_LOCATIONS = 10;
-  const auto max_amplitude = 12;
+  int v = 2;  // distance between aggressors (within a pair)
 
-  for (size_t cur_offset = 0; cur_offset < pattern_length - (num_aggs - 1); ++cur_offset) {
+    // start address/row
+    for (size_t cur_offset = 0; cur_offset < pattern_length - (num_aggs - 1); ++cur_offset) {
 
-    for (size_t cur_amplitude = 1;
-         cur_amplitude < max_amplitude && cur_offset + (num_aggs*cur_amplitude) < pattern_length;
-         ++cur_amplitude) {
+      MAX_AMPLITUDE = (cur_offset > 75) ? 6 : 2;
 
-      for (size_t loc = 0; loc < NUM_LOCATIONS; ++loc) {
-        // start address/row
-        const auto bank_no = rand()%NUM_BANKS;
-        DRAMAddr cur_next_addr(bank_no, rand()%(MAX_ROW/2), 0);
+      for (size_t cur_amplitude = 1;
+           cur_amplitude < MAX_AMPLITUDE && cur_offset + (num_aggs*cur_amplitude) < pattern_length;
+           ++cur_amplitude) {
 
-        low_row_no = std::numeric_limits<size_t>::max();
-        low_row_vaddr = nullptr;
-        high_row_no = std::numeric_limits<size_t>::min();
-        high_row_vaddr = nullptr;
+        for (size_t loc = 0; loc < NUM_LOCATIONS; ++loc) {
 
-        Logger::log_debug(format_string("cur_offset = %lu", cur_offset));
-        Logger::log_debug(format_string("cur_amplitude = %lu", cur_amplitude));
+          const auto bank_no = rand()%NUM_BANKS;
 
-        std::vector<volatile char *> aggressors;
-        std::stringstream ss;
+          Logger::log_debug(format_string("Running: cur_offset = %lu, cur_amplitude = %lu, loc = %lu/%lu",
+              cur_offset, cur_amplitude, loc + 1, NUM_LOCATIONS));
 
-        // fill up the pattern with accesses
-        ss << "agg row: ";
-        for (size_t pos = 0; pos < pattern_length;) {
-          if (pos==cur_offset) {
-            auto countdown = cur_amplitude;
-            while (countdown--) {
+
+          low_row_no = std::numeric_limits<size_t>::max();
+          low_row_vaddr = nullptr;
+          high_row_no = std::numeric_limits<size_t>::min();
+          high_row_vaddr = nullptr;
+
+          std::vector<volatile char *> aggressors;
+          std::stringstream ss;
+
+          // fill up the pattern with accesses
+          ss << "agg row: ";
+          for (size_t pos = 0; pos < pattern_length;) {
+            if (pos==cur_offset) {
               // add the aggressor pair
-              DRAMAddr agg1 = cur_next_addr;
-              ss << agg1.row << " ";
+              DRAMAddr agg1 = DRAMAddr(bank_no, rand()%MAX_ROW, 0);
               update_low_high(agg1);
-              aggressors.push_back((volatile char *) agg1.to_virt());
-              agg1.add_inplace(0, v, 0);
-              update_low_high(agg1);
-              ss << agg1.row << " ";
-              aggressors.push_back((volatile char *) agg1.to_virt());
-            }
-            pos += 2;
-          } else {
-            // fill up the remaining accesses with random rows
-            DRAMAddr agg(bank_no, rand()%1024, 0);
+              DRAMAddr agg2 = agg1.add(0, v, 0);
+              update_low_high(agg2);
+              for (size_t cnt = cur_amplitude; cnt > 0; --cnt) {
+                aggressors.push_back((volatile char *) agg1.to_virt());
+                ss << agg1.row << " ";
+                aggressors.push_back((volatile char *) agg2.to_virt());
+                ss << agg2.row << " ";
+              }
+              pos += cur_amplitude*num_aggs;
+            } else {
+              // fill up the remaining accesses with random rows
+              DRAMAddr agg(bank_no, rand()%MAX_ROW, 0);
 //          update_low_high(agg);
-            ss << agg.row << " ";
-            aggressors.push_back((volatile char *) agg.to_virt());
-            pos++;
+              ss << agg.row << " ";
+              aggressors.push_back((volatile char *) agg.to_virt());
+              pos++;
+            }
           }
-        }
-        Logger::log_data(ss.str());
-        Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
+          Logger::log_data(ss.str());
+//          Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
 
-        // do the hammering
-        if (!USE_SYNC) {
-          // CONVENTIONAL HAMMERING
-          Logger::log_info(format_string("Hammering %d aggressors on bank %d", num_aggs, bank_no));
-          hammer(aggressors);
-        } else if (USE_SYNC) {
-          // SYNCHRONIZED HAMMERING
-          // uses one dummy that are hammered repeatedly until the refresh is detected
-          cur_next_addr.add_inplace(0, 100, 0);
-          auto d1 = cur_next_addr;
+          // do the hammering
+          if (!USE_SYNC) {
+            // CONVENTIONAL HAMMERING
+            Logger::log_info(format_string("Hammering %d aggressors", num_aggs));
+            hammer(aggressors);
+          } else if (USE_SYNC) {
+            // SYNCHRONIZED HAMMERING
+            // uses one dummy that are hammered repeatedly until the refresh is detected
+            auto d1 = DRAMAddr(bank_no, rand()%MAX_ROW, 0);
+            auto d2 = d1.add(0, 2, 0);
+            Logger::log_info(
+                format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
+                    d1.row, d1.to_virt(),
+                    d2.row, d2.to_virt()));
+            Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, bank_no));
+            assert(aggressors.size()==pattern_length);
+            hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
+          }
 
-          cur_next_addr.add_inplace(0, 2, 0);
-          auto d2 = cur_next_addr;
-
-          Logger::log_info(
-              format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
-                  d1.row, d1.to_virt(),
-                  d2.row, d2.to_virt()));
-          Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, bank_no));
-
-          Logger::log_debug("Hammering...");
-          hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
-        }
-
-        // check 20 rows before and after the placed aggressors for flipped bits
-        Logger::log_debug("Checking for flipped bits...");
-        const auto check_rows_around = 10;
-        auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr,
-            (volatile char *) high_row_vaddr,
-            check_rows_around);
+          // check 20 rows before and after the placed aggressors for flipped bits
+          Logger::log_debug("Checking for flipped bits...");
+          const auto check_rows_around = 10;
+          auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr, (volatile char *) high_row_vaddr,
+              check_rows_around);
 
 #ifdef ENABLE_JSON
-        current["cur_offset"] = cur_offset;
-        current["cur_amplitude"] = cur_amplitude;
-        current["num_bitflips"] = num_bitflips;
-        current["pattern_length"] = pattern_length;
-        current["check_rows_around"] = check_rows_around;
+          current["cur_offset"] = cur_offset;
+          current["cur_amplitude"] = cur_amplitude;
+          current["location"] = loc;
+          current["num_bitflips"] = num_bitflips;
+          current["pattern_length"] = pattern_length;
+          current["check_rows_around"] = check_rows_around;
 
-        current["aggressors"] = nlohmann::json::array();
+          current["aggressors"] = nlohmann::json::array();
+          nlohmann::json agg_1;
+          DRAMAddr d((void *) aggressors[cur_offset]);
+          agg_1["bank"] = d.bank;
+          agg_1["row"] = d.row;
+          agg_1["col"] = d.col;
+          current["aggressors"].push_back(agg_1);
+          nlohmann::json agg_2;
+          DRAMAddr d2((void *) aggressors[cur_offset + 1]);
+          agg_2["bank"] = d2.bank;
+          agg_2["row"] = d2.row;
+          agg_2["col"] = d2.col;
+          current["aggressors"].push_back(agg_2);
 
-        nlohmann::json agg_1;
-        DRAMAddr d((void *) aggressors[cur_offset]);
-        agg_1["bank"] = d.bank;
-        agg_1["row"] = d.row;
-        agg_1["col"] = d.col;
-        current["aggressors"].push_back(agg_1);
 
-        nlohmann::json agg_2;
-        DRAMAddr d2((void *) aggressors[cur_offset + 1]);
-        agg_2["bank"] = d2.bank;
-        agg_2["row"] = d2.row;
-        agg_2["col"] = d2.col;
-        current["aggressors"].push_back(agg_2);
 
-        all_results.push_back(current);
+          all_results.push_back(current);
 #endif
-      } // end of loc loop
-    } // end of cur_amplitude loop
-  } // end of cur_offset loop
+        }
+      }
+    }
+
 
 #ifdef ENABLE_JSON
   // export result into JSON
