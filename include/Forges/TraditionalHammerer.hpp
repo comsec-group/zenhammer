@@ -15,6 +15,8 @@ class TraditionalHammerer {
 
   // run experiment where we systematically try out all possible offsets
   static void n_sided_hammer_experiment(Memory &memory, int acts);
-  };
+
+  static void n_sided_hammer_experiment_frequencies(Memory &memory);
+};
 
 #endif //BLACKSMITH_SRC_FORGES_TRADITIONALHAMMERER_HPP_
