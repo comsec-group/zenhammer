@@ -17,6 +17,8 @@ class TraditionalHammerer {
   static void n_sided_hammer_experiment(Memory &memory, int acts);
 
   static void n_sided_hammer_experiment_frequencies(Memory &memory);
+
+  static void hammer(std::vector<volatile char *> &aggressors, size_t hammer_rounds);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_TRADITIONALHAMMERER_HPP_

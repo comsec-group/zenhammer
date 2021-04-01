@@ -4,9 +4,8 @@
 #include <climits>
 #include <Blacksmith.hpp>
 
-/// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
-void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
-  for (size_t i = 0; i < HAMMER_ROUNDS; i++) {
+void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_t hammer_rounds) {
+  for (size_t i = 0; i < hammer_rounds; i++) {
     for (auto &a : aggressors) {
       *a;
     }
@@ -17,9 +16,17 @@ void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
   }
 }
 
+/// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
+void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
+  hammer(aggressors, HAMMER_ROUNDS);
+}
+
 /// Performs synchronized hammering on the given aggressor rows.
 void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, int acts,
                                       volatile char *d1, volatile char *d2) {
+
+  size_t sync_acts = 0;
+  size_t sync_rounds = 0;
 //  Logger::log_debug(format_string("acts: %d", acts));
 //  Logger::log_debug(format_string("aggressors.size(): %lu", aggressors.size()));
   size_t ref_rounds = std::max(1UL, acts/aggressors.size());
@@ -33,6 +40,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   *d2;
 
   // synchronize with the beginning of an interval
+  Logger::log_debug("after-before: ", false);
   while (true) {
     clflushopt(d1);
     clflushopt(d2);
@@ -49,9 +57,9 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 
   // perform hammering for HAMMER_ROUNDS/ref_rounds times
-  for (size_t i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
+  for (size_t i = 0; i < 5000000/aggressors.size(); i++) {
     for (size_t j = 0; j < agg_rounds; j++) {
-      for (size_t k = 0; k < aggressors.size() - 2; k++) {
+      for (size_t k = 0; k < aggressors.size(); k++) {
         *aggressors[k];
         clflushopt(aggressors[k]);
       }
@@ -64,16 +72,21 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
       lfence();
       before = rdtscp();
       lfence();
-      clflushopt(d1);
       *d1;
-      clflushopt(d2);
       *d2;
       after = rdtscp();
       lfence();
+      clflushopt(d1);
+      clflushopt(d2);
+      sync_acts += 2;
       // stop if an ACTIVATE was issued
-      if ((after - before) > 1000) break;
+      if ((after - before) > 1000) {
+        sync_rounds++;
+        break;
+      }
     }
   }
+  Logger::log_debug(format_string("sync_acts/sync_rounds: %lu", sync_acts/sync_rounds));
 }
 
 void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
@@ -92,75 +105,53 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 
   const auto start_ts = get_timestamp_sec();
 
-  srand(time(nullptr));
+  int seed = rand();
+  srand(seed);
   const auto num_aggs = 2;
   const auto pattern_length = (size_t) acts;
 
-  size_t low_row_no;
-  void *low_row_vaddr;
-  size_t high_row_no;
-  void *high_row_vaddr;
-
-  auto update_low_high = [&](DRAMAddr &dramAddr) {
-    if (dramAddr.row < low_row_no) {
-      low_row_no = dramAddr.row;
-      low_row_vaddr = dramAddr.to_virt();
-    }
-    if (dramAddr.row > high_row_no) {
-      high_row_no = dramAddr.row;
-      high_row_vaddr = dramAddr.to_virt();
-    }
-  };
-
-  const auto MAX_ROW = 8192;
-  size_t MAX_AMPLITUDE;
-  const auto NUM_LOCATIONS = 10;
+  const auto MAX_ROW = 2048;
+  size_t MAX_AMPLITUDE = 5;
+  const auto NUM_LOCATIONS = 5;
   int v = 2;  // distance between aggressors (within a pair)
 
-  // start address/row
-  for (size_t cur_offset = 0; cur_offset < pattern_length - (num_aggs - 1); ++cur_offset) {
+  for (size_t loc = 0; loc < NUM_LOCATIONS; ++loc) {
 
-    MAX_AMPLITUDE = (cur_offset > 75) ? 6 : 2;
+    DRAMAddr start_addr = DRAMAddr(rand()%NUM_BANKS, rand()%MAX_ROW, 0);
 
-    for (size_t cur_amplitude = 1;
-         cur_amplitude < MAX_AMPLITUDE && cur_offset + (num_aggs*cur_amplitude) < pattern_length;
-         ++cur_amplitude) {
+    for (size_t cur_amplitude = 1; cur_amplitude < MAX_AMPLITUDE; ++cur_amplitude) {
 
-      for (size_t loc = 0; loc < NUM_LOCATIONS; ++loc) {
-
-        const auto bank_no = rand()%NUM_BANKS;
+      // start address/row
+      for (size_t cur_offset = pattern_length-1; cur_offset > 0; --cur_offset) {
 
         Logger::log_debug(format_string("Running: cur_offset = %lu, cur_amplitude = %lu, loc = %lu/%lu",
             cur_offset, cur_amplitude, loc + 1, NUM_LOCATIONS));
-
-        low_row_no = std::numeric_limits<size_t>::max();
-        low_row_vaddr = nullptr;
-        high_row_no = std::numeric_limits<size_t>::min();
-        high_row_vaddr = nullptr;
 
         std::vector<volatile char *> aggressors;
         std::stringstream ss;
 
         // fill up the pattern with accesses
         ss << "agg row: ";
+        DRAMAddr agg1 = start_addr;
+        DRAMAddr agg2 = agg1.add(0, v, 0);
+        Logger::log_info(
+            format_string("agg1 row %" PRIu64 " (%p) agg2 row %" PRIu64 " (%p)",
+                agg1.row, agg1.to_virt(),
+                agg2.row, agg2.to_virt()));
         for (size_t pos = 0; pos < pattern_length;) {
           if (pos==cur_offset) {
             // add the aggressor pair
-            DRAMAddr agg1 = DRAMAddr(bank_no, rand()%MAX_ROW, 0);
-            update_low_high(agg1);
-            DRAMAddr agg2 = agg1.add(0, v, 0);
-            update_low_high(agg2);
             for (size_t cnt = cur_amplitude; cnt > 0; --cnt) {
               aggressors.push_back((volatile char *) agg1.to_virt());
               ss << agg1.row << " ";
+              pos++;
               aggressors.push_back((volatile char *) agg2.to_virt());
               ss << agg2.row << " ";
+              pos++;
             }
-            pos += cur_amplitude*num_aggs;
           } else {
             // fill up the remaining accesses with random rows
-            DRAMAddr agg(bank_no, rand()%MAX_ROW, 0);
-//          update_low_high(agg);
+            DRAMAddr agg = DRAMAddr(start_addr.bank, rand()%MAX_ROW, 0);
             ss << agg.row << " ";
             aggressors.push_back((volatile char *) agg.to_virt());
             pos++;
@@ -168,6 +159,11 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         }
         Logger::log_data(ss.str());
 //          Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
+
+        if (aggressors.size()!=pattern_length) {
+          Logger::log_debug("Skipping as given cur_offset + cur_amplitude would lead to a longer pattern.");
+          continue;
+        }
 
         // do the hammering
         if (!USE_SYNC) {
@@ -177,22 +173,27 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         } else if (USE_SYNC) {
           // SYNCHRONIZED HAMMERING
           // uses one dummy that are hammered repeatedly until the refresh is detected
-          auto d1 = DRAMAddr(bank_no, rand()%MAX_ROW, 0);
+          auto d1 = DRAMAddr(start_addr.bank, rand()%MAX_ROW, 0);
           auto d2 = d1.add(0, 2, 0);
           Logger::log_info(
               format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
                   d1.row, d1.to_virt(),
                   d2.row, d2.to_virt()));
-          Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, bank_no));
-          assert(aggressors.size()==pattern_length);
+          Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, start_addr.bank));
           hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
         }
 
         // check 20 rows before and after the placed aggressors for flipped bits
         Logger::log_debug("Checking for flipped bits...");
-        const auto check_rows_around = 10;
-        auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr, (volatile char *) high_row_vaddr,
-            check_rows_around);
+        const auto check_rows_around = 20;
+        auto num_bitflips =
+            memory.check_memory((volatile char *) agg1.to_virt(),
+                (volatile char *) agg1.add(0, 1, 0).to_virt(),
+                check_rows_around);
+        num_bitflips +=
+            memory.check_memory((volatile char *) agg2.to_virt(),
+                (volatile char *) agg2.add(0, 1, 0).to_virt(),
+                check_rows_around);
 
 #ifdef ENABLE_JSON
         current["cur_offset"] = cur_offset;
@@ -232,6 +233,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
   meta["memory_config"] = DRAMAddr::get_memcfg_json();
   meta["dimm_id"] = program_args.dimm_id;
   meta["acts_per_tref"] = acts;
+  meta["seed"] = seed;
 
   nlohmann::json root;
   root["metadata"] = meta;
@@ -249,12 +251,11 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   nlohmann::json current;
 #endif
   const auto start_ts = get_timestamp_sec();
-  const auto MAX_AGG_ROUNDS = 16; //16;  // 1...MAX_AGG_ROUNDS
-  const auto DMY_ROUNDS = 64; // 64;     // 32...DMY_ROUNDS
 
-  // randomly choose two aggressors
-  auto agg_bank = 7;
-  auto agg1 = DRAMAddr(agg_bank, rand()%4096, 0);
+  // choose two aggressors between a row from that we know from previous runs that it is vulnerable
+  // (Victor did the same on LPDDR: he did not choose the aggressor rows arbitrarily)
+  auto agg_bank = 10;
+  auto agg1 = DRAMAddr(agg_bank, 677, 0);
   auto agg2 = DRAMAddr(agg_bank, agg1.row + 2, 0);
 #ifdef ENABLE_JSON
   root["aggressors"] = nlohmann::json::array();
@@ -268,13 +269,10 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   }
 #endif
 
-  // randomly choose two dummies
+  // randomly choose two dummies (add 1000 to make sure it cannot be the same row as the aggs)
   DRAMAddr dmy1, dmy2;
-  do {
-    dmy1 = DRAMAddr(agg_bank, rand()%4096, 0);
-    dmy2 = DRAMAddr(agg_bank, dmy1.row + 2, 0);
-  } // make sure that rows of agg1, agg2, dmy1, dmy2 are all different
-  while (dmy1.row==agg1.row || dmy1.row==agg2.row || dmy2.row==agg1.row || dmy2.row==agg2.row);
+  dmy1 = DRAMAddr(agg_bank, rand()%2048 + 1000, 0);
+  dmy2 = DRAMAddr(agg_bank, dmy1.row + 2, 0);
 
 #ifdef ENABLE_JSON
   root["dummies"] = nlohmann::json::array();
@@ -288,11 +286,12 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   }
 #endif
 
-  Logger::log_debug(format_string("agg rows: r%lu, r%lu", agg1.row, agg2.row));
-  Logger::log_debug(format_string("dmy rows: r%lu, r%lu", dmy1.row, dmy2.row));
+  Logger::log_debug(format_string("agg rows: %lu, %lu", agg1.row, agg2.row));
+  Logger::log_debug(format_string("dmy rows: %lu, %lu", dmy1.row, dmy2.row));
 
+  const auto MAX_AGG_ROUNDS = 16; // 1...MAX_AGG_ROUNDS
+  const auto DMY_ROUNDS = 64;     // 32...DMY_ROUNDS
   std::vector<volatile char *> aggressors;
-  srand(time(NULL));
 
   // build the pattern by first accessing the two aggressors, followed by the two dummies
   for (size_t agg_rounds = 1; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
@@ -300,27 +299,31 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
     for (size_t dummy_rounds = 32; dummy_rounds < DMY_ROUNDS; ++dummy_rounds) {
       Logger::log_debug(format_string("Running: agg_rounds = %lu, dummy_rounds = %lu", agg_rounds, dummy_rounds));
 
+      // add aggressors to pattern
       for (size_t ard = 0; ard < agg_rounds; ++ard) {
         aggressors.push_back((volatile char *) agg1.to_virt());
         aggressors.push_back((volatile char *) agg2.to_virt());
-
       }
 
+      // add dummies to pattern
       for (size_t drd = 0; drd < dummy_rounds; ++drd) {
         aggressors.push_back((volatile char *) dmy1.to_virt());
         aggressors.push_back((volatile char *) dmy2.to_virt());
       }
 
       // hammer the pattern
-      Logger::log_info(format_string("Hammering...", agg_bank));
-      hammer(aggressors);
+      Logger::log_info(format_string("Hammering %d aggs, %d dummies...", agg_rounds*2, dummy_rounds*2));
+      const auto hammer_count = 8192*32;
+      hammer(aggressors, hammer_count);
 
       // check rows before and after for flipped bits
       const auto check_rows_around = 5;
-      auto sum_bitflips = memory.check_memory((volatile char *) agg1.to_virt(), (volatile char *) agg1.add(0, 1, 0).to_virt(), check_rows_around);
-      sum_bitflips += memory.check_memory((volatile char *) agg2.to_virt(), (volatile char *) agg2.add(0, 1, 0).to_virt(), check_rows_around);
-      sum_bitflips += memory.check_memory((volatile char *) dmy1.to_virt(), (volatile char *) dmy1.add(0, 1, 0).to_virt(), check_rows_around);
-      sum_bitflips += memory.check_memory((volatile char *) dmy2.to_virt(), (volatile char *) dmy2.add(0, 1, 0).to_virt(), check_rows_around);
+      auto sum_bitflips = memory.check_memory((volatile char *) agg1.to_virt(),
+          (volatile char *) agg1.add(0, 1, 0).to_virt(),
+          check_rows_around);
+      sum_bitflips += memory.check_memory((volatile char *) agg2.to_virt(),
+          (volatile char *) agg2.add(0, 1, 0).to_virt(),
+          check_rows_around);
 
       // log results into JSON
 #ifdef ENABLE_JSON
@@ -329,7 +332,6 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
       current["num_bitflips"] = sum_bitflips;
       current["pattern_length"] = aggressors.size();
       current["check_rows_around"] = check_rows_around;
-
       all_results.push_back(current);
 #endif
     }
