@@ -6,7 +6,11 @@
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
-  for (size_t i = 0; i < HAMMER_ROUNDS; i++) {
+  hammer(aggressors, HAMMER_ROUNDS);
+}
+
+void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_t reps) {
+  for (size_t i = 0; i < reps; i++) {
     for (auto &a : aggressors) {
       *a;
     }
@@ -17,10 +21,20 @@ void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
   }
 }
 
+void TraditionalHammerer::hammer_flush_early(std::vector<volatile char *> &aggressors, size_t reps) {
+  for (size_t i = 0; i < reps; i++) {
+    for (auto &a : aggressors) {
+      *a;
+      clflushopt(a);
+    }
+    mfence();
+  }
+}
+
 /// Performs synchronized hammering on the given aggressor rows.
 void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, int acts,
                                       volatile char *d1, volatile char *d2) {
-  size_t ref_rounds = std::max(1UL,acts/aggressors.size());
+  size_t ref_rounds = std::max(1UL, acts/aggressors.size());
 
   // determines how often we are repeating
   size_t agg_rounds = ref_rounds;
@@ -91,14 +105,14 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
   const auto start_ts = time(nullptr);
   srand(start_ts);
   const auto num_aggs = 2;
-  const auto pattern_length = (size_t)acts;
+  const auto pattern_length = (size_t) acts;
 
   int v = 2;  // distance between aggressors (within a pair)
 
   size_t low_row_no;
-  void* low_row_vaddr;
+  void *low_row_vaddr;
   size_t high_row_no;
-  void* high_row_vaddr;
+  void *high_row_vaddr;
 
   auto update_low_high = [&](DRAMAddr &dramAddr) {
     if (dramAddr.row < low_row_no) {
@@ -160,7 +174,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
           }
         }
         Logger::log_data(ss.str());
-      Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
+        Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
 
         // do the hammering
         if (!USE_SYNC) {
@@ -170,10 +184,10 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         } else if (USE_SYNC) {
           // SYNCHRONIZED HAMMERING
           // uses one dummy that are hammered repeatedly until the refresh is detected
-        cur_next_addr.add_inplace(0, 100, 0);
-        auto d1 = cur_next_addr;
-        cur_next_addr.add_inplace(0, 2, 0);
-        auto d2 = cur_next_addr;
+          cur_next_addr.add_inplace(0, 100, 0);
+          auto d1 = cur_next_addr;
+          cur_next_addr.add_inplace(0, 2, 0);
+          auto d2 = cur_next_addr;
           Logger::log_info(
               format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
                   d1.row, d1.to_virt(),
@@ -186,7 +200,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         // check 20 rows before and after the placed aggressors for flipped bits
         Logger::log_debug("Checking for flipped bits...");
         const auto check_rows_around = 20;
-      auto num_bitflips = memory.check_memory((volatile char*)low_row_vaddr, (volatile char*)high_row_vaddr,
+        auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr, (volatile char *) high_row_vaddr,
             check_rows_around);
 #ifdef ENABLE_JSON
         current["cur_offset"] = cur_offset;
@@ -218,22 +232,22 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 
 #ifdef ENABLE_JSON
 // export result into JSON
-std::ofstream json_export("experiment-summary.json");
+  std::ofstream json_export("experiment-summary.json");
 
-nlohmann::json meta;
-meta["start"] = start_ts;
-meta["end"] = get_timestamp_sec();
-meta["memory_config"] = DRAMAddr::get_memcfg_json();
-meta["dimm_id"] = program_args.dimm_id;
-meta["acts_per_tref"] = acts;
-meta["seed"] = start_ts;
+  nlohmann::json meta;
+  meta["start"] = start_ts;
+  meta["end"] = get_timestamp_sec();
+  meta["memory_config"] = DRAMAddr::get_memcfg_json();
+  meta["dimm_id"] = program_args.dimm_id;
+  meta["acts_per_tref"] = acts;
+  meta["seed"] = start_ts;
 
-nlohmann::json root;
-root["metadata"] = meta;
-root["results"] = all_results;
+  nlohmann::json root;
+  root["metadata"] = meta;
+  root["results"] = all_results;
 
-json_export << root << std::endl;
-json_export.close();
+  json_export << root << std::endl;
+  json_export.close();
 #endif
 }
 
@@ -295,4 +309,170 @@ void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_
       memory.check_memory(aggressors[0], aggressors[aggressors.size() - 1], 100);
     }
   }
+}
+
+void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) {
+#ifdef ENABLE_JSON
+  nlohmann::json root;
+  nlohmann::json all_results = nlohmann::json::array();
+  nlohmann::json current;
+#endif
+  const auto start_ts = get_timestamp_sec();
+  srand(start_ts);
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  const auto MAX_AGG_ROUNDS = 48; //16;  // 1...MAX_AGG_ROUNDS
+  const auto MAX_DMY_ROUNDS = 128; // 64;     // 32...MAX_DMY_ROUNDS
+  const auto MAX_ROW = 8192;
+
+  // randomly choose two aggressors
+//  auto agg1 = DRAMAddr(Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
+//      Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
+//      0);
+//  auto agg2 = DRAMAddr(agg1.bank, agg1.row + 2, 0);
+
+  auto agg1 = DRAMAddr(11, 5307, 0);
+  auto agg2 = DRAMAddr(11, 5309, 0);
+
+//  auto agg1 = DRAMAddr(3, 3835, 0);
+//  auto agg2 = DRAMAddr(3, 3837, 0);
+//
+//  auto agg1 = DRAMAddr(15, 3778, 0);
+//  auto agg2 = DRAMAddr(15, 3780, 0);
+
+//  auto agg1 = DRAMAddr(14, 5729, 0);
+//  auto agg2 = DRAMAddr(14, 5731, 0);
+
+
+#ifdef ENABLE_JSON
+  root["aggressors"] = nlohmann::json::array();
+  for (const auto agg: {agg1, agg2}) {
+    root["aggressors"].push_back({{"bank", agg.bank}, {"row", agg.row}, {"col", agg.col}});
+  }
+#endif
+
+  // randomly choose two dummies
+//  auto dmy1 = DRAMAddr(agg1.bank, agg1.row + rand()%(MAX_ROW - agg1.row), 0);
+//  auto dmy2 = DRAMAddr(agg1.bank, dmy1.row + 2, 0);
+
+//  auto dmy1 = DRAMAddr(10, 408, 0);
+//  auto dmy2 = DRAMAddr(10, 410, 0);
+
+//#ifdef ENABLE_JSON
+//  root["dummies"] = nlohmann::json::array();
+//  for (const auto dmy: {dmy1, dmy2}) {
+//    root["dummies"].push_back({{"bank", dmy.bank}, {"row", dmy.row}, {"col", dmy.col}});
+//  }
+//#endif
+
+//  Logger::log_debug(format_string("agg rows: r%lu, r%lu", agg1.row, agg2.row));
+//  Logger::log_debug(format_string("dmy rows: r%lu, r%lu", dmy1.row, dmy2.row));
+
+
+
+  std::vector<std::tuple<size_t, size_t>> untested_vals;
+  for (size_t agg_rounds = 32; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
+    for (size_t dummy_rounds = 16; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
+      untested_vals.emplace_back(agg_rounds, dummy_rounds);
+    }
+  }
+
+//  std::shuffle(untested_vals.begin(), untested_vals.end(), gen);
+
+  for (size_t i = 0; i < untested_vals.size(); ++i) {
+    std::vector<volatile char *> aggressors;
+
+//    auto agg1 = DRAMAddr(Range<size_t>(0, NUM_BANKS).get_random_number(gen),
+//        Range<size_t>(0, MAX_ROW).get_random_number(gen),
+//        0);
+//    auto agg2 = agg1.add(0, 2, 0);
+    auto dmy1 = DRAMAddr(agg1.bank,
+        Range<size_t>(0, MAX_ROW).get_random_number(gen),
+        0);
+    auto dmy2 = dmy1.add(0, 2, 0);
+    Logger::log_debug(format_string("aggs [%s, %s], dmys [%s, %s]",
+        agg1.to_string_compact().c_str(), agg2.to_string_compact().c_str(),
+        dmy1.to_string_compact().c_str(), dmy2.to_string_compact().c_str()));
+
+    const auto tuple_vals = untested_vals.at(i);
+    size_t agg_rounds = std::get<0>(tuple_vals);
+    size_t dummy_rounds = std::get<1>(tuple_vals);
+
+    Logger::log_debug(format_string("Running: agg_rounds = %lu, dummy_rounds = %lu. Remaining: %lu.",
+        agg_rounds,
+        dummy_rounds,
+        untested_vals.size() - i));
+
+    for (size_t ard = 0; ard < agg_rounds; ++ard) {
+      aggressors.push_back((volatile char *) agg1.to_virt());
+      aggressors.push_back((volatile char *) agg2.to_virt());
+    }
+
+    for (size_t drd = 0; drd < dummy_rounds; ++drd) {
+//      aggressors.push_back((volatile char *) dmy1.to_virt());
+//      aggressors.push_back((volatile char *) dmy2.to_virt());
+      auto dmy = DRAMAddr(Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
+          Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
+          0);
+      aggressors.push_back((volatile char *) dmy.to_virt());
+    }
+
+    // hammer the pattern
+    Logger::log_info("Hammering...");
+    hammer_flush_early(aggressors, 8192*32);
+//    hammer(aggressors, 5000000/aggressors.size());
+//    hammer(aggressors, 8192*32);
+//    hammer_sync(aggressors, program_args.acts_per_ref,
+//        (volatile char *) dmy2.add(0, 111, 0).to_virt(),
+//        (volatile char *) dmy2.add(0, 113, 0).to_virt());
+
+    // check rows before and after for flipped bits
+    const auto check_rows_around = 15;
+    Logger::log_info("Checking for flipped bits...");
+    auto sum_bitflips = memory.check_memory((volatile char *) agg1.to_virt(),
+        (volatile char *) agg1.add(0, 1, 0).to_virt(),
+        check_rows_around);
+//    sum_bitflips += memory.check_memory((volatile char *) agg2.to_virt(),
+//        (volatile char *) agg2.add(0, 1, 0).to_virt(),
+//        check_rows_around);
+//    sum_bitflips += memory.check_memory((volatile char *) dmy1.to_virt(),
+//        (volatile char *) dmy1.add(0, 1, 0).to_virt(),
+//        check_rows_around);
+//    sum_bitflips += memory.check_memory((volatile char *) dmy2.to_virt(),
+//        (volatile char *) dmy2.add(0, 1, 0).to_virt(),
+//        check_rows_around);
+
+    // log results into JSON
+#ifdef ENABLE_JSON
+    current["agg_rounds"] = agg_rounds;
+    current["dummy_rounds"] = dummy_rounds;
+    current["num_bitflips"] = sum_bitflips;
+    current["pattern_length"] = aggressors.size();
+    current["check_rows_around"] = check_rows_around;
+
+    all_results.push_back(current);
+#endif
+//    }
+//  }
+  }
+  // write JSON to disk
+#ifdef ENABLE_JSON
+  // export result into JSON
+  std::ofstream json_export("experiment-hynix-summary.json");
+
+  nlohmann::json meta;
+  meta["start"] = start_ts;
+  meta["end"] = get_timestamp_sec();
+  meta["memory_config"] = DRAMAddr::get_memcfg_json();
+  meta["dimm_id"] = program_args.dimm_id;
+  meta["seed"] = start_ts;
+
+  root["metadata"] = meta;
+  root["results"] = all_results;
+
+  json_export << root << std::endl;
+  json_export.close();
+#endif
 }
