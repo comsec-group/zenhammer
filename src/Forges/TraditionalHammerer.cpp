@@ -127,13 +127,13 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 
   const auto TARGET_BANK = 0;
   const auto NUM_LOCATIONS = 10;
-  const size_t MAX_AMPLITUDE = 5;
+  const size_t MAX_AMPLITUDE = 6;
 
   for (size_t cur_location = 1; cur_location <= NUM_LOCATIONS; ++cur_location) {
     // start address/row
     DRAMAddr cur_next_addr(TARGET_BANK, rand()%2048, 0);
 
-    for (size_t cur_amplitude = 1; cur_amplitude < MAX_AMPLITUDE; ++cur_amplitude) {
+    for (size_t cur_amplitude = 1; cur_amplitude <= MAX_AMPLITUDE; ++cur_amplitude) {
 
       for (size_t cur_offset = 75; cur_offset < pattern_length - (num_aggs - 1); ++cur_offset) {
 
@@ -323,8 +323,8 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  const auto MAX_AGG_ROUNDS = 48; //16;  // 1...MAX_AGG_ROUNDS
-  const auto MAX_DMY_ROUNDS = 128; // 64;     // 32...MAX_DMY_ROUNDS
+  const auto MAX_AGG_ROUNDS = 42; //16;  // 1...MAX_AGG_ROUNDS
+  const auto MAX_DMY_ROUNDS = 110; // 64;     // 32...MAX_DMY_ROUNDS
   const auto MAX_ROW = 8192;
 
   // randomly choose two aggressors
@@ -373,8 +373,8 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 
 
   std::vector<std::tuple<size_t, size_t>> untested_vals;
-  for (size_t agg_rounds = 32; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
-    for (size_t dummy_rounds = 16; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
+  for (size_t agg_rounds = 1; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
+    for (size_t dummy_rounds = 0; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
       untested_vals.emplace_back(agg_rounds, dummy_rounds);
     }
   }
