@@ -31,12 +31,9 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
   ReplayingHammerer replaying_hammerer(memory);
 
-#ifdef ENABLE_JSON
-  nlohmann::json arr = nlohmann::json::array();
-#endif
-
   // all patterns that triggered bit flips
   std::vector<HammeringPattern> effective_patterns;
+  std::vector<HammeringPattern> all_patterns;
 
   HammeringPattern best_hammering_pattern;
   PatternAddressMapper best_mapping;
@@ -78,6 +75,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
     if (sum_flips_one_pattern_all_mappings > 0) {
       effective_patterns.push_back(hammering_pattern);
+    } else {
+      all_patterns.push_back(hammering_pattern);
     }
 
     // TODO additionally consider the number of locations where this pattern triggers bit flips besides the total
@@ -98,15 +97,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
         }
       }
     }
-
-#ifdef ENABLE_JSON
-    // if the pattern triggered bit flips we will add it later, after having done the reproducibility experiment,
-    // otherwise this data will not be included in the generated output JSON
-    if (sum_flips_one_pattern_all_mappings==0) {
-      // export the current HammeringPattern including all of its associated PatternAddressMappers
-      arr.push_back(hammering_pattern);
-    }
-#endif
 
     if (current_round%100==0) {
       auto old_nacts = fuzzing_params.get_num_activations_per_t_refi();
@@ -165,10 +155,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
     }
-#ifdef ENABLE_JSON
-    // export the current HammeringPattern including all of its associated PatternAddressMappers
-    arr.push_back(hammering_pattern);
-#endif
   }
 
   if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
@@ -181,7 +167,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   // is_location_dependent will not be included into the JSON; similarly,we do the JSON export after the repeatability
   // experiment because the export should include the repeatability data
 #ifdef ENABLE_JSON
-  // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
+  nlohmann::json arr = nlohmann::json::array();
+  for (auto &pattern : all_patterns) arr.push_back(pattern);
+  for (auto &pattern : effective_patterns) arr.push_back(pattern);
+
+    // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export("fuzz-summary.json");
 
   nlohmann::json meta;
