@@ -120,7 +120,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     Logger::log_info("Checking reproducibility of bit flips.");
   }
 
-
   Logger::log_info("Choosing a subset of max. 5 patterns for the reproducibility check to reduce compute time.");
   // checking reproducibility for all found patterns takes too long on DIMMs with many patterns, therefore we limit the
   // reproducibility check to the top-5 patterns we found (top-5 = the 5 patterns that triggered the most bit flips)
@@ -128,7 +127,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   std::unordered_set<std::string> patterns_for_reproducibility_check;
   for (auto &pattern : effective_patterns) {
     auto total_bitflips = 0;
-    for (const auto& mapper : pattern.address_mappings) {
+    for (const auto &mapper : pattern.address_mappings) {
       total_bitflips += mapper.bit_flips.size();
     }
     best_patterns[total_bitflips] = pattern;
@@ -145,20 +144,24 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   for (auto &pattern : effective_patterns) {
     //  check if this is one of the selected patterns for the reproducibility check
     if (patterns_for_reproducibility_check.count(pattern.instance_id) > 0) {
+
+      // FIXME: this is a dirty hack, instead modify the ReplayingHammerer so that it takes a pattern as input
       hammering_pattern = pattern;
+
       // do the repeatability check for the pattern/mappings that worked and store result in JSON
       for (auto &mapper : hammering_pattern.address_mappings) {
         if (mapper.bit_flips.empty()) continue;
         Logger::log_info(format_string("Running pattern %s for address set %s.",
             pattern.instance_id.c_str(), mapper.get_instance_id().c_str()));
         replaying_hammerer.load_parameters_from_pattern(pattern, mapper);
-        // FIXME: the reproducibility score is set in probe_mapping_and_scan but not included into the final JSON
-        //  (fuzz-summary.json). It is not clear why this happens as we are taking a reference to the mapper in this
-        //  loop, so the mapping associated with the object in effective_patterns should be changed.
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
+
+      // FIXME: this is part of the dirty hack and required to write back the results of the ReplayingHammerer
+      pattern = hammering_pattern;
     }
   }
+
 
   if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
     // do experiment with best pattern to figure out whether during the sweep we need to move all aggressors or only
@@ -171,10 +174,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   // experiment because the export should include the repeatability data
 #ifdef ENABLE_JSON
   nlohmann::json arr = nlohmann::json::array();
+
   for (auto &pattern : all_patterns) arr.push_back(pattern);
   for (auto &pattern : effective_patterns) arr.push_back(pattern);
 
-    // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
+  // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips
   std::ofstream json_export("fuzz-summary.json");
 
   nlohmann::json meta;
@@ -251,6 +255,7 @@ void FuzzyHammerer::test_location_dependence(ReplayingHammerer &rh, HammeringPat
 
 void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,
                                            FuzzingParameterSet &fuzzing_params, const bool check_reproducibility) {
+
   // ATTENTION: This method uses the global variable hammering_pattern to refer to the pattern that is to be hammered
 
   CodeJitter &code_jitter = mapper.get_code_jitter();
@@ -338,9 +343,9 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
 
   // assign the computed reproducibility score to this pattern s.t. it is included in the JSON export;
   // a reproducibility of -1 indicates that reproducibility was not tested
-  mapper.reproducibility_score = check_reproducibility
-                                 ? (double) reproducibility_rounds_with_bitflips/(double) reproducibility_rounds
-                                 : -1;
+  if (check_reproducibility) {
+    mapper.reproducibility_score = ((double) reproducibility_rounds_with_bitflips/(double) reproducibility_rounds)*100;
+  }
 
   // cleanup the jitter for its next use
   code_jitter.cleanup();

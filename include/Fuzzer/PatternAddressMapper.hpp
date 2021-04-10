@@ -56,8 +56,7 @@ class PatternAddressMapper {
   // the reproducibility score of this mapping, e.g.,
   //    1   => 100%: was reproducible in all reproducibility runs executed,
   //    0.4 => 40%: was reproducible in 40% of all reproducibility runs executed
-  // (note: is zero initialized, i.e., value is also 0 in case that this pattern does not trigger bit flips at all)
-  double reproducibility_score = 0.0;
+  int reproducibility_score = -1;
 
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
