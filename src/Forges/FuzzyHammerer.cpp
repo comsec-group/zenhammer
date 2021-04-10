@@ -152,6 +152,9 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
         Logger::log_info(format_string("Running pattern %s for address set %s.",
             pattern.instance_id.c_str(), mapper.get_instance_id().c_str()));
         replaying_hammerer.load_parameters_from_pattern(pattern, mapper);
+        // FIXME: the reproducibility score is set in probe_mapping_and_scan but not included into the final JSON
+        //  (fuzz-summary.json). It is not clear why this happens as we are taking a reference to the mapper in this
+        //  loop, so the mapping associated with the object in effective_patterns should be changed.
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
     }
