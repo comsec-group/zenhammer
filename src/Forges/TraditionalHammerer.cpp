@@ -325,16 +325,10 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 
   const auto MAX_AGG_ROUNDS = 42; //16;  // 1...MAX_AGG_ROUNDS
   const auto MAX_DMY_ROUNDS = 110; // 64;     // 32...MAX_DMY_ROUNDS
-  const auto MAX_ROW = 8192;
+  const auto MAX_ROW = 4096;
 
-  // randomly choose two aggressors
-//  auto agg1 = DRAMAddr(Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
-//      Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
-//      0);
-//  auto agg2 = DRAMAddr(agg1.bank, agg1.row + 2, 0);
-
-  auto agg1 = DRAMAddr(11, 5307, 0);
-  auto agg2 = DRAMAddr(11, 5309, 0);
+//  auto agg1 = DRAMAddr(11, 5307, 0);
+//  auto agg2 = DRAMAddr(11, 5309, 0);
 
 //  auto agg1 = DRAMAddr(3, 3835, 0);
 //  auto agg2 = DRAMAddr(3, 3837, 0);
@@ -347,10 +341,7 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 
 
 #ifdef ENABLE_JSON
-  root["aggressors"] = nlohmann::json::array();
-  for (const auto agg: {agg1, agg2}) {
-    root["aggressors"].push_back({{"bank", agg.bank}, {"row", agg.row}, {"col", agg.col}});
-  }
+
 #endif
 
   // randomly choose two dummies
@@ -372,14 +363,24 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 
 
 
+
+
+//  std::shuffle(untested_vals.begin(), untested_vals.end(), gen);
+for (size_t r = 0; r < 10; ++ r) {
+
+  // randomly choose two aggressors
+  auto agg1 = DRAMAddr(
+      Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
+      Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
+      0);
+  auto agg2 = DRAMAddr(agg1.bank, agg1.row + 2, 0);
+
   std::vector<std::tuple<size_t, size_t>> untested_vals;
   for (size_t agg_rounds = 1; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
     for (size_t dummy_rounds = 0; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
       untested_vals.emplace_back(agg_rounds, dummy_rounds);
     }
   }
-
-//  std::shuffle(untested_vals.begin(), untested_vals.end(), gen);
 
   for (size_t i = 0; i < untested_vals.size(); ++i) {
     std::vector<volatile char *> aggressors;
@@ -400,7 +401,8 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
     size_t agg_rounds = std::get<0>(tuple_vals);
     size_t dummy_rounds = std::get<1>(tuple_vals);
 
-    Logger::log_debug(format_string("Running: agg_rounds = %lu, dummy_rounds = %lu. Remaining: %lu.",
+    Logger::log_debug(format_string("Running: location = %lu/10, agg_rounds = %lu, dummy_rounds = %lu. Remaining: %lu.",
+        r+1,
         agg_rounds,
         dummy_rounds,
         untested_vals.size() - i));
@@ -413,8 +415,8 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
     for (size_t drd = 0; drd < dummy_rounds; ++drd) {
 //      aggressors.push_back((volatile char *) dmy1.to_virt());
 //      aggressors.push_back((volatile char *) dmy2.to_virt());
-      auto dmy = DRAMAddr(Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
-          Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
+      auto dmy = DRAMAddr(Range<size_t>(0, NUM_BANKS - 1).get_random_number(gen),
+          Range<size_t>(0, MAX_ROW - 1).get_random_number(gen),
           0);
       aggressors.push_back((volatile char *) dmy.to_virt());
     }
@@ -446,6 +448,10 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 
     // log results into JSON
 #ifdef ENABLE_JSON
+    current["aggressors"] = nlohmann::json::array();
+    for (const auto agg: {agg1, agg2}) {
+      current["aggressors"].push_back({{"bank", agg.bank}, {"row", agg.row}, {"col", agg.col}});
+    }
     current["agg_rounds"] = agg_rounds;
     current["dummy_rounds"] = dummy_rounds;
     current["num_bitflips"] = sum_bitflips;
@@ -457,6 +463,7 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
 //    }
 //  }
   }
+}
   // write JSON to disk
 #ifdef ENABLE_JSON
   // export result into JSON
