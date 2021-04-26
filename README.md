@@ -1,10 +1,10 @@
 # Blacksmith Rowhammer Fuzzer
 
-![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)
+[![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](https://opensource.org/licenses/MIT)
 [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022)
-![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)
+[![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)]()
 
 This repository provides the code of the paper _[Blacksmith: Compromising Target Row Refresh by Rowhammering in the Frequency Domain]()_ that is to appear in IEEE S&P 2022.
 
@@ -19,21 +19,25 @@ For facilitating the reproduction of our experiments, we following provide the c
     - Codebase: TRRespass
     - Commit: [86acbcc7cd3fb8536c52e32d9f91db585ea059a7](https://github.com/pjattke/trrespass-fork/commit/86acbcc7cd3fb8536c52e32d9f91db585ea059a7)
     - Function: [`hammer-suite.c::fuzz_random`](https://github.com/pjattke/trrespass-fork/blob/main/hammersuite/src/hammer-suite.c#L998)
+  
 
 - Section III-B: When should we hammer and for how long?
     - Codebase: TRRespass
     - Commit: [985c5626bb41e86899c2d80e8797f4d212b2f23c](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/commit/985c5626bb41e86899c2d80e8797f4d212b2f23c)
     - Function: [`TraditionalHammerer::n_sided_hammer_experiment`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/985c5626bb41e86899c2d80e8797f4d212b2f23c/src/Forges/TraditionalHammerer.cpp#L77)
 
+
 - Section III-C: Should our patterns be longer than one refresh interval?
     - Codebase: Blacksmith
     - Commit: [17163fc769c6abd9ea8d1d5042e2763f4c502efe](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/commit/17163fc769c6abd9ea8d1d5042e2763f4c502efe)
     - Function: [`TraditionalHammerer::n_sided_hammer_experiment_frequencies`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/17163fc769c6abd9ea8d1d5042e2763f4c502efe/src/Forges/TraditionalHammerer.cpp#L314)
+
     
 - Section V-B: Blacksmith Results on DDR4
     - Codebase: Blacksmith
     - Commit: [2073e0a769fe8211bb8b61ee4e6946cb3ae8c1b3](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/commit/2073e0a769fe8211bb8b61ee4e6946cb3ae8c1b3)
     - Function: [`FuzzyHammerer::n_sided_frequency_based_hammering`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/src/Forges/FuzzyHammerer.cpp#L18)
+
 
 - Section V-D: Blacksmith on LPDDR4X
     - Codebase: Blacksmith
@@ -104,15 +108,3 @@ Except the `dimm_id`, all parameters are optional.
 ```
 
 The default values of the parameters can be found in the [`struct ProgramArguments`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/Blacksmith.hpp#L8).
-
-### License
-
-MIT License
-
-Copyright (c) 2021 ETH Zurich
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
