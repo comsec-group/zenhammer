@@ -79,6 +79,15 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     if (sum_flips_one_pattern_all_mappings > 0) {
       effective_patterns.push_back(hammering_pattern);
     }
+#ifdef ENABLE_JSON
+    // if the pattern triggered bit flips we will add it later, after having completed the reproducibility experiment,
+    // otherwise this data will not be included in the generated output JSON
+    else if (already_serialized_patterns.count(hammering_pattern.instance_id) == 0) {
+      // export the current HammeringPattern including all of its associated PatternAddressMappers
+      arr.push_back(hammering_pattern);
+      already_serialized_patterns.insert(hammering_pattern.instance_id);
+    }
+#endif
 
     // TODO additionally consider the number of locations where this pattern triggers bit flips besides the total
     //  number of bit flips only because we want to find a pattern that generalizes well
@@ -98,15 +107,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
         }
       }
     }
-
-#ifdef ENABLE_JSON
-    // if the pattern triggered bit flips we will add it later, after having done the reproducibility experiment,
-    // otherwise this data will not be included in the generated output JSON
-    if (sum_flips_one_pattern_all_mappings==0) {
-      // export the current HammeringPattern including all of its associated PatternAddressMappers
-      arr.push_back(hammering_pattern);
-    }
-#endif
 
     // dynamically change num acts per tREF after every 100 patterns; this is to avoid that we made a bad choice at the
     // beginning and then get stuck with that value
@@ -132,7 +132,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     Logger::log_info("Starting post-analysis stage.");
     Logger::log_info("Checking reproducibility of bit flips.");
   }
-
 
   Logger::log_info("Choosing a subset of max. 5 patterns for the reproducibility check to reduce compute time.");
   // checking reproducibility for all found patterns takes too long on DIMMs with many patterns, therefore we limit the
@@ -161,18 +160,22 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
       hammering_pattern = pattern;
       // do the repeatability check for the pattern/mappings that worked and store result in JSON
       for (auto &mapper : hammering_pattern.address_mappings) {
-        if (mapper.bit_flips.empty()) continue;
+        if (mapper.bit_flips.empty()) 
+          continue;
         Logger::log_info(format_string("Running pattern %s for address set %s.",
             pattern.instance_id.c_str(), mapper.get_instance_id().c_str()));
         replaying_hammerer.load_parameters_from_pattern(pattern, mapper);
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
-    }
 #ifdef ENABLE_JSON
-    // export the current HammeringPattern including all of its associated PatternAddressMappers
-    arr.push_back(hammering_pattern);
+      arr.push_back(hammering_pattern);
+    } else {
+      arr.push_back(pattern);
+    }
+#else
+    }
 #endif
-  }
+}
 
   if (sweep_best_pattern && best_hammering_pattern_bitflips > 0) {
     // do experiment with best pattern to figure out whether during the sweep we need to move all aggressors or only
