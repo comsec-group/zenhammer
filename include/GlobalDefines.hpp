@@ -81,6 +81,6 @@ uint64_t static inline GB(uint64_t value) {
 #define USE_SYNC 1
 
 // generate frequency-based patterns using fuzzing
-#define USE_FREQUENCY_BASED_FUZZING 0
+#define USE_FREQUENCY_BASED_FUZZING 1
 
 #endif /* GLOBAL_DEFINES */
