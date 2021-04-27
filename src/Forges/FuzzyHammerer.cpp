@@ -80,13 +80,9 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
       effective_patterns.push_back(hammering_pattern);
     }
 #ifdef ENABLE_JSON
-    // if the pattern triggered bit flips we will add it later, after having completed the reproducibility experiment,
-    // otherwise this data will not be included in the generated output JSON
-    else if (already_serialized_patterns.count(hammering_pattern.instance_id) == 0) {
-      // export the current HammeringPattern including all of its associated PatternAddressMappers
-      arr.push_back(hammering_pattern);
-      already_serialized_patterns.insert(hammering_pattern.instance_id);
-    }
+  // export the current HammeringPattern including all of its associated PatternAddressMappers
+  arr.push_back(hammering_pattern);
+     
 #endif
 
     // TODO additionally consider the number of locations where this pattern triggers bit flips besides the total
