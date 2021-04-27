@@ -170,7 +170,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but exclude 1 because an amplitude>1 does not make sense for a
   // single aggressor
-  amplitude = Range<int>(1, num_activations_per_tREFI/2);
+  amplitude = Range<int>(1, num_activations_per_tREFI*4);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -190,7 +190,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // TODO: other params (alignment) wait before hammering [0,32] REFs
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  num_aggressors_for_sync = Range<int>(1, 2);
+  num_aggressors_for_sync = Range<int>(2, 2);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   start_row = Range<int>(0, 2048);
@@ -242,7 +242,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-  base_period = get_random_even_divisior(num_activations_per_tREFI, 4);
+  base_period = get_random_even_divisior(total_acts_pattern, 4);
   // TODO: should be max = number of refresh intervals
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
