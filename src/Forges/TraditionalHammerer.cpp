@@ -323,8 +323,12 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  const auto MAX_AGG_ROUNDS = 42; //16;  // 1...MAX_AGG_ROUNDS
-  const auto MAX_DMY_ROUNDS = 110; // 64;     // 32...MAX_DMY_ROUNDS
+  const auto MAX_AGG_ROUNDS = 48; //16;  // 1...MAX_AGG_ROUNDS
+  const auto MIN_AGG_ROUNDS = 32; //16;  // 1...MAX_AGG_ROUNDS
+
+  const auto MAX_DMY_ROUNDS = 256; // 64;     // 0...MAX_DMY_ROUNDS
+  const auto MIN_DMY_ROUNDS = 110; // 64;     // 0...MAX_DMY_ROUNDS
+
   const auto MAX_ROW = 4096;
 
 //  auto agg1 = DRAMAddr(11, 5307, 0);
@@ -376,8 +380,8 @@ for (size_t r = 0; r < 10; ++ r) {
   auto agg2 = DRAMAddr(agg1.bank, agg1.row + 2, 0);
 
   std::vector<std::tuple<size_t, size_t>> untested_vals;
-  for (size_t agg_rounds = 1; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
-    for (size_t dummy_rounds = 0; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
+  for (size_t agg_rounds = MIN_AGG_ROUNDS; agg_rounds < MAX_AGG_ROUNDS; ++agg_rounds) {
+    for (size_t dummy_rounds = MIN_DMY_ROUNDS; dummy_rounds < MAX_DMY_ROUNDS; ++dummy_rounds) {
       untested_vals.emplace_back(agg_rounds, dummy_rounds);
     }
   }
