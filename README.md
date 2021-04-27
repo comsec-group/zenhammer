@@ -1,17 +1,14 @@
 # Blacksmith Rowhammer Fuzzer
 
-[![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](https://opensource.org/licenses/MIT)
-[![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022)
-[![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)]()
+[![Academic Code](https://img.shields.io/badge/Origin-Academic%20Code-C1ACA0.svg?style=flat)]() [![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)](https://isocpp.org/std/the-standard) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)]()
 
-This repository provides the code of the paper _[Blacksmith: Compromising Target Row Refresh by Rowhammering in the Frequency Domain]()_ that is to appear in IEEE S&P 2022.
+[![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](arxiv.org/) [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022) [![Funding](https://img.shields.io/badge/Grant-NCCR%20Automation%20(51NF40180545)-red.svg)](https://www.ieee-security.org/TC/SP2022)
 
-**Abstract.**
-We present a new class of non-uniform Rowhammer uniform access patterns bypass undocumented, proprietary in-DRAM Target Row Refresh (TRR) while operating in a production setting, triggering bit flips on all 40 DR4 DRAM devices in our test pool. We make a key observation that all published Rowhammer access patterns always hammer aggressor rows uniformly. While uniform accesses maximize the amount of aggressor activations, we find that in-DRAM TRR behavior exploits this behavior to catch aggressor rows and refresh before they fail. There is no reason, however, to limit Rowhammer attacks to uniform access patterns: smaller node sizes make underlying DRAM technologies more vulnerable, and significantly fewer accesses are nowadays required to trigger Rowhammer bit flips, making it interesting to investigate less predictable access patterns. The search space for non-uniform access patterns, however, is immense. We design experiments to explore this space with aspect to deployed mitigations, highlighting the importance of order, regularity, and intensity of non-uniform Rowhammer randomizing parameters that capture these aspects and use this insight in the design of Blacksmith, a Rowhammer fuzzer that generates access patterns that hammer aggressors with different phases, frequencies, and amplitudes. Blacksmith finds complex patterns of our recently-purchased DDR4 DIMMs, generating on average 58.2x more bit flips. We also demonstrate the effectiveness of these patterns on Low Power DDR4X devices. We conclude that despite almost a decade of research and novel in-DRAM mitigations, we are perhaps in a worse situation than when Rowhammer was first discovered.
+This repository provides the code accompanying the paper _[Blacksmith: Compromising Target Row Refresh by Rowhammering in the Frequency Domain]()_ that is to appear in IEEE S&P 2022.
 
-### Reproducibility
+This is the implementation of our Blacksmith Rowhammer fuzzer. This fuzzer crafts novel non-uniform Rowhammer access patterns based on the concepts of frequency, phase, and amplitude. Our evaluation on 40 DIMMs showed that it is able to bypass recent Target Row Refresh (TRR) in-DRAM mitigations effectively and as such can could trigger bit flips on all 40 tested DIMMs.
+
+## Reproducibility
 
 For facilitating the reproduction of our experiments, we following provide the commits we used to run the experiments. These commits are either based on the forked and extended [TRRespass](https://github.com/pjattke/trrespass-fork) codebase or our [Blacksmith](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith) codebase.
 
@@ -45,11 +42,31 @@ For facilitating the reproduction of our experiments, we following provide the c
 
 Upon request, we can provide the collected data (stdout.log, JSON) of these experiments/runs.
 
-### Getting Started
+## Getting Started
 
-Following, we quickly describe on how to build and run Blacksmith.
+Following, we quickly describe how to build and run Blacksmith.
 
-Build Blacksmith with the supplied `CMakeLists.txt` in a new `build` directory:
+### Prerequisites
+
+Blacksmith has been tested on Ubuntu 18.04 LTS with Linux kernel 4.15.0. Prior building Blacksmith, the following packages need to be installed:
+
+```bash
+sudo apt install build-essential nlohmann-json-dev cmake libasmjit-dev
+```
+
+### Building Blacksmith
+
+Note that the Blacksmith codebase also includes code for generating TRRespass-like n-sided patterns. Make sure that in `GlobalDefines.h` the following variables are set before proceeding:
+
+```cpp
+/// do synchronized hammering
+#define USE_SYNC 1
+
+// generate frequency-based patterns using fuzzing
+#define USE_FREQUENCY_BASED_FUZZING 1
+```
+
+Then, you can build Blacksmith with the supplied `CMakeLists.txt` in a new `build` directory:
 
 ```bash
 mkdir build \ 
@@ -58,8 +75,7 @@ mkdir build \
   && make -j$(nproc)
 ```
 
-Now we can run Blacksmith.
-For example, we run Blacksmith in fuzzing mode by passing a random DIMM ID (e.g., `-dimm_id 1`; only used internally for logging into `stdout.log`), we limit the fuzzing to 6 hours (`-runtime_limit 21600`), pass the number of ranks of our current DIMM (`-num_ranks 1`) to select the proper bank/rank functions, and tell Blacksmith to do a sweep with the best found pattern after fuzzing finished (`-sweeping`): 
+Now we can run Blacksmith. For example, we can run Blacksmith in fuzzing mode by passing a random DIMM ID (e.g., `-dimm_id 1`; only used internally for logging into `stdout.log`), we limit the fuzzing to 6 hours (`-runtime_limit 21600`), pass the number of ranks of our current DIMM (`-num_ranks 1`) to select the proper bank/rank functions, and tell Blacksmith to do a sweep with the best found pattern after fuzzing finished (`-sweeping`): 
 
 ```bash
 sudo ./blacksmith -dimm_id 1 -runtime_limit 21600 -num_ranks 1 -sweeping  
@@ -71,7 +87,7 @@ While Blacksmith is running, you can use `tail -f stdout.log` to keep track of t
 ```
 in case that a bit flip was found. After finishing the Blacksmith run, you can find a `fuzz-summary.json` that contains the information found in the stdout.log in a machine-processable format. In case you passed the `-sweeping` flag, you can additionally find a `sweep-summary-*.json` file that contains the information of the sweeping pass.
 
-### Supported Parameters
+## Supported Parameters
 
 Blacksmith supports the following command-line arguments.
 Please note that `<integer>` in (e.g.) `-probes <integer>` is to be replaced by an integer, e.g., `-probes 10`.
@@ -108,3 +124,7 @@ Except the `dimm_id`, all parameters are optional.
 ```
 
 The default values of the parameters can be found in the [`struct ProgramArguments`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/Blacksmith.hpp#L8).
+
+## Additional Configuration
+
+More configuration parameters of Blacksmith can be found in the [`GlobalDefines.hpp`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/GlobalDefines.hpp) file.
