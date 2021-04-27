@@ -2,7 +2,7 @@
 
 [![Academic Code](https://img.shields.io/badge/Origin-Academic%20Code-C1ACA0.svg?style=flat)]() [![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)](https://isocpp.org/std/the-standard) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)]()
 
-[![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](arxiv.org/) [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022) [![Funding](https://img.shields.io/badge/Grant-NCCR%20Automation%20(51NF40180545)-red.svg)](https://www.ieee-security.org/TC/SP2022)
+[![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](arxiv.org/) [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022) [![Funding](https://img.shields.io/badge/Grant-NCCR%20Automation%20(51NF40180545)-red.svg)](http://www.snf.ch/en/researchinFocus/nccr/automation/)
 
 This repository provides the code accompanying the paper _[Blacksmith: Compromising Target Row Refresh by Rowhammering in the Frequency Domain]()_ that is to appear in IEEE S&P 2022.
 
@@ -128,3 +128,7 @@ The default values of the parameters can be found in the [`struct ProgramArgumen
 ## Additional Configuration
 
 More configuration parameters of Blacksmith can be found in the [`GlobalDefines.hpp`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/GlobalDefines.hpp) file.
+
+## Citing Blacksmith
+
+**TODO**: Register DOI after releasing on Github as described [here](https://guides.github.com/activities/citable-code/).
