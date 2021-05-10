@@ -50,7 +50,8 @@ size_t BitFlip::count_z2o_corruptions() const {
   // we assume that both (corrupted_data, bitmask) have the same no. of bits
   auto z2o_corruptions = 0;
   for (size_t i = 0; i < mask_bits.size(); ++i) {
-    if (mask_bits[i]==1 && data_bits[i]==0) z2o_corruptions++;
+    if (mask_bits[i]==1 && data_bits[i]==1)
+      z2o_corruptions++;
   }
   return z2o_corruptions;
 }
@@ -63,7 +64,8 @@ size_t BitFlip::count_o2z_corruptions() const {
   // we assume that both (corrupted_data, bitmask) have the same no. of bits
   auto o2z_corruptions = 0;
   for (size_t i = 0; i < mask_bits.size(); ++i) {
-    if (mask_bits[i]==1 && data_bits[i]==1) o2z_corruptions++;
+    if (mask_bits[i]==1 && data_bits[i]==0)
+      o2z_corruptions++;
   }
   return o2z_corruptions;
 }
