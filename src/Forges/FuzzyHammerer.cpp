@@ -79,11 +79,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     if (sum_flips_one_pattern_all_mappings > 0) {
       effective_patterns.push_back(hammering_pattern);
     }
-#ifdef ENABLE_JSON
-  // export the current HammeringPattern including all of its associated PatternAddressMappers
-  arr.push_back(hammering_pattern);
-     
-#endif
 
     // TODO additionally consider the number of locations where this pattern triggers bit flips besides the total
     //  number of bit flips only because we want to find a pattern that generalizes well
@@ -153,16 +148,21 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   for (auto &pattern : effective_patterns) {
     //  check if this is one of the selected patterns for the reproducibility check
     if (patterns_for_reproducibility_check.count(pattern.instance_id) > 0) {
+
+      // FIXME: this is a dirty hack, instead modify the ReplayingHammerer so that it takes a pattern as input
       hammering_pattern = pattern;
+
       // do the repeatability check for the pattern/mappings that worked and store result in JSON
       for (auto &mapper : hammering_pattern.address_mappings) {
-        if (mapper.bit_flips.empty()) 
+        if (mapper.bit_flips.empty())
           continue;
         Logger::log_info(format_string("Running pattern %s for address set %s.",
             pattern.instance_id.c_str(), mapper.get_instance_id().c_str()));
         replaying_hammerer.load_parameters_from_pattern(pattern, mapper);
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
+
+      // FIXME: this is part of the dirty hack and required to write back the results of the ReplayingHammerer
 #ifdef ENABLE_JSON
       arr.push_back(hammering_pattern);
     } else {
@@ -260,6 +260,7 @@ void FuzzyHammerer::test_location_dependence(ReplayingHammerer &rh, HammeringPat
 
 void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,
                                            FuzzingParameterSet &fuzzing_params, const bool check_reproducibility) {
+
   // ATTENTION: This method uses the global variable hammering_pattern to refer to the pattern that is to be hammered
 
   CodeJitter &code_jitter = mapper.get_code_jitter();
@@ -347,9 +348,9 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
 
   // assign the computed reproducibility score to this pattern s.t. it is included in the JSON export;
   // a reproducibility of -1 indicates that reproducibility was not tested
-  mapper.reproducibility_score = check_reproducibility
-                                 ? (double) reproducibility_rounds_with_bitflips/(double) reproducibility_rounds
-                                 : -1;
+  if (check_reproducibility) {
+    mapper.reproducibility_score = ((double) reproducibility_rounds_with_bitflips/(double) reproducibility_rounds)*100;
+  }
 
   // cleanup the jitter for its next use
   code_jitter.cleanup();

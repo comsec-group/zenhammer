@@ -17,7 +17,7 @@
 
 class HammeringPattern {
  private:
-  int get_num_digits(size_t x);
+  static int get_num_digits(size_t x);
 
  public:
   std::string instance_id;

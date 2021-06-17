@@ -28,8 +28,8 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   j.at("access_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
   p.aggressors = Aggressor::create_aggressors(agg_ids);
 
-  j.at("agg_access_patterns").get_to<>(p.agg_access_patterns);
-  j.at("address_mappings").get_to<>(p.address_mappings);
+  j.at("agg_access_patterns").get_to<std::vector<AggressorAccessPattern>>(p.agg_access_patterns);
+  j.at("address_mappings").get_to<std::vector<PatternAddressMapper>>(p.address_mappings);
 }
 
 #endif
@@ -105,7 +105,7 @@ PatternAddressMapper &HammeringPattern::get_most_effective_mapping() {
     exit(1);
   }
   PatternAddressMapper &best_mapping = address_mappings.front();
-  for (auto mapping : address_mappings) {
+  for (const auto& mapping : address_mappings) {
     if (mapping.bit_flips.size() > best_mapping.bit_flips.size()) {
       best_mapping = mapping;
     }
