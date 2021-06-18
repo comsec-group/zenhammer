@@ -25,14 +25,15 @@ void Memory::allocate_memory(size_t mem_size) {
     if (fp==nullptr) {
       Logger::log_info(format_string("Could not mount superpage from %s. Error:", hugetlbfs_mountpoint.c_str()));
       Logger::log_data(std::strerror(errno));
-      exit(-1);
+      exit(EXIT_FAILURE);
     }
-    target = (volatile char *) mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
+    auto mapped_target = mmap((void *) start_address, MEM_SIZE, PROT_READ | PROT_WRITE,
         MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
-    if (target==MAP_FAILED) {
+    if (mapped_target==MAP_FAILED) {
       perror("mmap");
-      exit(-1);
+      exit(EXIT_FAILURE);
     }
+    target = (volatile char*) mapped_target;
   } else {
     // allocate memory using huge pages
     ret = posix_memalign((void **) &target, MEM_SIZE, MEM_SIZE);
