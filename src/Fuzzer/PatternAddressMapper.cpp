@@ -396,3 +396,7 @@ void PatternAddressMapper::compute_mapping_stats(std::vector<AggressorAccessPatt
   Logger::log_data(format_string("intra-distance d = %d", agg_intra_distance));
   Logger::log_data(format_string("use_seq_addresses = %s", (uses_seq_addresses ? "true" : "false")));
 }
+
+size_t PatternAddressMapper::count_bitflips() const {
+  return bit_flips.size();
+}

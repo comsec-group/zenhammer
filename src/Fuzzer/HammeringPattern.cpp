@@ -112,3 +112,13 @@ PatternAddressMapper &HammeringPattern::get_most_effective_mapping() {
   }
   return best_mapping;
 }
+
+void HammeringPattern::remove_mappings_without_bitflips() {
+  for (auto it = address_mappings.begin(); it != address_mappings.end(); ) {
+    if (it->count_bitflips() == 0) {
+      it = address_mappings.erase(it);
+    } else {
+      it++;
+    }
+  }
+}

@@ -92,6 +92,8 @@ class PatternAddressMapper {
                              int &agg_inter_distance, bool uses_seq_addresses);
 
   void shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move);
+
+  size_t count_bitflips() const;
 };
 
 #ifdef ENABLE_JSON

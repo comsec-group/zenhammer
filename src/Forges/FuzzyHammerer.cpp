@@ -127,10 +127,10 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   Logger::log_info("Choosing a subset of max. 5 patterns for the reproducibility check to reduce compute time.");
   // checking reproducibility for all found patterns takes too long on DIMMs with many patterns, therefore we limit the
   // reproducibility check to the top-5 patterns we found (top-5 = the 5 patterns that triggered the most bit flips)
-  std::map<int, HammeringPattern, std::greater<int>> best_patterns;
+  std::map<size_t, HammeringPattern, std::greater<>> best_patterns;
   std::unordered_set<std::string> patterns_for_reproducibility_check;
   for (auto &pattern : effective_patterns) {
-    auto total_bitflips = 0;
+    size_t total_bitflips = 0;
     for (const auto& mapper : pattern.address_mappings) {
       total_bitflips += mapper.bit_flips.size();
     }
@@ -164,8 +164,10 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
       // FIXME: this is part of the dirty hack and required to write back the results of the ReplayingHammerer
 #ifdef ENABLE_JSON
+      hammering_pattern.remove_mappings_without_bitflips();
       arr.push_back(hammering_pattern);
     } else {
+      pattern.remove_mappings_without_bitflips();
       arr.push_back(pattern);
     }
 #else

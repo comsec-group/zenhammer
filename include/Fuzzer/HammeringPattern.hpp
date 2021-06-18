@@ -58,6 +58,8 @@ class HammeringPattern {
   AggressorAccessPattern &get_access_pattern_by_aggressor(Aggressor &agg);
 
   PatternAddressMapper &get_most_effective_mapping();
+
+  void remove_mappings_without_bitflips();
 };
 
 #ifdef ENABLE_JSON
