@@ -210,7 +210,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     // do sweep with 1x256MB of memory
     replaying_hammerer.replay_patterns_brief({best_hammering_pattern}, MB(256), 1, true);
     // do sweep with 8x32MB of memory
-    replaying_hammerer.replay_patterns_brief({best_hammering_pattern}, MB(32), 8, true);
+//    replaying_hammerer.replay_patterns_brief({best_hammering_pattern}, MB(32), 8, true);
   }
 }
 
