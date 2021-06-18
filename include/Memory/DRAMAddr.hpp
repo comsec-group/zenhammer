@@ -13,7 +13,6 @@
 #define DIMMS(x) ((x) << (8UL * 2UL))
 #define RANKS(x) ((x) << (8UL * 1UL))
 #define BANKS(x) ((x) << (8UL * 0UL))
-#define MEM_CONFIG(ch, d, r, b) (CHANS(ch) | DIMMS(d) | RANKS(r) | BANKS(b))
 
 #define MTX_SIZE (30)
 
@@ -36,10 +35,9 @@ class DRAMAddr {
   // Class attributes
   static std::map<size_t, MemConfiguration> Configs;
   static MemConfiguration MemConfig;
-  static bool valid_memcfg;
   static size_t base_msb;
 
-  size_t linearize() const;
+  [[nodiscard]] size_t linearize() const;
 
  public:
   size_t bank{};
@@ -65,15 +63,17 @@ class DRAMAddr {
 
   static void initialize(uint64_t num_bank_rank_functions, volatile char *start_address);
 
-  std::string to_string_compact() const;
+  [[nodiscard]] std::string to_string_compact() const;
 
-  void *to_virt() const;
+  [[nodiscard]] void *to_virt() const;
 
-  DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
+  [[nodiscard]] DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
 
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 
   static nlohmann::json get_memcfg_json();
+
+  static uint64_t get_row_increment();
 };
 
 #ifdef ENABLE_JSON

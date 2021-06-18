@@ -241,7 +241,7 @@ bool Memory::is_superpage() const {
 std::string Memory::get_flipped_rows_text_repr() {
   // first extract all rows, otherwise it will not be possible to know in advance whether we we still
   // need to add a separator (comma) to the string as upcoming DRAMAddr instances might refer to the same row
-  std::set<int> flipped_rows;
+  std::set<size_t> flipped_rows;
   for (const auto &da : flipped_bits) {
     flipped_rows.insert(da.address.row);
   }

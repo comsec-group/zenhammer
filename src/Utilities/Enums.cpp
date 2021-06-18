@@ -1,6 +1,5 @@
 #include "Utilities/Enums.hpp"
 
-#include <string>
 #include <map>
 #include <Utilities/Range.hpp>
 
@@ -52,9 +51,9 @@ std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair() {
 }
 
 std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies() {
-  return {
+  return std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>>({
       std::make_pair(FLUSHING_STRATEGY::EARLIEST_POSSIBLE, FENCING_STRATEGY::OMIT_FENCING),
       std::make_pair(FLUSHING_STRATEGY::EARLIEST_POSSIBLE, FENCING_STRATEGY::LATEST_POSSIBLE),
       std::make_pair(FLUSHING_STRATEGY::LATEST_POSSIBLE, FENCING_STRATEGY::LATEST_POSSIBLE),
-  };
+  });
 }

@@ -1,11 +1,5 @@
 #include "Fuzzer/PatternAddressMapper.hpp"
 
-#include <set>
-#include <memory>
-#include <iomanip>
-#include <algorithm>
-#include <unordered_set>
-
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
@@ -262,7 +256,7 @@ void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("max_row").get_to(p.max_row);
   j.at("bank_no").get_to(p.bank_no);
   j.at("reproducibility_score").get_to(p.reproducibility_score);
-  p.code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  p.code_jitter = std::make_unique<CodeJitter>();
   j.at("code_jitter").get_to(*p.code_jitter);
 }
 
@@ -328,7 +322,7 @@ PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
       aggressor_to_addr(other.aggressor_to_addr),
       bit_flips(other.bit_flips),
       reproducibility_score(other.reproducibility_score) {
-  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  code_jitter = std::make_unique<CodeJitter>();
   code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
   code_jitter->total_activations = other.get_code_jitter().total_activations;
   code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
@@ -344,7 +338,7 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
   instance_id = other.instance_id;
   gen = other.gen;
 
-  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  code_jitter = std::make_unique<CodeJitter>();
   code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
   code_jitter->total_activations = other.get_code_jitter().total_activations;
   code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
@@ -369,10 +363,10 @@ void PatternAddressMapper::compute_mapping_stats(std::vector<AggressorAccessPatt
 
   // find first AggressorAccessPattern with more than one aggressor, then compute distance in-between aggressors
   agg_intra_distance = 0;
-  for (auto it = agg_access_patterns.begin(); it != agg_access_patterns.end(); ++it) {
-    if (it->aggressors.size() > 1) {
-      auto r1 = aggressor_to_addr.at(it->aggressors.at(1).id).row;
-      auto r0 = aggressor_to_addr.at(it->aggressors.at(0).id).row;
+  for (auto &agg_access_pattern : agg_access_patterns) {
+    if (agg_access_pattern.aggressors.size() > 1) {
+      auto r1 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(1).id).row;
+      auto r0 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(0).id).row;
       agg_intra_distance = r1-r0;
       break;
     }

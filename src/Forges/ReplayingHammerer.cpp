@@ -425,15 +425,17 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
   // restore original mapping
   mapper = original_mapping;
 
-  return (struct SweepSummary) {
+  struct SweepSummary sweepsum = {
       .num_flips_z2o = z2o_corruptions,
       .num_flips_o2z = o2z_corruptions,
       .observed_bitflips = bitflips_list
   };
+  return sweepsum;
 }
 
 ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
-  gen = std::mt19937((std::random_device()) ());
+  std::random_device rd;
+  gen = std::mt19937(rd());
 }
 
 void ReplayingHammerer::run_refresh_alignment_experiment(PatternAddressMapper &mapper) {
@@ -578,7 +580,7 @@ void ReplayingHammerer::find_indirect_effective_aggs(PatternAddressMapper &mappe
     std::unordered_map<int, DRAMAddr> old_mappings;
     // store the lowest row number of the aggressors as we will later need it to compute its new row
     unsigned long lowest_row_no = std::numeric_limits<unsigned long>::max();
-    for (const auto agg : agg_pair.aggressors) {
+    for (const auto &agg : agg_pair.aggressors) {
       old_mappings[agg.id] = cur_mapping.at(agg.id);
       lowest_row_no = std::min(lowest_row_no, old_mappings[agg.id].row);
     }
@@ -586,7 +588,7 @@ void ReplayingHammerer::find_indirect_effective_aggs(PatternAddressMapper &mappe
     // randomize row of this aggressor by mapping it to a row outside of the [min,max] area of the current pattern
     auto max_row = params.get_max_row_no();
     auto offset = (mapper.max_row - lowest_row_no + Range<int>(1, 256).get_random_number(gen))%max_row;
-    for (const auto agg : agg_pair.aggressors) {
+    for (const auto &agg : agg_pair.aggressors) {
       cur_mapping.at(agg.id).row += offset;
     }
 
@@ -805,6 +807,6 @@ void ReplayingHammerer::load_parameters_from_pattern(HammeringPattern &pattern, 
   // - start_row
 }
 
-void ReplayingHammerer::set_params(const FuzzingParameterSet &params) {
-  ReplayingHammerer::params = params;
+void ReplayingHammerer::set_params(const FuzzingParameterSet &fuzzParams) {
+  ReplayingHammerer::params = fuzzParams;
 }

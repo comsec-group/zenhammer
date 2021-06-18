@@ -1,10 +1,5 @@
 #include "Fuzzer/CodeJitter.hpp"
 
-#include <algorithm>
-#include <set>
-#include <map>
-#include <string>
-
 #include "Utilities/Logger.hpp"
 
 CodeJitter::CodeJitter()
@@ -81,7 +76,7 @@ void CodeJitter::jit_strict(int num_acts_per_trefi,
   // decides the number of aggressors of the beginning/end to be used for detecting the refresh interval
   // e.g., 10 means use the first 10 aggs in aggressor_pairs (repeatedly, if necessary) to detect the start refresh
   // (i.e., at the beginning) and the last 10 aggs in aggressor_pairs to detect the last refresh (at the end);
-  const size_t NUM_TIMED_ACCESSES = num_aggressors_for_sync;
+  const auto NUM_TIMED_ACCESSES = static_cast<size_t>(num_aggressors_for_sync);
 
   // check whether the NUM_TIMED_ACCESSES value works at all - otherwise just return from this function
   // this is safe as hammer_pattern checks whether there's a valid jitted function

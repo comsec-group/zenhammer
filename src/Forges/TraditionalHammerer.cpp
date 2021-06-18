@@ -1,7 +1,6 @@
 #include "Utilities/TimeHelper.hpp"
 #include "Forges/TraditionalHammerer.hpp"
 
-#include <climits>
 #include <Blacksmith.hpp>
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
@@ -38,8 +37,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
 
   // determines how often we are repeating
   size_t agg_rounds = ref_rounds;
-  uint64_t before = 0;
-  uint64_t after = 0;
+  uint64_t before, after;
 
   *d1;
   *d2;

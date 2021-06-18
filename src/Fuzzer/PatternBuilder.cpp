@@ -29,7 +29,7 @@ void PatternBuilder::remove_smaller_than(std::vector<int> &vec, int N) {
       ++it;
     }
   }
-};
+}
 
 int PatternBuilder::all_slots_full(size_t offset, size_t period, int pattern_length, std::vector<Aggressor> &aggs) {
   for (size_t i = 0; i < aggs.size(); ++i) {
@@ -37,7 +37,7 @@ int PatternBuilder::all_slots_full(size_t offset, size_t period, int pattern_len
     if (aggs[idx].id==ID_PLACEHOLDER_AGG) return idx;
   }
   return -1;
-};
+}
 
 void PatternBuilder::fill_slots(const size_t start_period,
                                 const size_t period_length,
@@ -76,7 +76,7 @@ void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, in
     aggs.push_back(Aggressor(aggressor_id_counter));
     added_aggs++;
   }
-};
+}
 
 std::vector<int> PatternBuilder::get_available_multiplicators(FuzzingParameterSet &fuzzing_params) {
   return get_available_multiplicators(fuzzing_params.get_num_base_periods());
@@ -97,7 +97,7 @@ int PatternBuilder::get_next_prefilled_slot(size_t cur_idx, std::vector<int> sta
                             int &cur_prefilled_slots_idx) {
   // no prefilled pattern: use base_period as bound
   if (start_indices_prefilled_slots.size() == 0)
-    return (int)base_period;
+    return base_period;
 
   // prefilled pattern
   if ((int) cur_idx < start_indices_prefilled_slots[cur_prefilled_slots_idx]) {
@@ -109,9 +109,9 @@ int PatternBuilder::get_next_prefilled_slot(size_t cur_idx, std::vector<int> sta
     return start_indices_prefilled_slots[cur_prefilled_slots_idx];
   } else {
     // we already reached the end, from now on only the base period is our bound
-    return (int)base_period;
+    return base_period;
   }
-};
+}
 
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &params,
                                                       int pattern_length,
@@ -145,8 +145,8 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
   std::vector<int> allowed_multiplicators = get_available_multiplicators(params);
   pattern.max_period = allowed_multiplicators.back()*base_period;
 
-  int cur_amplitude = -1;
-  int num_aggressors = -1;
+  int cur_amplitude;
+  int num_aggressors;
   size_t cur_period = 0;
 
   // fill the "first" slot in the base period: this is the one that can have any possible frequency

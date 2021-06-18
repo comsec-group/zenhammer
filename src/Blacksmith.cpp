@@ -4,8 +4,6 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 
-#include <unordered_set>
-
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
 #include "Forges/ReplayingHammerer.hpp"

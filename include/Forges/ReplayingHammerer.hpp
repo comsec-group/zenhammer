@@ -71,7 +71,7 @@ class ReplayingHammerer {
 
   explicit ReplayingHammerer(Memory &mem);
 
-  void set_params(const FuzzingParameterSet &params);
+  void set_params(const FuzzingParameterSet &fuzzParams);
 
   void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
 

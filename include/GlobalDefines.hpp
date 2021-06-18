@@ -25,18 +25,17 @@ uint64_t static inline GB(uint64_t value) {
 }
 
 // font colors
-#define FC_RED "\e[0;31m"         // error
-#define FC_RED_BRIGHT "\e[0;91m"  // generic failure message
-#define FC_GREEN "\e[0;32m"       // bit flip, generic success message
-#define FC_YELLOW "\e[0;33m"      // debugging
-#define FC_BLUE "\e[0;34m"        // UNUSED
-#define FC_MAGENTA "\e[0;35m"     // new (pattern,address_mapping) rond
-#define FC_CYAN "\e[0;36m"        // status message
-#define FC_CYAN_BRIGHT "\e[0;96m" // stages in pattern analysis
+#define FC_RED "\033[0;31m"         // error
+#define FC_RED_BRIGHT "\033[0;91m"  // generic failure message
+#define FC_GREEN "\033[0;32m"       // bit flip, generic success message
+#define FC_YELLOW "\033[0;33m"      // debugging
+#define FC_MAGENTA "\033[0;35m"     // new (pattern,address_mapping) rond
+#define FC_CYAN "\033[0;36m"        // status message
+#define FC_CYAN_BRIGHT "\033[0;96m" // stages in pattern analysis
 
 // font faces
-#define FF_BOLD "\e[1m"
-#define F_RESET "\e[0m" // reset to default font face/color
+#define FF_BOLD "\033[1m"
+#define F_RESET "\033[0m" // reset to default font face/color
 
 // ########################################################
 // ################### CONFIG PARAMETERS ##################

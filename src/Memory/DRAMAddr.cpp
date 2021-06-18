@@ -25,24 +25,15 @@ void DRAMAddr::set_base_msb(void *buff) {
 // the configuration. You could also test it by checking if you can trigger bank conflcits
 void DRAMAddr::load_mem_config(mem_config_t cfg) {
   MemConfig = Configs[cfg];
-  valid_memcfg = true;
 }
 
 DRAMAddr::DRAMAddr(size_t bk, size_t r, size_t c) {
-  valid_memcfg = false;
-  if (!valid_memcfg) {
-    bank = bk;
-    row = r;
-    col = c;
-  } else {
-    bank = bk & MemConfig.BK_MASK;
-    row = r & MemConfig.ROW_MASK;
-    col = c & MemConfig.COL_MASK;
-  }
+  bank = bk;
+  row = r;
+  col = c;
 }
 
 DRAMAddr::DRAMAddr(void *addr) {
-  valid_memcfg = false;
   auto p = (size_t) addr;
   size_t res = 0;
   for (unsigned long i : MemConfig.DRAM_MTX) {
@@ -105,7 +96,6 @@ void DRAMAddr::add_inplace(size_t bank_increment, size_t row_increment, size_t c
 // Define the static DRAM configs
 MemConfiguration DRAMAddr::MemConfig;
 size_t DRAMAddr::base_msb;
-bool DRAMAddr::valid_memcfg;
 
 #ifdef ENABLE_JSON
 
@@ -278,6 +268,10 @@ std::map<size_t, MemConfiguration> DRAMAddr::Configs = {
      }}};
 
 DRAMAddr::DRAMAddr() = default;
+
+uint64_t DRAMAddr::get_row_increment() {
+  return MemConfig.DRAM_MTX[1];
+}
 
 #ifdef ENABLE_JSON
 
