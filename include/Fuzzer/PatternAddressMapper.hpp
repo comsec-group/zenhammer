@@ -23,7 +23,7 @@ class PatternAddressMapper {
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
-  std::vector<std::pair<volatile char *, volatile char *> > victim_rows;
+  std::unordered_set<volatile char *> victim_rows;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
@@ -78,7 +78,7 @@ class PatternAddressMapper {
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
-  const std::vector<std::pair<volatile char *, volatile char *>> &get_victim_rows() const;
+  const std::unordered_set<volatile char *> & get_victim_rows() const;
 
   std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
 

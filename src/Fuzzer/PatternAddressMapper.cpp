@@ -103,34 +103,38 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   min_row = *occupied_rows.begin();
   max_row = *occupied_rows.rbegin();
 
-  Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
+  if (verbose)
+    Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
 void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns) {
+  // check ROW_THRESHOLD rows around the aggressors for flipped bits
+  const int ROW_THRESHOLD = 5;
   // a set to make sure we add victims only once
-  std::set<volatile char *> victim_addresses;
   victim_rows.clear();
   for (auto &acc_pattern : agg_access_patterns) {
     for (auto &agg : acc_pattern.aggressors) {
 
       if (aggressor_to_addr.count(agg.id)==0) {
         Logger::log_error(format_string("Could not find DRAMAddr mapping for Aggressor %d", agg.id));
+        exit(EXIT_FAILURE);
       }
-      auto dram_addr = aggressor_to_addr.at(agg.id);
 
-      for (int i = -5; i <= 5; ++i) {
-        auto cur_row_candidate = (int) dram_addr.row + i;
-        if (cur_row_candidate < 0) continue;
+      const auto dram_addr = aggressor_to_addr.at(agg.id);
 
+      for (int delta_nrows = -ROW_THRESHOLD; delta_nrows <= ROW_THRESHOLD; ++delta_nrows) {
+        auto cur_row_candidate = (int) dram_addr.row + delta_nrows;
+
+        // don't add the aggressor itself and ignore any non-existing (negative) row no.
+        if (delta_nrows == 0 || cur_row_candidate < 0)
+          continue;
+
+        // ignore this victim if we already added it before
         auto victim_start = DRAMAddr(dram_addr.bank, cur_row_candidate, 0);
-        if (victim_addresses.count((volatile char *) victim_start.to_virt())==0) {
-          auto addr_pair = std::make_pair<volatile char*, volatile char*>(
-              (volatile char*)victim_start.to_virt(),
-              (volatile char*)DRAMAddr(victim_start.bank, victim_start.row + 1, 0).to_virt());
-          victim_rows.push_back(addr_pair);
-          victim_addresses.insert((volatile char *) victim_start.to_virt());
-        }
+        if (victim_rows.count((volatile char *) victim_start.to_virt()) > 0)
+          continue;
 
+        victim_rows.insert((volatile char*)victim_start.to_virt());
       }
     }
   }
@@ -270,7 +274,7 @@ std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
-const std::vector<std::pair<volatile char *, volatile char *>> &PatternAddressMapper::get_victim_rows() const {
+const std::unordered_set<volatile char *> &PatternAddressMapper::get_victim_rows() const {
   return victim_rows;
 }
 
