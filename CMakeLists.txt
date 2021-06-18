@@ -41,7 +41,7 @@ enable_cxx_compiler_flag_if_supported("-Wno-format-security")
 
 # set default value for GIT_COMMIT_HASH preprocessor directive
 set(GIT_COMMIT_HASH "NO_REPOSITORY")
-execute_process(COMMAND "git" "status" RESULT_VARIABLE ret OUTPUT_QUIET)
+execute_process(COMMAND "git" "status" RESULT_VARIABLE ret OUTPUT_QUIET ERROR_QUIET)
 if (ret EQUAL "0")
     # overwrite GIT_COMMIT_HASH variable
     execute_process(
