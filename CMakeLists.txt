@@ -6,10 +6,12 @@ project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 # required for the initialization of the DRAMAddr::Configs map
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -pedantic -Werror")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Werror")
+#set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -pedantic -Werror")
 
 set(LIBRARY_NAME bs)
 set(EXECUTABLE_NAME blacksmith)
+set(ROOT_DEPENDENCIES deps)
 
 SET(OPT_ENABLE_JSON ON BOOL FORCE "Add functionality for JSON export using nlohmann/json library.")
 SET(OPT_ENABLE_JITTING ON BOOL FORCE "Add functionality for jitting the hammering code using asmjit library.")
@@ -96,35 +98,17 @@ endif()
 
 
 if (OPT_ENABLE_JITTING MATCHES ON)
-    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})
-    find_package(AsmJit)
-    if (NOT ASMJIT_FOUND)
-        message("Install asmjit manually: git clone https://github.com/asmjit/asmjit && cd asmjit && cmake . && make && sudo make install && sudo ldconfig")
-        message("or set ENABLE_JITTING=OFF in the CMakeLists.txt prior building.")
-        return()
-    endif ()
+    add_subdirectory(${ROOT_DEPENDENCIES}/asmjit)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING")
-    target_include_directories(${LIBRARY_NAME} PUBLIC ${ASMJIT_INCLUDE_DIR})
     target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=1")
 endif ()
 
 if (OPT_ENABLE_JSON MATCHES ON)
-    find_package(nlohmann_json QUIET)
-    if (NOT nlohmann_json_FOUND)
-        message("Library nlohmann/json not found. Downloading nlohmann_json...")
-        include(FetchContent)
-        set(JSON_BuildTests OFF CACHE INTERNAL "")
-        set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
-        FetchContent_Declare(
-                nlohmann_json
-                GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
-                GIT_TAG v3.7.3)
-        FetchContent_MakeAvailable(nlohmann_json)
-    endif ()
+    add_subdirectory(${ROOT_DEPENDENCIES}/json)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON")
     target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
-    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON=1")
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON")
 endif ()
 
 target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
