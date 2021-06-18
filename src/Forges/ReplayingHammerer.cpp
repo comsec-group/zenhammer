@@ -248,14 +248,16 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const c
         best_pattern = pattern;
         best_pattern_num_bitflips = num_bitflips;
       }
+
+      // load all patterns that triggered at least one bit flip
+      if (num_bitflips > 0)
+        patterns.push_back(best_pattern);
     }
 
     // store the mapping: mapping ID -> hammering pattern, for each mapping of the best pattern
     for (const auto &mp : best_pattern.address_mappings) {
       map_mapping_id_to_pattern[mp.get_instance_id()] = best_pattern;
     }
-
-    patterns.push_back(best_pattern);
 
   } else {
     // find the patterns that have the provided IDs
