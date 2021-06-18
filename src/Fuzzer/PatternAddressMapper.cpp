@@ -10,9 +10,12 @@
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"
 
+// initialize the bank_counter (static var)
+int PatternAddressMapper::bank_counter = 0;
+
 PatternAddressMapper::PatternAddressMapper()
     : instance_id(uuid::gen_uuid()) { /* NOLINT */
-  code_jitter = std::unique_ptr<CodeJitter>(new CodeJitter());
+  code_jitter = std::make_unique<CodeJitter>();
 
   // standard mersenne_twister_engine seeded with rd()
   std::random_device rd;
@@ -27,7 +30,8 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   // (store bank_no as field for get_random_nonaccessed_rows)
-  bank_no = fuzzing_params.get_random_bank_no();
+  bank_no = PatternAddressMapper::bank_counter;
+  PatternAddressMapper::bank_counter = (PatternAddressMapper::bank_counter + 1) % NUM_BANKS;
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   const int start_row = fuzzing_params.get_random_start_row();
   if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
