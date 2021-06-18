@@ -8,13 +8,13 @@
 #include <unistd.h>
 
 void to_json(nlohmann::json &j, const BitFlip &p) {
-  std::stringstream vaddr;
-  vaddr << "0x" << std::hex << (uint64_t)p.address.to_virt();
+  std::stringstream addr;
+  addr << "0x" << std::hex << (uint64_t)p.address.to_virt();
   j = nlohmann::json{{"dram_addr", p.address},
                      {"bitmask", p.bitmask},
                      {"data", p.corrupted_data},
                      {"observed_at", p.observation_time},
-                     {"virt_addr", vaddr.str()},
+                     {"addr", addr.str()},
                      {"page_offset", (uint64_t)p.address.to_virt()%getpagesize()}
   };
 }

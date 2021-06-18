@@ -25,13 +25,13 @@ void Logger::close() {
 void Logger::log_info(const std::string &message, bool newline) {
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
   instance.logfile << FC_MAGENTA << FF_BOLD << "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_error(const std::string &message, bool newline) {
@@ -113,9 +113,9 @@ void Logger::log_metadata(const char *commit_hash, long run_time_limit_seconds) 
   gethostname(name, sizeof name);
 
   std::stringstream ss;
-  ss << "Start timestamp:: " << instance.timestamp_start << std::endl
-     << "Hostname: " << name << std::endl
-     << "Commit SHA: " << commit_hash << std::endl
+  ss << "Start timestamp:: " << instance.timestamp_start << "\n"
+     << "Hostname: " << name << "\n"
+     << "Commit SHA: " << commit_hash << "\n"
      << "Run time limit: " << run_time_limit_seconds << " (" << format_timestamp(run_time_limit_seconds) << ")";
   Logger::log_data(ss.str());
 

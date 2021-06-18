@@ -131,7 +131,6 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   auto end_offset = start_offset + (uint64_t) (end - start);
   end_offset = (end_offset/getpagesize())*getpagesize();
 
-  printf("[+] Checking if any bit flips occurred.\n");
   void *page_raw = malloc(getpagesize());
   if (page_raw == nullptr) {
     Logger::log_error("Could not create temporary page for memory comparison.");
