@@ -2,27 +2,14 @@
 
 #include <sys/mman.h>
 #include <chrono>
-#include <cstdint>
 #include <cassert>
-#include <cinttypes>
 #include <cstdlib>
 #include <algorithm>
-#include <utility>
-#include <vector>
 #include <unordered_set>
-#include <sstream>
 
 #include "GlobalDefines.hpp"
 #include "Utilities/Logger.hpp"
 #include "Fuzzer/FuzzingParameterSet.hpp"
-
-uint64_t DramAnalyzer::get_row_increment() const {
-  for (size_t i = 0; i < 64; i++) {
-    if (row_function & BIT_SET(i)) return BIT_SET(i);
-  }
-  Logger::log_error("No bit set for row function.");
-  return 0;
-}
 
 std::vector<uint64_t> DramAnalyzer::get_bank_rank(std::vector<volatile char *> &target_bank) {
   std::vector<uint64_t> bank_rank;
@@ -151,7 +138,6 @@ void DramAnalyzer::find_functions(bool superpage_on) {
 
   Logger::log_info("Found bank/rank and row function:");
   Logger::log_data(format_string("Row function: 0x%" PRIx64, row_function));
-  Logger::log_data(format_string("Row increment: 0x%" PRIx64, get_row_increment()));
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (auto bank_rank_function : bank_rank_functions) {
@@ -279,7 +265,6 @@ void DramAnalyzer::load_known_functions(int num_ranks) {
 
   Logger::log_info("Loaded bank/rank and row function:");
   Logger::log_data(format_string("Row function 0x%" PRIx64, row_function));
-  Logger::log_data(format_string("Row increment 0x%" PRIx64, get_row_increment()));
   std::stringstream ss;
   ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
   for (auto bank_rank_function : bank_rank_functions) {

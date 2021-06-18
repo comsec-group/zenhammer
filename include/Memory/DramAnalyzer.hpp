@@ -27,8 +27,6 @@ class DramAnalyzer {
  public:
   explicit DramAnalyzer(volatile char *target);
 
-  uint64_t get_row_increment() const;
-
   void find_functions(bool superpage_on);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
