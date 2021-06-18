@@ -81,17 +81,13 @@ void Logger::log_timestamp() {
   log_info(ss.str());
 }
 
-void Logger::log_bitflip(volatile char *flipped_address,
-                         uint64_t row_no,
-                         size_t page_offset,
-                         unsigned char actual_value,
-                         unsigned char expected_value,
-                         unsigned long timestamp,
-                         bool newline) {
+void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
+                         unsigned char expected_value, unsigned long timestamp, bool newline) {
   instance.logfile << FC_GREEN
                    << "[!] Flip " << std::hex << (void *) flipped_address << ", "
                    << std::dec << "row " << row_no << ", "
-                   << "page offset: " << page_offset << ", "
+                   << "page offset: " << (uint64_t)flipped_address%(uint64_t)getpagesize() << ", "
+                   << "byte offset: " << (uint64_t)flipped_address%(uint64_t)8 << ", "
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
                    << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
