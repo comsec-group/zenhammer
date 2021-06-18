@@ -273,7 +273,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
   // now fill the pattern with these random addresses
   std::vector<volatile char *> hammering_accesses_vec;
   mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, hammering_accesses_vec);
-  Logger::log_info("Aggressor ID to DRAM address mapping (bank, rank, column):");
+  Logger::log_info("Aggressor ID to DRAM address mapping (bank, row, column):");
   Logger::log_data(mapper.get_mapping_text_repr());
 
   // now create instructions that follow this pattern (i.e., do jitting of code)
