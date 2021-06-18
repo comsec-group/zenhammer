@@ -27,8 +27,8 @@ class Memory {
   // whether this memory allocation is backed up by a superage
   const bool superpage;
 
-  size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start, const volatile char *end,
-                               size_t check_margin_rows, bool reproducibility_mode, bool verbose);
+  size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start,
+                               const volatile char *end, bool reproducibility_mode, bool verbose);
 
  public:
 
@@ -43,13 +43,13 @@ class Memory {
 
   void initialize(DATA_PATTERN data_pattern);
 
-  size_t check_memory(const volatile char *start, const volatile char *end, size_t check_offset);
+  size_t check_memory(const volatile char *start, const volatile char *end);
 
   size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose);
 
-  volatile char *get_starting_address() const;
+  [[nodiscard]] volatile char *get_starting_address() const;
 
-  bool is_superpage() const;
+  [[nodiscard]] bool is_superpage() const;
 
   std::string get_flipped_rows_text_repr();
 };

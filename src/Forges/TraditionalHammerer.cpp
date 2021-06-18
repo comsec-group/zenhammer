@@ -198,8 +198,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         // check 20 rows before and after the placed aggressors for flipped bits
         Logger::log_debug("Checking for flipped bits...");
         const auto check_rows_around = 20;
-        auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr, (volatile char *) high_row_vaddr,
-            check_rows_around);
+        auto num_bitflips = memory.check_memory((volatile char *) low_row_vaddr, (volatile char *) high_row_vaddr);
 #ifdef ENABLE_JSON
         current["cur_offset"] = cur_offset;
         current["cur_amplitude"] = cur_amplitude;
@@ -304,7 +303,7 @@ void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_
       }
 
       // check 100 rows before and after for flipped bits
-      memory.check_memory(aggressors[0], aggressors[aggressors.size() - 1], 100);
+      memory.check_memory(aggressors[0], aggressors[aggressors.size() - 1]);
     }
   }
 }
@@ -436,8 +435,7 @@ for (size_t r = 0; r < 10; ++ r) {
     const auto check_rows_around = 15;
     Logger::log_info("Checking for flipped bits...");
     auto sum_bitflips = memory.check_memory((volatile char *) agg1.to_virt(),
-        (volatile char *) agg1.add(0, 1, 0).to_virt(),
-        check_rows_around);
+        (volatile char *) agg1.add(0, 1, 0).to_virt());
 //    sum_bitflips += memory.check_memory((volatile char *) agg2.to_virt(),
 //        (volatile char *) agg2.add(0, 1, 0).to_virt(),
 //        check_rows_around);
