@@ -4,6 +4,3 @@
 [submodule "deps/json"]
 	path = deps/json
 	url = git@github.com:nlohmann/json.git
-[submodule "deps/argagg"]
-	path = deps/argagg
-	url = https://github.com/vietjtnguyen/argagg
