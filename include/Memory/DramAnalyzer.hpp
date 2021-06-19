@@ -18,16 +18,12 @@ class DramAnalyzer {
 
   volatile char *start_address;
 
-  static uint64_t test_addr_against_bank(volatile char *addr, std::vector<volatile char *> &bank);
-
   std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank);
 
   void find_targets(std::vector<volatile char *> &target_bank, size_t size);
 
  public:
   explicit DramAnalyzer(volatile char *target);
-
-  void find_functions(bool superpage_on);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
   void find_bank_conflicts();
