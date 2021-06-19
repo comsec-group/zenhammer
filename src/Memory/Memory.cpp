@@ -14,8 +14,7 @@
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {
   this->size = mem_size;
-  volatile char *target;
-  int ret;
+  volatile char *target = nullptr;
   FILE *fp;
 
   if (superpage) {
@@ -35,10 +34,8 @@ void Memory::allocate_memory(size_t mem_size) {
     target = (volatile char*) mapped_target;
   } else {
     // allocate memory using huge pages
-    ret = posix_memalign((void **) &target, MEM_SIZE, MEM_SIZE);
-    assert(ret==0);
-    ret = madvise((void *) target, MEM_SIZE, MADV_HUGEPAGE);
-    assert(ret==0);
+    assert(posix_memalign((void **) &target, MEM_SIZE, MEM_SIZE)==0);
+    assert(madvise((void *) target, MEM_SIZE, MADV_HUGEPAGE)==0);
     memset((char *) target, 'A', MEM_SIZE);
     // for khugepaged
     Logger::log_info("Waiting for khugepaged.");

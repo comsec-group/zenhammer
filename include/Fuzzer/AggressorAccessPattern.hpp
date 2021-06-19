@@ -39,7 +39,7 @@ class AggressorAccessPattern {
 
   AggressorAccessPattern& operator=(const AggressorAccessPattern &other);
 
-  std::string to_string() const;
+  [[nodiscard]] std::string to_string() const;
 };
 
 bool operator==(const AggressorAccessPattern& lhs, const AggressorAccessPattern& rhs);

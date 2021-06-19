@@ -24,7 +24,7 @@ class Aggressor {
   // creates a new Aggressor; the caller must ensure that the ID is valid
   explicit Aggressor(int id);
 
-  std::string to_string() const;
+  [[nodiscard]] std::string to_string() const;
 
   static std::vector<AGGRESSOR_ID_TYPE> get_agg_ids(const std::vector<Aggressor> &aggressors);
 

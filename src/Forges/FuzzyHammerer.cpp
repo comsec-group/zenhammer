@@ -368,7 +368,7 @@ void FuzzyHammerer::log_overall_statistics(const size_t probes_per_pattern, size
   Logger::log_data(format_string("Best pattern #bitflips: %d", best_mapping_num_bitflips));
 }
 
-void FuzzyHammerer::generate_pattern_for_ARM(int acts,
+void FuzzyHammerer::generate_pattern_for_ARM(size_t acts,
                                              int *rows_to_access,
                                              int max_accesses,
                                              const size_t probes_per_pattern) {

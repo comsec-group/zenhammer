@@ -29,10 +29,10 @@ class FuzzyHammerer {
                                                 long runtime_limit, size_t probes_per_pattern,
                                                 bool sweep_best_pattern);
 
-  static void generate_pattern_for_ARM(int acts,
+  static void generate_pattern_for_ARM(size_t acts,
                                        int *rows_to_access,
                                        int max_accesses,
-                                       size_t probes_per_pattern);
+                                       const size_t probes_per_pattern);
 
   static void test_location_dependence(ReplayingHammerer &rh, HammeringPattern &pattern);
 
