@@ -1,0 +1,182 @@
+0.4.7
+-----
+
+- Added argagg::convert::parse_next_component()
+- Added optional conversion header argagg/convert/csv.hpp
+  - Added argagg::csv<T> and a corresponding argument conversion specialization
+- Indexing argagg::parser_results with an option name that does not exist now
+  throws an argagg::unknown_option instead of not handling the
+  std::unordered_map::at() std::out_of_range exception (see issue #20).
+- Added explicit unary not operator to argagg::option_result and
+  argagg::option_results (see issue #15)
+- Added optional conversion header argagg/convert/opencv.hpp
+  - Added argument conversion specialization for cv::Point_
+  - Added argument conversion specialization for cv::Point3_
+  - Added argument conversion specialization for cv::Size_
+  - Added argument conversion specialization for cv::Rect_
+- Replaced std::endl with \n (#27)
+- Replaced fmt fork with word wrap implementation (#21, thanks @myint!)
+- Fixed exception reference warnings in test cases (#30, thanks @rianquinn!)
+- Fixed minor typos and spelling mistakes
+
+0.4.6
+-----
+
+- Added use of argagg::fmt_ostream in gengetopt_main1 example
+- Merged pull request #12
+  -  replace static_cast<bool> w/ non-zero comparison to avoid compiler
+     warnings on MSVC
+- Typo fixes
+
+0.4.5
+-----
+
+- Fixed bug in integer and float argument conversion specializations where
+  invalid conversions were not being correctly handled. Invalid conversions
+  (like "garbage" to float) will now throw an exception. Note though if the
+  as<T>(default) overload is used (with a default value specified) then all
+  exceptions in the conversion result in the default being returned.
+- Changed base exception type for argagg exceptions from std::argument_error to
+  std::runtime_error
+- Now compiles with -Wpedantic
+
+0.4.4
+-----
+
+- Added some minor error handling to argagg::fmt_string()
+
+0.4.3
+-----
+
+- Added argagg::fmt_string() to format a string using the fmt program when
+  compiling on a __unix__ platform. Degrades to an identity function when not
+  on a __unix__ platform.
+- Added argagg::fmt_ostream as a convenience stream that will stream the
+  formatted string to the referenced final std::ostream when the
+  argagg::fmt_ostream destructs
+- Fixed bug when compiling with clang where the non-template implicit bool
+  operator was being selected when implicitly converting to an integer. By
+  making the implicit bool operator a specialization of the templated implicit
+  conversion operator the compiler should now select the correct overload.
+
+0.4.2
+-----
+
+- Fixed missing inline specifiers on argagg::convert::arg specializations,
+  fixes multiple definitions bug
+
+0.4.1
+-----
+
+- Fixed compiler errors when using clang with regards to some initialization
+  list usage for empty containers and a false positive -Wreturn-stack-address
+  treated as an error
+
+0.4.0
+-----
+
+- Changed argagg::definition::help and argagg::definition::flags to use
+  std::string instead of const char*
+- Fixed compilation error with clang
+
+0.3.1
+-----
+
+- Updated documentation
+- Added greedy processing examples and tests
+
+0.3.0
+-----
+
+- Added support for POSIX command line option behaviors
+  - Options (short) start with a hyphen (-) and long options start with two
+    hyphens (--)
+  - Multiple short options can be grouped following a single hyphen
+    - -a -b -c can also be written -abc or -bac, etc.
+  - Option names are alpha numeric but long options may include hyphens
+    - -v is valid, --ftest-coverage is valid
+    - -# is not valid, --bad$option is not valid
+  - Short options can be provided arguments with or without whitespace
+    delimiters
+    - -I /usr/local/include and -I/usr/local/include are equally valid
+  - Long options can be provided arguments with whitespace or equal sign
+    delimiters
+    - --output test.txt and --output=test.txt are equivalent
+  - Options and positional arguments can be interleaved
+  - -- can be specified to treat all following arguments as positional
+    arguments (i.e. not options)
+- Added option definition validation
+  - Checks for malformed flags
+  - Checks for duplicate flags
+- Added conversion functions for rest of fundamental integer types
+- Built in conversion functions now utilize strtol(), strtoll(), strtof(), and
+  strtod()
+- Added char** argv overload of argagg::parser::parse()
+- Removed argagg::optional, options now either receive arguments or they don't
+- Added example derived from gengetopt documentation
+- Expanded unit test coverage to 98%
+- Added coveralls integration for code coverage reports
+
+0.2.2
+-----
+
+- Actually tried compiled introduction example code
+  - Fixed bugs in the intro example code
+  - Added it to test cases
+- More detailed comments in the joinargs example
+- Separated documentation from devel subpackage into doc subpackage in RPM spec
+
+0.2.1
+-----
+
+- Minor documentation fix, listed incorrect exception
+
+0.2.0
+-----
+
+- Redesigned API, removed multiple flag args
+- Redesigned naming scheme, options instead of flags. Struct names are now
+  clearer, realized the "flags" were actually options
+  - argagg::flag is now argagg::option_result
+  - argagg::flags is now argagg::option_results
+  - argagg::result is now argagg::parser_results
+		- Renamed args field to pos
+  - argagg::flag_spec is now argagg::definition
+- Flags can now only have zero, one, or an optional argument
+	- Moved argagg::flag_spec::optional to argagg::optional
+- Added argagg::option_results which represents multiple flag parse results for
+  the parent argagg:definition
+- Added implicit boolean conversion for argagg::option_results which represents
+  whether or not the parent argagg::definition was found at all
+- Added implicit boolean conversion for argagg::option_result which represents
+  whether or not that single flag has an argument
+- Added implicit type conversions for argagg::flag using the same
+  argagg::convert::arg() system
+- Updated tests and examples accordingly
+- Renamed argagg_joinargs make target to just joinargs
+- Removed old Doxygen style.css
+- Added option_lacks_argument_error exception class
+- Added associated flag to exception error messages
+
+0.1.3
+-----
+
+- Fixed file specification for empty parent package
+
+0.1.2
+-----
+
+- Fixed documentation installation under RPM building
+- Added missing build dependencies from RPM specfile
+
+0.1.1
+-----
+
+- Removed gcc color output flag
+- Fixed grammar in documentation
+- Updated include guard definition name
+
+0.1.0
+-----
+
+- Initial version
