@@ -62,10 +62,10 @@ int main(int argc, char **argv) {
     } else {
       replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
     }
-  } else if (USE_FREQUENCY_BASED_FUZZING && USE_SYNC) {
+  } else if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, program_args.acts_per_ref, program_args.runtime_limit,
         program_args.probes_per_pattern, program_args.sweeping);
-  } else if (!USE_FREQUENCY_BASED_FUZZING) {
+  } else if (!program_args.do_fuzzing) {
 //    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
 //    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
     TraditionalHammerer::n_sided_hammer_experiment_frequencies(memory);

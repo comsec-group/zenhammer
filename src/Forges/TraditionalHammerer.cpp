@@ -175,11 +175,11 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
         Logger::log_debug(format_string("#aggs in pattern = %lu", aggressors.size()));
 
         // do the hammering
-        if (!USE_SYNC) {
+        if (!program_args.use_synchronization) {
           // CONVENTIONAL HAMMERING
           Logger::log_info(format_string("Hammering %d aggressors on bank %d", num_aggs, TARGET_BANK));
           hammer(aggressors);
-        } else if (USE_SYNC) {
+        } else if (program_args.use_synchronization) {
           // SYNCHRONIZED HAMMERING
           // uses one dummy that are hammered repeatedly until the refresh is detected
           cur_next_addr.add_inplace(0, 100, 0);
@@ -280,12 +280,12 @@ void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_
       }
       Logger::log_data(ss.str());
 
-      if (!USE_SYNC) {
+      if (!program_args.use_synchronization) {
         // CONVENTIONAL HAMMERING
         Logger::log_info(format_string("Hammering %d aggressors with v=%d d=%d on bank %d",
             aggressor_rows_size, v, d, ba));
         hammer(aggressors);
-      } else if (USE_SYNC) {
+      } else if (program_args.use_synchronization) {
         // SYNCHRONIZED HAMMERING
         // uses two dummies that are hammered repeatedly until the refresh is detected
         cur_next_addr.add_inplace(0, 100, 0);

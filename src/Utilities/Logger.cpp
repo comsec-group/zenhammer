@@ -131,18 +131,16 @@ void Logger::log_metadata(const char *commit_hash, long run_time_limit_seconds) 
 void Logger::log_global_defines() {
   Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
   std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << std::endl
-     << "CACHELINE_SIZE: " << CACHELINE_SIZE << std::endl
-     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << std::endl
-     << "THRESH: " << THRESH << std::endl
-     << "NUM_TARGETS: " << NUM_TARGETS << std::endl
-     << "MAX_ROWS: " << MAX_ROWS << std::endl
-     << "NUM_BANKS: " << NUM_BANKS << std::endl
-     << "DIMM: " << DIMM << std::endl
-     << "CHANNEL: " << CHANNEL << std::endl
-     << "MEM_SIZE: " << MEM_SIZE << std::endl
-     << "PAGE_SIZE: " << getpagesize() << std::endl
-     << "USE_SYNC: " << (USE_SYNC ? "true" : "false") << std::endl
-     << "USE_FREQUENCY_BASED_FUZZING: " << (USE_FREQUENCY_BASED_FUZZING ? "true" : "false");
+  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << "\n"
+     << "CACHELINE_SIZE: " << CACHELINE_SIZE << "\n"
+     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << "\n"
+     << "THRESH: " << THRESH << "\n"
+     << "NUM_TARGETS: " << NUM_TARGETS << "\n"
+     << "MAX_ROWS: " << MAX_ROWS << "\n"
+     << "NUM_BANKS: " << NUM_BANKS << "\n"
+     << "DIMM: " << DIMM << "\n"
+     << "CHANNEL: " << CHANNEL << "\n"
+     << "MEM_SIZE: " << MEM_SIZE << "\n"
+     << "PAGE_SIZE: " << getpagesize() << std::endl;
   Logger::log_data(ss.str());
 }
