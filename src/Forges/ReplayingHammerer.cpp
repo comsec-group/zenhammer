@@ -71,7 +71,7 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
   return *best_mapping;
 }
 
-void ReplayingHammerer::replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids) {
+void ReplayingHammerer::replay_patterns(const std::string& json_filename, const std::unordered_set<std::string> &pattern_ids) {
   // replay each loaded pattern
   for (auto &patt : load_patterns_from_json(json_filename, pattern_ids)) {
 
@@ -122,7 +122,7 @@ void ReplayingHammerer::replay_patterns(const char *json_filename, const std::un
   }
 }
 
-void ReplayingHammerer::replay_patterns_brief(const char *json_filename,
+void ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
                                               const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
                                               bool running_on_original_dimm) {
   auto patterns = load_patterns_from_json(json_filename, pattern_ids);
@@ -213,12 +213,12 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
 #endif
 }
 
-std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const char *json_filename,
+std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const std::string& json_filename,
                                                                          const std::unordered_set<std::string> &pattern_ids) {
   // open the JSON file
   std::ifstream ifs(json_filename);
   if (!ifs.is_open()) {
-    Logger::log_error(format_string("Could not open given file (%s).", json_filename));
+    Logger::log_error(format_string("Could not open given file (%s).", json_filename.c_str()));
     exit(1);
   }
 

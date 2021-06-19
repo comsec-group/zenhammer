@@ -102,7 +102,14 @@ if (WITH_DIMM10_PARAMETERS MATCHES ON)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10=1")
 endif()
 
+##########################
+# ARGAGG
+##########################
+add_subdirectory(${ROOT_DEPENDENCIES}/argagg)
 
+##########################
+# ASMJIT
+##########################
 if (OPT_ENABLE_JITTING MATCHES ON)
     add_subdirectory(${ROOT_DEPENDENCIES}/asmjit)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING")
@@ -110,6 +117,9 @@ if (OPT_ENABLE_JITTING MATCHES ON)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=1")
 endif ()
 
+##########################
+# NLOHMANN/JSON
+##########################
 if (OPT_ENABLE_JSON MATCHES ON)
     add_subdirectory(${ROOT_DEPENDENCIES}/json)
     target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON")

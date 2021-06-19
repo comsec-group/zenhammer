@@ -50,7 +50,7 @@ class ReplayingHammerer {
                         bool check_flips_after_each_rep);
 
 
-  std::vector<HammeringPattern> load_patterns_from_json(const char *json_filename,
+  std::vector<HammeringPattern> load_patterns_from_json(const std::string& json_filename,
                                                         const std::unordered_set<std::string> &pattern_ids);
 
   PatternAddressMapper &determine_most_effective_mapping(HammeringPattern &patt,
@@ -73,9 +73,9 @@ class ReplayingHammerer {
 
   void set_params(const FuzzingParameterSet &fuzzParams);
 
-  void replay_patterns(const char *json_filename, const std::unordered_set<std::string> &pattern_ids);
+  void replay_patterns(const std::string& json_filename, const std::unordered_set<std::string> &pattern_ids);
 
-  void replay_patterns_brief(const char *json_filename,
+  void replay_patterns_brief(const std::string& json_filename,
                              const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
                              bool running_on_original_dimm);
 

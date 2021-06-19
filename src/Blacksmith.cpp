@@ -4,6 +4,8 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 
+#include "../deps/argagg/include/argagg/argagg.hpp"
+
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
 #include "Forges/ReplayingHammerer.hpp"
@@ -23,12 +25,12 @@ int main(int argc, char **argv) {
       "=================================================================================================");
 #endif
 
-  handle_args(program_args, argc, argv);
+  handle_args(argc, argv);
 
   // prints the current git commit and some program metadata
   Logger::log_metadata(GIT_COMMIT_HASH, program_args.runtime_limit);
 
-  // give this process the highest CPU priority
+  // give this process the highest CPU priority so it can hammer with less interruptions
   int ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) Logger::log_error("Instruction setpriority failed.");
 
@@ -39,11 +41,11 @@ int main(int argc, char **argv) {
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
   dram_analyzer.find_bank_conflicts();
-  if (program_args.num_ranks!=0) {
+  if (program_args.num_ranks != ProgramArguments().num_ranks) {
     dram_analyzer.load_known_functions(program_args.num_ranks);
   } else {
-    // determine the row and bank/rank functions
-    dram_analyzer.find_functions(memory.is_superpage());
+    Logger::log_error("Program argument '--ranks <integer>' was probably not passed. Cannot continue.");
+    exit(EXIT_FAILURE);
   }
   // initialize the DRAMAddr class to load the proper memory configuration
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
@@ -53,7 +55,7 @@ int main(int argc, char **argv) {
   // count the number of possible activations per refresh interval, if not given as program argument
   if (program_args.acts_per_ref==0) program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
 
-  if (program_args.load_json_filename!=nullptr) {
+  if (!program_args.load_json_filename.empty()) {
     ReplayingHammerer replayer(memory);
     if (program_args.sweeping) {
       replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids, MB(256), false);
@@ -76,34 +78,20 @@ int main(int argc, char **argv) {
   return EXIT_SUCCESS;
 }
 
-char *get_cmd_parameter(char **begin, char **end, const std::string &parameter_name) {
-  char **itr = std::find(begin, end, parameter_name);
-  return (itr!=end && ++itr!=end) ? *itr : nullptr;
-}
-
-bool cmd_parameter_exists(char **begin, char **end, const std::string &parameter_name) {
-  return std::find(begin, end, parameter_name)!=end;
-}
-
-void handle_arg_generate_patterns(char *value, const size_t probes_per_pattern) {
-  size_t acts = strtoul(value, nullptr, 10);
-  const size_t MAX_NUM_REFRESH_INTERVALS = 32; // this parameter is defined in FuzzingParameterSet
-  const size_t MAX_ACCESSES = acts*MAX_NUM_REFRESH_INTERVALS;
+void handle_arg_generate_patterns(size_t num_activations, const size_t probes_per_pattern) {
+  // this parameter is defined in FuzzingParameterSet
+  const size_t MAX_NUM_REFRESH_INTERVALS = 32;
+  const size_t MAX_ACCESSES = num_activations*MAX_NUM_REFRESH_INTERVALS;
   void *rows_to_access = calloc(MAX_ACCESSES, sizeof(int));
   if (rows_to_access==nullptr) {
     Logger::log_error("Allocation of rows_to_access failed!");
     exit(EXIT_FAILURE);
   }
-  FuzzyHammerer::generate_pattern_for_ARM(acts, static_cast<int *>(rows_to_access), MAX_ACCESSES, probes_per_pattern);
+  FuzzyHammerer::generate_pattern_for_ARM(num_activations, static_cast<int *>(rows_to_access), MAX_ACCESSES, probes_per_pattern);
   exit(EXIT_SUCCESS);
 }
 
-void handle_arg_replay_patterns(char *pattern_ids, const char *json_filename, std::unordered_set<std::string> &ids) {
-  if (json_filename==nullptr) {
-    Logger::log_error("Argument -replay_patterns requires loading a JSON file using -load_json <filename>.");
-    exit(EXIT_FAILURE);
-  }
-
+void handle_arg_replay_patterns(const std::string &pattern_ids, std::unordered_set<std::string> &ids) {
   // extract all HammeringPattern IDs from the given comma-separated json_filename
   std::stringstream ids_str(pattern_ids);
   while (ids_str.good()) {
@@ -113,60 +101,87 @@ void handle_arg_replay_patterns(char *pattern_ids, const char *json_filename, st
   }
 }
 
-void handle_args(ProgramArguments &args, int argc, char **argv) {
-  const std::string ARG_GENERATE_PATTERN = "-generate_patterns";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_GENERATE_PATTERN)) {
-    handle_arg_generate_patterns(get_cmd_parameter(argv, argv + argc, ARG_GENERATE_PATTERN), args.probes_per_pattern);
-  }
+void handle_args(int argc, char **argv) {
+  // An option is specified by four things:
+  //    (1) the name of the option,
+  //    (2) the strings that activate the option (flags),
+  //    (3) the option's help message,
+  //    (4) and the number of arguments the option expects.
+  argagg::parser argparser{{
+      {"help", {"-h", "--help"}, "shows this help message", 0},
+      {"dimm-id", {"-d", "--dimm-id"}, "internal identifier of the currently inserted DIMM (default: 0)", 1},
+      {"ranks", {"-r", "--ranks"}, "number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)", 1},
+      {"sweeping", {"-w", "--sweeping"}, "sweep the best pattern over a contig. memory area after fuzzing (default: Disabled)", 0},
+      {"runtime-limit", {"-t", "--runtime-limit"}, "number of seconds to run the fuzzer before sweeping/terminating (default: 120)", 1},
+      {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
+      {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
 
-  const std::string ARG_RUNTIME_LIMIT = "-runtime_limit";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_RUNTIME_LIMIT)) {
-    args.runtime_limit = strtol(get_cmd_parameter(argv, argv + argc, ARG_RUNTIME_LIMIT), nullptr, 10);
-//    Logger::log_debug(format_string("Parsed -runtime_limit: %ld", args.runtime_limit));
-  }
+      {"generate-patterns", {"-g", "--generate-patterns"}, "generates N patterns, but does not perform hammering; used by ARM port", 1},
 
-  const std::string ARG_NUM_RANKS = "-num_ranks";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_NUM_RANKS)) {
-    args.num_ranks = (int) strtol(get_cmd_parameter(argv, argv + argc, ARG_NUM_RANKS), nullptr, 10);
-//    Logger::log_debug(format_string("Parsed -num_ranks: %ld", args.num_ranks));
-  }
+      {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
+      {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, required for --replay-patterns", 1},
 
-  const std::string ARG_ACTS_PER_REF = "-acts_per_ref";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_ACTS_PER_REF)) {
-    // parse the program arguments
-    args.acts_per_ref = (int) strtol(get_cmd_parameter(argv, argv + argc, ARG_ACTS_PER_REF), nullptr, 10);
-  }
+      {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 1},
+      {"sync", {"-s", "--sync"}, "synchronize with REFRESH while hammering (default: 1)", 1},
+    }};
 
-  const std::string ARG_LOAD_PATTERN = "-load_json";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_LOAD_PATTERN)) {
-    args.load_json_filename = get_cmd_parameter(argv, argv + argc, ARG_LOAD_PATTERN);
-  }
-
-  const std::string ARG_PATTERN_IDs = "-replay_patterns";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_PATTERN_IDs)) {
-    handle_arg_replay_patterns(get_cmd_parameter(argv, argv + argc, ARG_PATTERN_IDs),
-        args.load_json_filename,
-        args.pattern_ids);
-  }
-
-  const std::string ARG_NUM_PROBES = "-probes";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_NUM_PROBES)) {
-    args.probes_per_pattern = (int) strtol(get_cmd_parameter(argv, argv + argc, ARG_NUM_PROBES), nullptr, 10);
-  }
-
-  const std::string ARG_SWEEPING = "-sweeping";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_SWEEPING)) {
-    args.sweeping = true;
-//    Logger::log_debug(format_string("Parsed -sweeping: %s", (args.sweeping ? "true" : "false")));
-  }
-
-  const std::string ARG_DIMM_ID = "-dimm_id";
-  if (cmd_parameter_exists(argv, argv + argc, ARG_DIMM_ID)) {
-    args.dimm_id = strtol(get_cmd_parameter(argv, argv + argc, ARG_DIMM_ID), nullptr, 10);
-//    Logger::log_debug(format_string("Parsed -dimm_id: %ld", args.dimm_id));
-  } else {
-    Logger::log_error("Program argument '-dimm_id <number>' is mandatory! Cannot continue.");
+  argagg::parser_results parsed_args;
+  try {
+    parsed_args = argparser.parse(argc, argv);
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
     exit(EXIT_FAILURE);
+  }
+
+  /**
+   * mandatory parameters
+   */
+  if (parsed_args.has_option("dimm-id")) {
+    program_args.dimm_id = parsed_args["dimm-id"].as<int>(0);
+    Logger::log_debug(format_string("Set --dimm-id: %ld", program_args.dimm_id));
+  } else {
+    Logger::log_error("Program argument '--dimm_id <integer>' is mandatory! Cannot continue.");
+    exit(EXIT_FAILURE);
+  }
+
+  if (parsed_args.has_option("ranks")) {
+    program_args.num_ranks = parsed_args["ranks"].as<int>(0);
+    Logger::log_debug(format_string("Set --ranks=%d", program_args.num_ranks));
+  } else {
+    Logger::log_error("Program argument '--ranks <integer>' is mandatory! Cannot continue.");
+    exit(EXIT_FAILURE);
+  }
+
+  /**
+  * optional parameters
+  */
+  program_args.sweeping = parsed_args["sweeping"].as<bool>(program_args.sweeping);
+  Logger::log_debug(format_string("Set --sweeping=%s", (program_args.sweeping ? "true" : "false")));
+
+  program_args.runtime_limit = parsed_args["runtime-limit"].as<long>(program_args.runtime_limit);
+  Logger::log_debug(format_string("Set --runtime_limit=%ld", program_args.runtime_limit));
+
+  program_args.acts_per_ref = parsed_args["acts-per-ref"].as<size_t>(program_args.acts_per_ref);
+  Logger::log_debug(format_string("Set --acts-per-ref=%d", program_args.acts_per_ref));
+
+  program_args.probes_per_pattern = parsed_args["probes"].as<size_t>(program_args.probes_per_pattern);
+  Logger::log_debug(format_string("Set --probes=%d", program_args.probes_per_pattern));
+
+  /**
+   * program modes
+   */
+  if (parsed_args.has_option("generate-patterns")) {
+    auto num_activations = parsed_args["generate-patterns"].as<size_t>(84);
+    // this must happen AFTER probes-per-pattern has been parsed
+    // note: the following method call does not return anymore
+    handle_arg_generate_patterns(num_activations, program_args.probes_per_pattern);
+  } else if (parsed_args.has_option("load-json")) {
+    program_args.load_json_filename = parsed_args["load-json"].as<std::string>("");
+    auto pattern_ids = parsed_args["replay-patterns"].as<std::string>("");
+    handle_arg_replay_patterns(pattern_ids, program_args.pattern_ids);
+  } else {
+    program_args.do_fuzzing = parsed_args["fuzzing"].as<bool>(true);
+    program_args.use_synchronization = parsed_args["sync"].as<bool>(true);
   }
 }
 

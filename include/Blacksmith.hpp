@@ -12,9 +12,9 @@ struct ProgramArguments {
   // the number of ranks of the DIMM to hammer
   int num_ranks = 0;
   // no. of activations we can do within a refresh interval
-  int acts_per_ref = 0;
+  size_t acts_per_ref = 0;
   // path to JSON file to load
-  char *load_json_filename = nullptr;
+  std::string load_json_filename;
   // the IDs of the patterns to be loaded from a given JSON file
   std::unordered_set<std::string> pattern_ids{};
   // total number of (different) locations (i.e., Aggressor ID -> DRAM rows mapping) where we try a pattern
@@ -23,20 +23,19 @@ struct ProgramArguments {
   bool sweeping = false;
   // the ID of the DIMM that is currently inserted
   long dimm_id = -1;
+  // these two parameters define the default program mode: do fuzzing and synchronize with REFRESH
+  bool do_fuzzing = true;
+  bool use_synchronization = true;
 };
 
 extern ProgramArguments program_args;
 
 int main(int argc, char **argv);
 
-char *get_cmd_parameter(char **begin, char **end, const std::string &parameter_name);
+void handle_args(int argc, char **argv);
 
-bool cmd_parameter_exists(char **begin, char **end, const std::string &parameter_name);
+[[ noreturn ]] void handle_arg_generate_patterns(size_t num_activations, size_t probes_per_pattern);
 
-void handle_args(ProgramArguments &args, int argc, char **argv);
-
-void handle_arg_generate_patterns(char *value, size_t probes_per_pattern);
-
-void handle_arg_replay_patterns(char *pattern_ids, const char *json_filename, std::unordered_set<std::string> &ids);
+void handle_arg_replay_patterns(const std::string &pattern_ids, std::unordered_set<std::string> &ids);
 
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
