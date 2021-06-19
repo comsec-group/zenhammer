@@ -3,11 +3,17 @@ include(CheckCXXCompilerFlag)
 cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
+# set default CMake build type
+message(${CMAKE_BUILD_TYPE})
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+            "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
 # required for the initialization of the DRAMAddr::Configs map
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Werror")
-#set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -pedantic -Werror")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(LIBRARY_NAME bs)
 set(EXECUTABLE_NAME blacksmith)
@@ -112,6 +118,9 @@ if (OPT_ENABLE_JSON MATCHES ON)
 endif ()
 
 target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG=1")
+endif()
 
 # forces CMake to delete variable's value from CMake cache: uses either the default value or the value passed as param
 # e.g., cmake -DWITH_SAMSUNG_PARAMETERS=ON ..

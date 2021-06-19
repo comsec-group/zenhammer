@@ -57,9 +57,15 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
 }
 
 void Logger::log_debug(const std::string &message, bool newline) {
+#ifdef DEBUG
   instance.logfile << FC_YELLOW "[DEBUG] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << std::endl;
+#else
+  // this is just to ignore complaints of the compiler about unused params
+  (void)message;
+  (void)newline;
+#endif
 }
 
 std::string Logger::format_timestamp(unsigned long ts) {
