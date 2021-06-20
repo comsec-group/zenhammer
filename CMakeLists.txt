@@ -3,16 +3,20 @@ include(CheckCXXCompilerFlag)
 cmake_minimum_required(VERSION 3.14)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
-# set default CMake build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-            "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
-
 # required for the initialization of the DRAMAddr::Configs map
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -Wall -Wextra -Werror")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+#if(NOT CMAKE_BUILD_TYPE)
+#    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+#            "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+#endif(NOT CMAKE_BUILD_TYPE)
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+#set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -pedantic -Werror")  # enable this to see all compiler warnings
+# never set optimizations higher than -O0 because otherwise the program breaks
+# the reason for this is not clear, it could be becaue there's undefined behavior somewhere
+# (see https://stackoverflow.com/a/32824731/3017719)
+set(CMAKE_CXX_FLAGS_RELEASE "-O0")
 
 set(LIBRARY_NAME bs)
 set(EXECUTABLE_NAME blacksmith)
@@ -101,33 +105,32 @@ if (WITH_DIMM10_PARAMETERS MATCHES ON)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG_DIMM10=1")
 endif()
 
-##########################
-# ARGAGG
-##########################
+#################################
+## third party dependencies
+#################################
+# we always build them as build type 'Release'
+set(CMAKE_BUILD_TYPE_ORIGINAL ${CMAKE_BUILD_TYPE})
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS_DEBUG_ORIGINAL ${CMAKE_CXX_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 add_subdirectory(${ROOT_DEPENDENCIES}/argagg)
-
-##########################
-# ASMJIT
-##########################
 if (OPT_ENABLE_JITTING MATCHES ON)
     add_subdirectory(${ROOT_DEPENDENCIES}/asmjit)
-    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING")
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JITTING=1")
     target_link_libraries(${LIBRARY_NAME} PUBLIC asmjit)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JITTING=1")
 endif ()
-
-##########################
-# NLOHMANN/JSON
-##########################
 if (OPT_ENABLE_JSON MATCHES ON)
     add_subdirectory(${ROOT_DEPENDENCIES}/json)
-    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON")
+    target_compile_definitions(${LIBRARY_NAME} PRIVATE "-DENABLE_JSON=1")
     target_link_libraries(${LIBRARY_NAME} PUBLIC nlohmann_json::nlohmann_json)
-    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON")
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DENABLE_JSON=1")
 endif ()
+set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_ORIGINAL})
+set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG_ORIGINAL})
 
 target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
-if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+if (CMAKE_BUILD_TYPE MATCHES Debug)
     target_compile_definitions(${EXECUTABLE_NAME} PRIVATE "-DDEBUG=1")
 endif()
 

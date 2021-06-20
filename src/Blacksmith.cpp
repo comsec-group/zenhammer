@@ -4,13 +4,13 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 
-#include "../deps/argagg/include/argagg/argagg.hpp"
-
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
 #include "Forges/ReplayingHammerer.hpp"
 #include "Memory/DRAMAddr.hpp"
 #include "Utilities/Logger.hpp"
+
+#include "../deps/argagg/include/argagg/argagg.hpp"
 
 ProgramArguments program_args;
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
   dram_analyzer.find_bank_conflicts();
-  if (program_args.num_ranks != ProgramArguments().num_ranks) {
+  if (program_args.num_ranks != 0) {
     dram_analyzer.load_known_functions(program_args.num_ranks);
   } else {
     Logger::log_error("Program argument '--ranks <integer>' was probably not passed. Cannot continue.");
@@ -140,7 +140,7 @@ void handle_args(int argc, char **argv) {
     program_args.dimm_id = parsed_args["dimm-id"].as<int>(0);
     Logger::log_debug(format_string("Set --dimm-id: %ld", program_args.dimm_id));
   } else {
-    Logger::log_error("Program argument '--dimm_id <integer>' is mandatory! Cannot continue.");
+    Logger::log_error("Program argument '--dimm-id <integer>' is mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
   }
 

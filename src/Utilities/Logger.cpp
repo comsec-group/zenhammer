@@ -63,8 +63,8 @@ void Logger::log_debug(const std::string &message, bool newline) {
   if (newline) instance.logfile << std::endl;
 #else
   // this is just to ignore complaints of the compiler about unused params
-  (void)message;
-  (void)newline;
+  std::ignore = message;
+  std::ignore = newline;
 #endif
 }
 
