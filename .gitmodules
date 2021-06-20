@@ -1,6 +1,6 @@
 [submodule "deps/asmjit"]
 	path = deps/asmjit
-	url = git@github.com:asmjit/asmjit.git
+	url = https://github.com/asmjit/asmjit.git
 [submodule "deps/json"]
 	path = deps/json
-	url = git@github.com:nlohmann/json.git
+	url = https://github.com/nlohmann/json.git
