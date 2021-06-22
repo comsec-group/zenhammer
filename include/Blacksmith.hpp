@@ -36,6 +36,4 @@ void handle_args(int argc, char **argv);
 
 [[ noreturn ]] void handle_arg_generate_patterns(int num_activations, size_t probes_per_pattern);
 
-void handle_arg_replay_patterns(const std::string &pattern_ids, std::unordered_set<std::string> &ids);
-
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_

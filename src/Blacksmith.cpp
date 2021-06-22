@@ -6,6 +6,7 @@
 #include "Forges/FuzzyHammerer.hpp"
 
 #include <argagg/argagg.hpp>
+#include <argagg/convert/csv.hpp>
 
 ProgramArguments program_args;
 
@@ -83,16 +84,6 @@ void handle_arg_generate_patterns(int num_activations, const size_t probes_per_p
   }
   FuzzyHammerer::generate_pattern_for_ARM(num_activations, static_cast<int *>(rows_to_access), static_cast<int>(MAX_ACCESSES), probes_per_pattern);
   exit(EXIT_SUCCESS);
-}
-
-void handle_arg_replay_patterns(const std::string &pattern_ids, std::unordered_set<std::string> &ids) {
-  // extract all HammeringPattern IDs from the given comma-separated json_filename
-  std::stringstream ids_str(pattern_ids);
-  while (ids_str.good()) {
-    std::string substr;
-    getline(ids_str, substr, ',');
-    ids.insert(substr);
-  }
 }
 
 void handle_args(int argc, char **argv) {
@@ -178,10 +169,17 @@ void handle_args(int argc, char **argv) {
     handle_arg_generate_patterns(num_activations, program_args.probes_per_pattern);
   } else if (parsed_args.has_option("load-json")) {
     program_args.load_json_filename = parsed_args["load-json"].as<std::string>("");
-    auto pattern_ids = parsed_args["replay-patterns"].as<std::string>("");
-    handle_arg_replay_patterns(pattern_ids, program_args.pattern_ids);
+    if (parsed_args.has_option("replay-patterns")) {
+      auto vec_pattern_ids = parsed_args["replay-patterns"].as<argagg::csv<std::string>>();
+      program_args.pattern_ids = std::unordered_set<std::string>(
+          vec_pattern_ids.values.begin(),
+          vec_pattern_ids.values.end());
+    } else {
+      program_args.pattern_ids = std::unordered_set<std::string>();
+    }
   } else {
     program_args.do_fuzzing = parsed_args["fuzzing"].as<bool>(true);
-    program_args.use_synchronization = parsed_args["sync"].as<bool>(true);
+    const bool default_sync = true;
+    program_args.use_synchronization = parsed_args.has_option("sync") || default_sync;
   }
 }
