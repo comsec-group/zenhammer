@@ -2,6 +2,10 @@ include(FetchContent)
 
 # === ARGAGG ===================================================================
 
+# this is to silence the CMake warning "Policy CMP0048 is not set: project() command manages VERSION variables."
+# because argagg does not set the project() infos properly
+set(CMAKE_PROJECT_INCLUDE_BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/EnableCMP0048.cmake")
+
 message(STATUS "Fetching external dependency argagg")
 
 FetchContent_Declare(
@@ -24,6 +28,8 @@ target_include_directories(
         INTERFACE
         ${argagg_SOURCE_DIR}/include
 )
+
+unset(CMAKE_PROJECT_INCLUDE_BEFORE)
 
 message(STATUS "Fetching external dependency argagg -- done!")
 
