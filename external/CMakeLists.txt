@@ -55,13 +55,6 @@ if (BLACKSMITH_ENABLE_JITTING)
 
     FetchContent_MakeAvailable(asmjit)
 
-
-    target_compile_features(
-            asmjit
-            PRIVATE
-            cxx_std_11
-    )
-
     set(MESSAGE_QUIET OFF)
     message(STATUS "Fetching external dependency asmjit -- done!")
 endif()

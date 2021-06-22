@@ -68,7 +68,7 @@ add_subdirectory(external)
 # === LIBBLACKSMITH ============================================================
 
 add_library(
-        libblacksmith
+        bs
         include/GlobalDefines.hpp
         include/Utilities/TimeHelper.hpp
         src/Forges/FuzzyHammerer.cpp
@@ -90,7 +90,7 @@ add_library(
 )
 
 target_include_directories(
-        libblacksmith
+        bs
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -98,13 +98,13 @@ target_include_directories(
 # Note: PUBLIC to also force consumers (i.e., the blacksmith executable) to use
 # these features and options.
 target_compile_features(
-        libblacksmith
+        bs
         PUBLIC
-        cxx_std_20
+        cxx_std_17
 )
 
 target_compile_options(
-        libblacksmith
+        bs
         PUBLIC
         -O0
         -Wall
@@ -115,13 +115,13 @@ target_compile_options(
 
 if (BLACKSMITH_ENABLE_JSON)
     target_link_libraries(
-            libblacksmith
+            bs
             PUBLIC
             nlohmann_json::nlohmann_json
     )
 
     target_compile_definitions(
-            libblacksmith
+            bs
             PUBLIC
             ENABLE_JSON
     )
@@ -129,13 +129,13 @@ endif ()
 
 if (BLACKSMITH_ENABLE_JITTING)
     target_link_libraries(
-            libblacksmith
+            bs
             PRIVATE
             asmjit
     )
 
     target_compile_definitions(
-            libblacksmith
+            bs
             PUBLIC
             ENABLE_JITTING
     )
@@ -147,7 +147,7 @@ if (BLACKSMITH_USE_SAMSUNG_PARAMS)
     message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_SAMSUNG_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
     message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
     target_compile_definitions(
-            libblacksmith
+            bs
             PUBLIC
             DEBUG_SAMSUNG
     )
@@ -158,7 +158,7 @@ if (BLACKSMITH_USE_DIMM_10_PARAMS)
     message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_DIMM_10_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
     message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
     target_compile_definitions(
-            libblacksmith
+            bs
             PUBLIC
             DEBUG_DIMM10
     )
@@ -181,15 +181,9 @@ target_compile_definitions(
 target_link_libraries(
         blacksmith
         PRIVATE
-        libblacksmith
+        bs
         nlohmann_json::nlohmann_json
         argagg
-)
-
-target_include_directories(
-        blacksmith
-        PRIVATE
-        libblacksmith
 )
 
 unset(BLACKSMITH_ENABLE_JSON CACHE)
