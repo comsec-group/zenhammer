@@ -161,7 +161,7 @@ void CodeJitter::jit_strict(int num_acts_per_trefi,
   size_t cnt_total_activations = 0;
 
   // hammer each aggressor once
-  for (int i = NUM_TIMED_ACCESSES; i < aggressor_pairs.size() - NUM_TIMED_ACCESSES; i++) {
+  for (int i = NUM_TIMED_ACCESSES; i < static_cast<int>(aggressor_pairs.size()) - NUM_TIMED_ACCESSES; i++) {
     auto cur_addr = (uint64_t) aggressor_pairs[i];
 
     if (accessed_before[cur_addr]) {
