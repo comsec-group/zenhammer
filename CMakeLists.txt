@@ -128,6 +128,16 @@ if (BLACKSMITH_ENABLE_JSON)
 endif ()
 
 if (BLACKSMITH_ENABLE_JITTING)
+    # This fixes an issue that causes GCC 10.3 (but not 8.3 or 11.1) to miss a
+    # header somehow.
+    FetchContent_MakeAvailable(asmjit)
+
+    target_include_directories(
+            bs
+            PUBLIC
+            ${asmjit_SOURCE_DIR}/src
+    )
+
     target_link_libraries(
             bs
             PRIVATE
@@ -184,6 +194,19 @@ target_link_libraries(
         bs
         argagg
 )
+
+get_property(dirs1 TARGET blacksmith PROPERTY INCLUDE_DIRECTORIES)
+message(STATUS "blacksmith ${dirs1}")
+get_property(dirs1 TARGET blacksmith PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "blacksmith ${dirs1}")
+get_property(dirs1 TARGET bs PROPERTY INCLUDE_DIRECTORIES)
+message(STATUS "bs ${dirs1}")
+get_property(dirs1 TARGET bs PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "bs ${dirs1}")
+get_property(dirs1 TARGET asmjit PROPERTY INCLUDE_DIRECTORIES)
+message(STATUS "asmjit ${dirs1}")
+get_property(dirs1 TARGET asmjit PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "asmjit ${dirs1} ")
 
 # === CLEANUP ==================================================================
 

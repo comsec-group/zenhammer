@@ -45,7 +45,7 @@ set(MESSAGE_QUIET OFF)
 
 if (BLACKSMITH_ENABLE_JITTING)
     message(STATUS "Fetching external dependency asmjit")
-    set(MESSAGE_QUIET ON)
+    set(MESSAGE_QUIET OFF)
 
     FetchContent_Declare(
             asmjit
