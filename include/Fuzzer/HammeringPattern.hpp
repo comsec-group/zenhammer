@@ -23,13 +23,13 @@ class HammeringPattern {
   std::string instance_id;
 
   // the base period this hammering pattern was generated for
-  size_t base_period;
+  int base_period;
 
   size_t max_period;
 
-  size_t total_activations;
+  int total_activations;
 
-  size_t num_refresh_intervals;
+  int num_refresh_intervals;
 
   // is a pattern is location dependent, then there are some aggressors that are bypassing the mitigation because of
   // their absolute location in DRAM; in this case we need to move only the aggressor pair triggered the bit flips while
@@ -49,7 +49,7 @@ class HammeringPattern {
 
   HammeringPattern();
 
-  explicit HammeringPattern(size_t base_period);
+  explicit HammeringPattern(int base_period);
 
   std::string get_pattern_text_repr();
 

@@ -8,7 +8,7 @@
 // defines the program's arguments and their default values
 struct ProgramArguments {
   // the duration of the fuzzing run in second
-  long runtime_limit = 120;
+  unsigned long runtime_limit = 120;
   // the number of ranks of the DIMM to hammer
   int num_ranks = 0;
   // no. of activations we can do within a refresh interval
@@ -34,7 +34,7 @@ int main(int argc, char **argv);
 
 void handle_args(int argc, char **argv);
 
-[[ noreturn ]] void handle_arg_generate_patterns(size_t num_activations, size_t probes_per_pattern);
+[[ noreturn ]] void handle_arg_generate_patterns(int num_activations, size_t probes_per_pattern);
 
 void handle_arg_replay_patterns(const std::string &pattern_ids, std::unordered_set<std::string> &ids);
 

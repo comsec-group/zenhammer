@@ -63,7 +63,8 @@
 [[gnu::unused]] static inline __attribute__((always_inline)) uint64_t realtime_now() {
   struct timespec now_ts{};
   clock_gettime(CLOCK_MONOTONIC, &now_ts);
-  return ((now_ts).tv_sec*1e9 + (now_ts).tv_nsec);
+  return static_cast<uint64_t>(
+      (static_cast<double>(now_ts.tv_sec)*1e9 + static_cast<double>(now_ts.tv_nsec)));
 }
 
 #endif /* UTILS */

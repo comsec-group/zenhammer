@@ -49,8 +49,6 @@ class Memory {
 
   [[nodiscard]] volatile char *get_starting_address() const;
 
-  [[nodiscard]] bool is_superpage() const;
-
   std::string get_flipped_rows_text_repr();
 };
 

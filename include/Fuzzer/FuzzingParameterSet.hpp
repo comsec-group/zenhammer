@@ -30,7 +30,7 @@ class FuzzingParameterSet {
 
   int max_row_no;
 
-  size_t total_acts_pattern;
+  int total_acts_pattern;
 
   Range<int> start_row;
 
@@ -54,40 +54,40 @@ class FuzzingParameterSet {
 
   std::discrete_distribution<int> N_sided_probabilities;
 
-  std::string get_dist_string() const;
+  [[nodiscard]] std::string get_dist_string() const;
 
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
  public:
-  FuzzingParameterSet();
+  FuzzingParameterSet() = default;
 
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
 
-  int get_random_bank_no();
+  [[maybe_unused]] int get_random_bank_no();
 
-  int get_hammering_total_num_activations() const;
+  [[nodiscard]] int get_hammering_total_num_activations() const;
 
-  int get_num_aggressors() const;
+  [[nodiscard]] int get_num_aggressors() const;
 
   int get_random_amplitude(int max);
 
   int get_random_N_sided();
 
-  int get_base_period() const;
+  [[nodiscard]] int get_base_period() const;
 
-  int get_agg_intra_distance() const;
+  [[nodiscard]] int get_agg_intra_distance() const;
 
-  int get_agg_inter_distance() const;
+  [[nodiscard]] int get_agg_inter_distance() const;
 
   int get_random_even_divisior(int n, int min_value);
 
-  int get_random_N_sided(size_t upper_bound_max);
+  int get_random_N_sided(int upper_bound_max);
 
   int get_random_start_row();
 
-  int get_num_activations_per_t_refi() const;
+  [[nodiscard]] int get_num_activations_per_t_refi() const;
 
-  size_t get_total_acts_pattern() const;
+  [[nodiscard]] int get_total_acts_pattern() const;
 
   bool get_random_use_seq_addresses();
 
@@ -95,17 +95,17 @@ class FuzzingParameterSet {
 
   void randomize_parameters(bool print = true);
 
-  int get_max_row_no() const;
+  [[nodiscard]] int get_max_row_no() const;
 
   int get_random_num_aggressors_for_sync();
 
   int get_random_wait_until_start_hammering_microseconds();
 
-  int get_num_refresh_intervals() const;
+  [[nodiscard]] int get_num_refresh_intervals() const;
 
-  int get_num_base_periods() const;
+  [[nodiscard]] int get_num_base_periods() const;
 
-  void set_total_acts_pattern(size_t pattern_total_acts);
+  void set_total_acts_pattern(int pattern_total_acts);
 
   void set_hammering_total_num_activations(int hammering_total_acts);
 

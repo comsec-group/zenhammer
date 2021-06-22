@@ -11,10 +11,10 @@ class TraditionalHammerer {
 
  public:
   // do n-sided hammering
-  static void n_sided_hammer(Memory &memory, int acts, long runtime_limit);
+  [[maybe_unused]] static void n_sided_hammer(Memory &memory, int acts, long runtime_limit);
 
   // run experiment where we systematically try out all possible offsets
-  static void n_sided_hammer_experiment(Memory &memory, int acts);
+  [[maybe_unused]] static void n_sided_hammer_experiment(Memory &memory, int acts);
 
   static void n_sided_hammer_experiment_frequencies(Memory &memory);
 

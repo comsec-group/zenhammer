@@ -1,36 +1,16 @@
 #include "Memory/DramAnalyzer.hpp"
 
-#include <sys/mman.h>
-#include <chrono>
 #include <cassert>
-#include <cstdlib>
-#include <algorithm>
 #include <unordered_set>
 
-#include "GlobalDefines.hpp"
-#include "Utilities/Logger.hpp"
-#include "Fuzzer/FuzzingParameterSet.hpp"
-
-std::vector<uint64_t> DramAnalyzer::get_bank_rank(std::vector<volatile char *> &target_bank) {
-  std::vector<uint64_t> bank_rank;
-  auto addr = target_bank.at(0);
-  for (unsigned long fn : bank_rank_functions) {
-    uint64_t mask = ((uint64_t) addr) & fn;
-    auto value = ((mask==fn) || (mask==0)) ? 0 : 1;
-    bank_rank.push_back(value);
-  }
-  return bank_rank;
-}
-
 void DramAnalyzer::find_bank_conflicts() {
-  srand(time(nullptr));
-  int nr_banks_cur = 0;
+  size_t nr_banks_cur = 0;
   int remaining_tries = NUM_BANKS*256;  // experimentally determined, may be unprecise
   while (nr_banks_cur < NUM_BANKS && remaining_tries > 0) {
     reset:
     remaining_tries--;
-    auto a1 = start_address + (rand()%(MEM_SIZE/64))*64;
-    auto a2 = start_address + (rand()%(MEM_SIZE/64))*64;
+    auto a1 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
+    auto a2 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
     auto ret1 = measure_time(a1, a2);
     auto ret2 = measure_time(a1, a2);
 
@@ -70,20 +50,19 @@ void DramAnalyzer::find_bank_conflicts() {
 
   Logger::log_info("Found bank conflicts.");
   for (auto &bank : banks) {
-    find_targets(bank, NUM_TARGETS);
+    find_targets(bank);
   }
   Logger::log_info("Populated addresses from different banks.");
 }
 
-void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_t size) {
+void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
   // create an unordered set of the addresses in the target bank for a quick lookup
   // std::unordered_set<volatile char*> tmp; tmp.insert(target_bank.begin(), target_bank.end());
   std::unordered_set<volatile char *> tmp(target_bank.begin(), target_bank.end());
   target_bank.clear();
   size_t num_repetitions = 5;
-  srand(time(nullptr));
-  while (tmp.size() < size) {
-    auto a1 = start_address + (rand()%(MEM_SIZE/64))*64;
+  while (tmp.size() < 10) {
+    auto a1 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
     if (tmp.count(a1) > 0) continue;
     uint64_t cumulative_times = 0;
     for (size_t i = 0; i < num_repetitions; i++) {
@@ -99,15 +78,14 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank, size_
   }
 }
 
-DramAnalyzer::DramAnalyzer(volatile char *target) : row_function(0), start_address(target) {
-  banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
-  bank_rank_masks = std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
-}
+DramAnalyzer::DramAnalyzer(volatile char *target) :
+  row_function(0), start_address(target) {
+  std::random_device rd;
+  gen = std::mt19937(rd());
+  dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
 
-void DramAnalyzer::find_bank_rank_masks() {
-  for (size_t j = 0; j < NUM_BANKS; j++) {
-    bank_rank_masks[j] = get_bank_rank(banks.at(j));
-  }
+  banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
+  std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
 }
 
 std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
@@ -142,15 +120,15 @@ size_t DramAnalyzer::count_acts_per_ref() {
   volatile char *b = banks.at(0).at(1);
   std::vector<uint64_t> acts;
   uint64_t running_sum = 0;
-  uint64_t before = 0, after = 0, count = 0, count_old = 0;
-  *a;
-  *b;
+  uint64_t before, after, count = 0, count_old = 0;
+  (void)*a;
+  (void)*b;
 
   auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, size_t num_numbers) {
     size_t mean = running_sum/num_numbers;
     uint64_t var = 0;
     for (const auto &num : values) {
-      var += std::pow(num - mean, 2);
+      var += static_cast<uint64_t>(std::pow(num - mean, 2));
     }
     return std::sqrt(var/num_numbers);
   };
@@ -161,8 +139,8 @@ size_t DramAnalyzer::count_acts_per_ref() {
     mfence();
     before = rdtscp();
     lfence();
-    *a;
-    *b;
+    (void)*a;
+    (void)*b;
     after = rdtscp();
     count++;
     if ((after - before) > 1000) {

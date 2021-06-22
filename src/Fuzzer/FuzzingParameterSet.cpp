@@ -1,5 +1,5 @@
-#include <unordered_map>
-#include <iostream>
+#include "Fuzzer/FuzzingParameterSet.hpp"
+
 #include <algorithm>
 
 #ifdef ENABLE_JSON
@@ -7,11 +7,10 @@
 #endif
 
 #include "GlobalDefines.hpp"
-#include "Fuzzer/FuzzingParameterSet.hpp"
 
-FuzzingParameterSet::FuzzingParameterSet() {}
-
-FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) { /* NOLINT */
+FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) : /* NOLINT */
+    flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
+    fencing_strategy(FENCING_STRATEGY::LATEST_POSSIBLE) {
   std::random_device rd;
   gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
 
@@ -66,7 +65,7 @@ void FuzzingParameterSet::set_distribution(Range<int> range_N_sided, std::unorde
 
 int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
   std::vector<int> divisors;
-  for (size_t i = 1; i <= sqrt(n); i++) {
+  for (auto i = 1; i <= sqrt(n); i++) {
     if (n%i==0) {
       if ((n/i)==1 && (i%2)==0) {
         divisors.push_back(i);
@@ -126,7 +125,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
 
-#elif DEBUG_DIMM10
+#elseif DEBUG_DIMM10
 
   num_activations_per_tREFI = 94;
 
@@ -236,7 +235,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));
+  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(0, 3).get_random_number(gen)));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -269,7 +268,7 @@ std::string FuzzingParameterSet::get_dist_string() const {
   return ss.str();
 }
 
-int FuzzingParameterSet::get_random_bank_no() {
+[[maybe_unused]] int FuzzingParameterSet::get_random_bank_no() {
   return bank_no.get_random_number(gen);
 }
 
@@ -285,8 +284,8 @@ int FuzzingParameterSet::get_random_N_sided() {
   return N_sided_probabilities(gen);
 }
 
-int FuzzingParameterSet::get_random_N_sided(size_t upper_bound_max) {
-  if ((size_t) N_sided.max > upper_bound_max) {
+int FuzzingParameterSet::get_random_N_sided(int upper_bound_max) {
+  if (N_sided.max > upper_bound_max) {
     return Range<int>(N_sided.min, upper_bound_max).get_random_number(gen);
   }
   return get_random_N_sided();
@@ -296,7 +295,7 @@ bool FuzzingParameterSet::get_random_use_seq_addresses() {
   return (bool) (use_sequential_aggressors.get_random_number(gen));
 }
 
-size_t FuzzingParameterSet::get_total_acts_pattern() const {
+int FuzzingParameterSet::get_total_acts_pattern() const {
   return total_acts_pattern;
 }
 
@@ -345,7 +344,7 @@ int FuzzingParameterSet::get_num_refresh_intervals() const {
   return num_refresh_intervals;
 }
 
-void FuzzingParameterSet::set_total_acts_pattern(size_t pattern_total_acts) {
+void FuzzingParameterSet::set_total_acts_pattern(int pattern_total_acts) {
   FuzzingParameterSet::total_acts_pattern = pattern_total_acts;
 }
 

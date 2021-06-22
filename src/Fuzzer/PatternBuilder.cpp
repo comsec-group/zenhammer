@@ -2,7 +2,6 @@
 
 #include "Fuzzer/FuzzingParameterSet.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Memory/DramAnalyzer.hpp"
 
 PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
     : pattern(hammering_pattern), aggressor_id_counter(1) {
@@ -14,7 +13,7 @@ size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
   // this 'repeat until we produce a valid value' approach is not very effective
   size_t result;
   do {
-    size_t mean = (list.size()%2==0) ? list.size()/2 - 1 : (list.size() - 1)/2;
+    auto mean = static_cast<double>((list.size()%2==0) ? list.size()/2 - 1 : (list.size() - 1)/2);
     std::normal_distribution<> d(mean, 1);
     result = (size_t) d(gen);
   } while (result >= list.size());
@@ -34,7 +33,7 @@ void PatternBuilder::remove_smaller_than(std::vector<int> &vec, int N) {
 int PatternBuilder::all_slots_full(size_t offset, size_t period, int pattern_length, std::vector<Aggressor> &aggs) {
   for (size_t i = 0; i < aggs.size(); ++i) {
     auto idx = (offset + i*period)%pattern_length;
-    if (aggs[idx].id==ID_PLACEHOLDER_AGG) return idx;
+    if (aggs[idx].id==ID_PLACEHOLDER_AGG) return static_cast<int>(idx);
   }
   return -1;
 }
@@ -73,7 +72,7 @@ void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, in
 
   // increment the ID cyclically until we added N aggressors
   for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1)%max_num_aggressors)) {
-    aggs.push_back(Aggressor(aggressor_id_counter));
+    aggs.emplace_back(aggressor_id_counter);
     added_aggs++;
   }
 }
@@ -87,8 +86,8 @@ std::vector<int> PatternBuilder::get_available_multiplicators(int num_base_perio
   //    [1] (M * base_period) is a valid frequency
   //    [2] M^2 is smaller-equal to num_base_periods
   std::vector<int> allowed_multiplicators;
-  for (size_t i = 0; std::pow(2, i) <= num_base_periods; ++i) {
-    allowed_multiplicators.push_back(std::pow(2, i));
+  for (size_t i = 0; static_cast<int>(std::pow(2, i)) <= num_base_periods; ++i) {
+    allowed_multiplicators.push_back(static_cast<int>(std::pow(2, i)));
   }
   return allowed_multiplicators;
 }
@@ -96,7 +95,7 @@ std::vector<int> PatternBuilder::get_available_multiplicators(int num_base_perio
 int PatternBuilder::get_next_prefilled_slot(size_t cur_idx, std::vector<int> start_indices_prefilled_slots, int base_period,
                             int &cur_prefilled_slots_idx) {
   // no prefilled pattern: use base_period as bound
-  if (start_indices_prefilled_slots.size() == 0)
+  if (start_indices_prefilled_slots.empty())
     return base_period;
 
   // prefilled pattern
@@ -115,7 +114,7 @@ int PatternBuilder::get_next_prefilled_slot(size_t cur_idx, std::vector<int> sta
 
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &params,
                                                       int pattern_length,
-                                                      size_t base_period) {
+                                                      int base_period) {
   std::vector<int> start_indices_prefilled_slots;
   auto cur_prefilled_slots_idx = 0;
   // this is a helper function that takes the current index (of base_period) and then returns the index of either the
@@ -129,11 +128,11 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
     // go through aggressors list and figure out prefilled slots but only keep the index of the start slot of a
     // prefilled contiguous area (e.g., "_ _ _ A1 A2 A3 _ _ A4 A5 _ _ _" would only record index of A1 and A4)
     bool in_prefilled_area = false;
-    for (size_t i = 0; i < base_period; ++i) {
+    for (auto i = 0; i < base_period; ++i) {
       if (pattern.aggressors[i].id!=ID_PLACEHOLDER_AGG) {
         if (!in_prefilled_area) {
           in_prefilled_area = true;
-          start_indices_prefilled_slots.push_back((int) i);
+          start_indices_prefilled_slots.push_back(i);
         }
       } else {
         in_prefilled_area = false;
@@ -147,10 +146,10 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
 
   int cur_amplitude;
   int num_aggressors;
-  size_t cur_period = 0;
+  auto cur_period = 0;
 
   // fill the "first" slot in the base period: this is the one that can have any possible frequency
-  for (size_t k = 0; k < base_period; k += (num_aggressors*cur_amplitude)) {
+  for (auto k = 0; k < base_period; k += (num_aggressors*cur_amplitude)) {
     std::vector<Aggressor> aggressors;
     std::vector<int> cur_multiplicators(allowed_multiplicators.begin(), allowed_multiplicators.end());
     // if this slot is not filled yet -> we are generating a new pattern
@@ -159,10 +158,10 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
       remove_smaller_than(cur_multiplicators, cur_m);
       cur_period = base_period*cur_m;
 
-      if (start_indices_prefilled_slots.size()==0) {
+      if (start_indices_prefilled_slots.empty()) {
         // if there are no prefilled slots at any index: we are only limited by the base period
         num_aggressors = ((base_period - k)==1) ? 1 : params.get_random_N_sided(base_period - k);
-        cur_amplitude = params.get_random_amplitude((int) (base_period - k)/num_aggressors);
+        cur_amplitude = params.get_random_amplitude((base_period - k)/num_aggressors);
       } else {
         // if there are prefilled slots we need to pay attention to not overwrite them either by choosing too many
         // aggressors or by choosing an amplitude that is too large
@@ -179,8 +178,8 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
       // determine the number of aggressors (num_aggressors) and the amplitude (cur_amplitude) based on the information
       // in the associated AggressorAccessPattern of this Aggressor
       auto agg_acc_patt = pattern.get_access_pattern_by_aggressor(pattern.aggressors[k]);
-      remove_smaller_than(cur_multiplicators, agg_acc_patt.frequency/base_period);
-      num_aggressors = agg_acc_patt.aggressors.size();
+      remove_smaller_than(cur_multiplicators, static_cast<int>(agg_acc_patt.frequency)/base_period);
+      num_aggressors = static_cast<int>(agg_acc_patt.aggressors.size());
       cur_amplitude = agg_acc_patt.amplitude;
     }
 
@@ -199,26 +198,27 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
       cur_period = base_period*cur_m2;
       get_n_aggressors(num_aggressors, aggressors, params.get_num_aggressors());
       pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, next_slot);
-      fill_slots(next_slot, cur_period, cur_amplitude, aggressors, pattern.aggressors, pattern_length);
+      fill_slots(static_cast<size_t>(next_slot), cur_period, cur_amplitude, aggressors, pattern.aggressors, pattern_length);
     }
   }
 
   // update information in HammeringPattern s.t. it will be included into the JSON export
-  pattern.total_activations = pattern.aggressors.size();
+  pattern.total_activations = static_cast<int>(pattern.aggressors.size());
   pattern.num_refresh_intervals = params.get_num_refresh_intervals();
 }
 
 void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &params) {
-  generate_frequency_based_pattern(params, params.get_total_acts_pattern(), (size_t) params.get_base_period());
+  generate_frequency_based_pattern(params, params.get_total_acts_pattern(), params.get_base_period());
 }
 
 void PatternBuilder::prefill_pattern(int pattern_total_acts,
                                      std::vector<AggressorAccessPattern> &fixed_aggs) {
   aggressor_id_counter = 1;
-  pattern.aggressors = std::vector<Aggressor>(pattern_total_acts, Aggressor());
+  pattern.aggressors = std::vector<Aggressor>(static_cast<size_t>(pattern_total_acts), Aggressor());
   for (auto &aap : fixed_aggs) {
     for (auto &agg : aap.aggressors) agg.id = aggressor_id_counter++;
-    fill_slots(aap.start_offset, aap.frequency, aap.amplitude, aap.aggressors, pattern.aggressors, pattern_total_acts);
+    fill_slots(aap.start_offset, aap.frequency, aap.amplitude, aap.aggressors, pattern.aggressors,
+        static_cast<size_t>(pattern_total_acts));
     pattern.agg_access_patterns.push_back(aap);
   }
 }

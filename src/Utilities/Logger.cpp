@@ -112,7 +112,7 @@ void Logger::log_failure(const std::string &message, bool newline) {
   if (newline) instance.logfile << std::endl;
 }
 
-void Logger::log_metadata(const char *commit_hash, long run_time_limit_seconds) {
+void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {
   Logger::log_info("General information about this fuzzing run:");
 
   char name[1024] = "";

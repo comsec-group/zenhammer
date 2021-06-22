@@ -1,14 +1,9 @@
 #include "Blacksmith.hpp"
 
-#include <cstdlib>
-#include <sys/mman.h>
 #include <sys/resource.h>
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
-#include "Forges/ReplayingHammerer.hpp"
-#include "Memory/DRAMAddr.hpp"
-#include "Utilities/Logger.hpp"
 
 #include <argagg/argagg.hpp>
 
@@ -49,11 +44,10 @@ int main(int argc, char **argv) {
   }
   // initialize the DRAMAddr class to load the proper memory configuration
   DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
-  // determine the bank/rank masks
-  dram_analyzer.find_bank_rank_masks();
 
   // count the number of possible activations per refresh interval, if not given as program argument
-  if (program_args.acts_per_ref==0) program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
+  if (program_args.acts_per_ref==0)
+    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
 
   if (!program_args.load_json_filename.empty()) {
     ReplayingHammerer replayer(memory);
@@ -63,7 +57,7 @@ int main(int argc, char **argv) {
       replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
     }
   } else if (program_args.do_fuzzing && program_args.use_synchronization) {
-    FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, program_args.acts_per_ref, program_args.runtime_limit,
+    FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, static_cast<int>(program_args.acts_per_ref), program_args.runtime_limit,
         program_args.probes_per_pattern, program_args.sweeping);
   } else if (!program_args.do_fuzzing) {
 //    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
@@ -78,7 +72,7 @@ int main(int argc, char **argv) {
   return EXIT_SUCCESS;
 }
 
-void handle_arg_generate_patterns(size_t num_activations, const size_t probes_per_pattern) {
+void handle_arg_generate_patterns(int num_activations, const size_t probes_per_pattern) {
   // this parameter is defined in FuzzingParameterSet
   const size_t MAX_NUM_REFRESH_INTERVALS = 32;
   const size_t MAX_ACCESSES = num_activations*MAX_NUM_REFRESH_INTERVALS;
@@ -87,7 +81,7 @@ void handle_arg_generate_patterns(size_t num_activations, const size_t probes_pe
     Logger::log_error("Allocation of rows_to_access failed!");
     exit(EXIT_FAILURE);
   }
-  FuzzyHammerer::generate_pattern_for_ARM(num_activations, static_cast<int *>(rows_to_access), MAX_ACCESSES, probes_per_pattern);
+  FuzzyHammerer::generate_pattern_for_ARM(num_activations, static_cast<int *>(rows_to_access), static_cast<int>(MAX_ACCESSES), probes_per_pattern);
   exit(EXIT_SUCCESS);
 }
 
@@ -111,18 +105,18 @@ void handle_args(int argc, char **argv) {
       {"help", {"-h", "--help"}, "shows this help message", 0},
       {"dimm-id", {"-d", "--dimm-id"}, "internal identifier of the currently inserted DIMM (default: 0)", 1},
       {"ranks", {"-r", "--ranks"}, "number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)", 1},
+
+      {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 1},
+      {"generate-patterns", {"-g", "--generate-patterns"}, "generates N patterns, but does not perform hammering; used by ARM port", 1},
+      {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
+
+      {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, required for --replay-patterns", 1},
+
+      {"sync", {"-s", "--sync"}, "synchronize with REFRESH while hammering (default: 1)", 1},
       {"sweeping", {"-w", "--sweeping"}, "sweep the best pattern over a contig. memory area after fuzzing (default: Disabled)", 0},
       {"runtime-limit", {"-t", "--runtime-limit"}, "number of seconds to run the fuzzer before sweeping/terminating (default: 120)", 1},
       {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
-
-      {"generate-patterns", {"-g", "--generate-patterns"}, "generates N patterns, but does not perform hammering; used by ARM port", 1},
-
-      {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
-      {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, required for --replay-patterns", 1},
-
-      {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 1},
-      {"sync", {"-s", "--sync"}, "synchronize with REFRESH while hammering (default: 1)", 1},
     }};
 
   argagg::parser_results parsed_args;
@@ -131,6 +125,11 @@ void handle_args(int argc, char **argv) {
   } catch (const std::exception &e) {
     std::cerr << e.what() << '\n';
     exit(EXIT_FAILURE);
+  }
+
+  if (parsed_args["help"]) {
+    std::cerr << argparser;
+    exit(EXIT_SUCCESS);
   }
 
   /**
@@ -158,7 +157,7 @@ void handle_args(int argc, char **argv) {
   program_args.sweeping = parsed_args["sweeping"].as<bool>(program_args.sweeping);
   Logger::log_debug(format_string("Set --sweeping=%s", (program_args.sweeping ? "true" : "false")));
 
-  program_args.runtime_limit = parsed_args["runtime-limit"].as<long>(program_args.runtime_limit);
+  program_args.runtime_limit = parsed_args["runtime-limit"].as<unsigned long>(program_args.runtime_limit);
   Logger::log_debug(format_string("Set --runtime_limit=%ld", program_args.runtime_limit));
 
   program_args.acts_per_ref = parsed_args["acts-per-ref"].as<size_t>(program_args.acts_per_ref);
@@ -171,7 +170,7 @@ void handle_args(int argc, char **argv) {
    * program modes
    */
   if (parsed_args.has_option("generate-patterns")) {
-    auto num_activations = parsed_args["generate-patterns"].as<size_t>(84);
+    auto num_activations = parsed_args["generate-patterns"].as<int>(84);
     // this must happen AFTER probes-per-pattern has been parsed
     // note: the following method call does not return anymore
     handle_arg_generate_patterns(num_activations, program_args.probes_per_pattern);

@@ -10,7 +10,7 @@ std::string format_string(const std::string &format, Args ... args) {
   int size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
   if (size <= 0) { throw std::runtime_error("Error during formatting."); }
   std::unique_ptr<char[]> buf(new char[size]);
-  snprintf(buf.get(), size, format.c_str(), args ...);
+  snprintf(buf.get(), static_cast<size_t>(size), format.c_str(), args ...);
   return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
@@ -51,7 +51,7 @@ class Logger {
 
   static void log_global_defines();
 
-  static void log_metadata(const char *string, long run_time_limit_seconds);
+  static void log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds);
 
   static void log_analysis_stage(const std::string &message, bool newline = true);
 

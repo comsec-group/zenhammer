@@ -30,6 +30,6 @@ void from_string(const std::string &strategy, FENCING_STRATEGY &dest);
 
 std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies();
 
-std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair();
+[[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair();
 
 #endif //BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_

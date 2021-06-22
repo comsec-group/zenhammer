@@ -5,10 +5,10 @@
 #include <sstream>
 
 namespace uuid {
-static std::random_device rd;
-static std::mt19937 gen(rd());
-static std::uniform_int_distribution<> dis(0, 15);
-static std::uniform_int_distribution<> dis2(8, 11);
+static std::random_device rd; /* NOLINT */
+static std::mt19937 gen(rd()); /* NOLINT */
+static std::uniform_int_distribution<> dis(0, 15); /* NOLINT */
+static std::uniform_int_distribution<> dis2(8, 11); /* NOLINT */
 
 static std::string gen_uuid() {
   std::stringstream ss;
@@ -33,7 +33,7 @@ static std::string gen_uuid() {
   ss << "-";
   for (i = 0; i < 12; i++) {
     ss << dis(gen);
-  };
+  }
   return ss.str();
 }
 } // namespace uuid

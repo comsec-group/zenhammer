@@ -1,13 +1,11 @@
 #include "Forges/ReplayingHammerer.hpp"
 
-#include <unordered_set>
 #include <chrono>
 #include <Fuzzer/PatternBuilder.hpp>
 
 #include "Forges/FuzzyHammerer.hpp"
 
 #ifdef ENABLE_JSON
-#include <nlohmann/json.hpp>
 #include <Blacksmith.hpp>
 #endif
 
@@ -243,9 +241,9 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
     for (auto const &json_hammering_patt : patterns_array) {
       HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
-      auto num_bitflips = 0;
+      int num_bitflips = 0;
       for (const auto &mp : pattern.address_mappings) {
-        num_bitflips += mp.bit_flips.size();
+        num_bitflips += static_cast<int>(mp.bit_flips.size());
       }
       if (best_pattern_num_bitflips==0 || num_bitflips > best_pattern_num_bitflips) {
         best_pattern = pattern;
@@ -307,7 +305,7 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
   mapper.export_pattern(pattern.aggressors, pattern.base_period, hammering_accesses_vec);
 
   // create instructions that follow this pattern (i.e., do jitting of code)
-  auto const acts_per_tref = (pattern.total_activations/pattern.num_refresh_intervals);
+  auto const acts_per_tref = static_cast<int>(pattern.total_activations/pattern.num_refresh_intervals);
   code_jitter.jit_strict(acts_per_tref, flushing_strategy, fencing_strategy, hammering_accesses_vec, sync_each_ref,
       aggressors_for_sync, num_activations);
 
@@ -505,7 +503,7 @@ void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
   // prerequisite: know which aggressor pair triggered a bit flip
   // get all flipped rows
   std::set<int> flipped_rows;
-  for (const auto &bf : mapper.bit_flips) flipped_rows.insert(bf.address.row);
+  for (const auto &bf : mapper.bit_flips) flipped_rows.insert(static_cast<int>(bf.address.row));
 
   // map to keep track of best guess which AggressorAccessPattern caused a bit flip.
   // maps (aggressor ID) to (distance, AggressorAccessPattern)
@@ -615,7 +613,7 @@ void ReplayingHammerer::find_indirect_effective_aggs(PatternAddressMapper &mappe
       // mark this AggressorAccessPattern as effective/essential for trigger bit flips
       indirect_effective_aggs.insert(agg_pair);
       // restore the original mapping as this AggressorAccessPattern matters!
-      for (const auto agg : agg_pair.aggressors) cur_mapping[agg.id] = old_mappings[agg.id];
+      for (const auto &agg : agg_pair.aggressors) cur_mapping[agg.id] = old_mappings[agg.id];
     }
   }
   Logger::log_info("Mapping after randomizing all non-effective aggressor pairs:");
@@ -637,39 +635,40 @@ void ReplayingHammerer::run_pattern_params_probing(PatternAddressMapper &mapper,
   CodeJitter &jitter = *mapper.code_jitter;
   PatternBuilder builder(patt);
 
-  auto sort_by_idx_dist = [](std::vector<int> &vec, int index) {
+  auto sort_by_idx_dist = [](std::vector<int> &vec, size_t idx) {
     // for a given vector v={a, b, c, d, e} and index k, returns a vector
     //    {v[k], v[k+1], v[k-1], v[k+2], v[k-2], ...}
     // that is, the elements at index k, k+dist(k,1), k+dist(k,2), etc.
+    auto index = static_cast<int>(idx);
     std::vector<int> result;
-    auto num_elements = (int) vec.size();
-    auto it = vec.begin() + index;
+    auto num_elements = vec.size();
+    auto it = vec.begin() + static_cast<long>(index);
     result.push_back(*it);
-    for (int i = 1; i < num_elements; ++i) {
-      if (index + i < num_elements) result.push_back(*(it + i));
+    for (int i = 1; i < static_cast<int>(num_elements); ++i) {
+      if (index + i < static_cast<int>(num_elements)) result.push_back(*(it + i));
       if (index - i >= 0) result.push_back(*(it - i));
     }
     vec = result;
   };
 
-  auto get_index = [](const std::vector<int> &vec, int elem) -> int {
+  auto get_index = [](const std::vector<int> &vec, int elem) -> size_t {
     // returns the index of a given element in a given vector
     auto it = std::find(vec.begin(), vec.end(), elem);
     if (it!=vec.end()) {
-      return it - vec.begin();
+      return static_cast<size_t>(std::distance(vec.begin(), it));
     } else {
       std::stringstream ss;
-      for (auto &n : vec) { ss << n << ","; };
+      for (auto &n : vec) { ss << n << ","; }
       Logger::log_error(
           format_string("ReplayingHammerer.cpp:get_index(...) could not find given element (%d) in vector (%s).",
               elem, ss.str().c_str()));
-      exit(1);
+      exit(EXIT_FAILURE);
     }
   };
 
   const auto base_period = patt.base_period;
   std::vector<int> allowed_frequencies =
-      builder.get_available_multiplicators((int) (patt.total_activations/(size_t) base_period));
+      PatternBuilder::get_available_multiplicators((int) (patt.total_activations/(size_t) base_period));
 
   size_t max_trials_per_aap = 48;
   const auto fpa_probing_num_reps = 5;
@@ -692,17 +691,17 @@ void ReplayingHammerer::run_pattern_params_probing(PatternAddressMapper &mapper,
   for (AggressorAccessPattern &aap : direct_effective_aggs_vec) {
     size_t cnt = 0;
 
-    const auto orig_frequency = aap.frequency;
+    const int orig_frequency = static_cast<int>(aap.frequency);
     const auto orig_frequency_idx = get_index(allowed_frequencies, orig_frequency/patt.base_period);
     sort_by_idx_dist(allowed_frequencies, orig_frequency_idx);
 
     const auto orig_amplitude = aap.amplitude;
 
     std::vector<int> allowed_phases;
-    const auto num_aggressors = aap.aggressors.size();
-    for (int i = 0; i <= (int) base_period - (int) num_aggressors; ++i) allowed_phases.push_back(i);
+    const int num_aggressors = static_cast<int>(aap.aggressors.size());
+    for (int i = 0; i <= base_period - num_aggressors; ++i) allowed_phases.push_back(i);
 
-    const auto orig_start_offset = aap.start_offset;
+    const auto orig_start_offset = static_cast<int>(aap.start_offset);
     const auto orig_start_offset_idx = get_index(allowed_phases, orig_start_offset);
     sort_by_idx_dist(allowed_phases, orig_start_offset_idx);
 
@@ -716,7 +715,7 @@ void ReplayingHammerer::run_pattern_params_probing(PatternAddressMapper &mapper,
       for (const auto &phase : allowed_phases) {
 
         std::vector<int> allowed_amplitudes;
-        for (int i = 1; (i*num_aggressors) <= base_period - phase; ++i) allowed_amplitudes.push_back(i);
+        for (auto i = 1; (i*num_aggressors) <= base_period - phase; ++i) allowed_amplitudes.push_back(i);
 
         const auto orig_amplitude_idx = get_index(allowed_amplitudes, orig_amplitude);
         sort_by_idx_dist(allowed_amplitudes, orig_amplitude_idx);
@@ -763,7 +762,7 @@ void ReplayingHammerer::run_pattern_params_probing(PatternAddressMapper &mapper,
             Logger::log_success(format_string(
                 "Found %lu bit flips, on average %2.f per hammering rep (%d). Flipped row(s): %s.",
                 num_bitflips,
-                num_bitflips/(float) fpa_probing_num_reps,
+                static_cast<float>(num_bitflips)/static_cast<float>(fpa_probing_num_reps),
                 fpa_probing_num_reps,
                 mem.get_flipped_rows_text_repr().c_str()));
           }

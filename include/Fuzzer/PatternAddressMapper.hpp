@@ -19,7 +19,7 @@
 class PatternAddressMapper {
  private:
   void export_pattern_internal(std::vector<Aggressor> &aggressors,
-                               size_t base_period,
+                               int base_period,
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
@@ -43,8 +43,8 @@ class PatternAddressMapper {
   PatternAddressMapper& operator=(const PatternAddressMapper& other);
 
   // information about the mapping (required for determining rows not belonging to this mapping)
-  int min_row = 0;
-  int max_row = 0;
+  size_t min_row = 0;
+  size_t max_row = 0;
   int bank_no = 0;
 
   // a global counter that makes sure that we test patterns on all banks equally often
@@ -68,17 +68,15 @@ class PatternAddressMapper {
                            const std::vector<AggressorAccessPattern> &agg_access_patterns,
                            bool verbose);
 
-  void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<int> &rows);
+  void export_pattern(std::vector<Aggressor> &aggressors, int base_period, std::vector<volatile char *> &addresses);
 
-  void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, std::vector<volatile char *> &addresses);
-
-  const std::string &get_instance_id() const;
+  [[nodiscard]] const std::string &get_instance_id() const;
 
   std::string &get_instance_id();
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
-  const std::unordered_set<volatile char *> & get_victim_rows() const;
+  [[nodiscard]] const std::unordered_set<volatile char *> & get_victim_rows() const;
 
   std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
 
@@ -86,14 +84,14 @@ class PatternAddressMapper {
 
   std::string get_mapping_text_repr();
 
-  CodeJitter & get_code_jitter() const;
+  [[nodiscard]] CodeJitter & get_code_jitter() const;
 
   void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
                              int &agg_inter_distance, bool uses_seq_addresses);
 
   void shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move);
 
-  size_t count_bitflips() const;
+  [[nodiscard]] size_t count_bitflips() const;
 };
 
 #ifdef ENABLE_JSON

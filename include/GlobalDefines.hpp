@@ -8,10 +8,6 @@
 
 #include "Utilities/Logger.hpp"
 
-uint64_t static inline KB(uint64_t value) {
-  return ((value) << 10ULL);
-}
-
 uint64_t static inline MB(uint64_t value) {
   return ((value) << 20ULL);
 }

@@ -1,7 +1,7 @@
-#include "Utilities/TimeHelper.hpp"
 #include "Forges/TraditionalHammerer.hpp"
 
-#include <Blacksmith.hpp>
+#include "Utilities/TimeHelper.hpp"
+#include "Blacksmith.hpp"
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
@@ -11,7 +11,7 @@ void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_t reps) {
   for (size_t i = 0; i < reps; i++) {
     for (auto &a : aggressors) {
-      *a;
+      (void)*a;
     }
     for (auto &a : aggressors) {
       clflushopt(a);
@@ -23,7 +23,7 @@ void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_
 void TraditionalHammerer::hammer_flush_early(std::vector<volatile char *> &aggressors, size_t reps) {
   for (size_t i = 0; i < reps; i++) {
     for (auto &a : aggressors) {
-      *a;
+      (void)*a;
       clflushopt(a);
     }
     mfence();
@@ -39,8 +39,8 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   size_t agg_rounds = ref_rounds;
   uint64_t before, after;
 
-  *d1;
-  *d2;
+  (void)*d1;
+  (void)*d2;
 
   // synchronize with the beginning of an interval
   while (true) {
@@ -49,8 +49,8 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
     mfence();
     before = rdtscp();
     lfence();
-    *d1;
-    *d2;
+    (void)*d1;
+    (void)*d2;
     after = rdtscp();
     // check if an ACTIVATE was issued
     if ((after - before) > 1000) {
@@ -62,7 +62,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   for (size_t i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
     for (size_t j = 0; j < agg_rounds; j++) {
       for (size_t k = 0; k < aggressors.size() - 2; k++) {
-        *aggressors[k];
+        (void)(*aggressors[k]);
         clflushopt(aggressors[k]);
       }
       mfence();
@@ -75,9 +75,9 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
       before = rdtscp();
       lfence();
       clflushopt(d1);
-      *d1;
+      (void)*d1;
       clflushopt(d2);
-      *d2;
+      (void)*d2;
       after = rdtscp();
       lfence();
       // stop if an ACTIVATE was issued
@@ -86,7 +86,11 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 }
 
-void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
+[[maybe_unused]] void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
+
   // This implement the experiment showing the offset is an important factor when crafting patterns.
   // Randomly chooses a double-sided pair
   // Create a pattern of N ACTIVATEs (determine based on number of ACTs per tREF)
@@ -101,11 +105,10 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 #endif
 
   const auto start_ts = time(nullptr);
-  srand(start_ts);
   const auto num_aggs = 2;
   const auto pattern_length = (size_t) acts;
 
-  int v = 2;  // distance between aggressors (within a pair)
+  size_t v = 2;  // distance between aggressors (within a pair)
 
   size_t low_row_no;
   void *low_row_vaddr;
@@ -129,7 +132,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 
   for (size_t cur_location = 1; cur_location <= NUM_LOCATIONS; ++cur_location) {
     // start address/row
-    DRAMAddr cur_next_addr(TARGET_BANK, rand()%2048, 0);
+    DRAMAddr cur_next_addr(TARGET_BANK, dist(gen)%2048, 0);
 
     for (size_t cur_amplitude = 1; cur_amplitude <= MAX_AMPLITUDE; ++cur_amplitude) {
 
@@ -164,7 +167,7 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
             }
           } else {
             // fill up the remaining accesses with random rows
-            DRAMAddr agg(TARGET_BANK, rand()%1024, 0);
+            DRAMAddr agg(TARGET_BANK, dist(gen)%1024, 0);
 //          update_low_high(agg);
             ss << agg.row << " ";
             aggressors.push_back((volatile char *) agg.to_virt());
@@ -248,23 +251,25 @@ void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
 #endif
 }
 
-void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_limit) {
+[[maybe_unused]] void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_limit) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
+
   const auto execution_limit = get_timestamp_sec() + runtime_limit;
   while (get_timestamp_sec() < execution_limit) {
-    srand(time(nullptr));
-
-    int aggressor_rows_size = (rand()%(MAX_ROWS - 3)) + 3;  // number of aggressor rows
-    int v = 2;  // distance between aggressors (within a pair)
-    int d = (rand()%16);  // distance of each double-sided aggressor pair
+    size_t aggressor_rows_size = (dist(gen)%(MAX_ROWS - 3)) + 3;  // number of aggressor rows
+    size_t v = 2;  // distance between aggressors (within a pair)
+    size_t d = dist(gen)%16;  // distance of each double-sided aggressor pair
 
     for (size_t ba = 0; ba < 4; ba++) {
-      DRAMAddr cur_next_addr(ba, rand()%4096, 0);
+      DRAMAddr cur_next_addr(ba, dist(gen)%4096, 0);
 
       std::vector<volatile char *> aggressors;
       std::stringstream ss;
 
       ss << "agg row: ";
-      for (int i = 1; i < aggressor_rows_size; i += 2) {
+      for (size_t i = 1; i < aggressor_rows_size; i += 2) {
         cur_next_addr.add_inplace(0, d, 0);
         ss << cur_next_addr.row << " ";
         aggressors.push_back((volatile char *) cur_next_addr.to_virt());
@@ -315,7 +320,6 @@ void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) 
   nlohmann::json current;
 #endif
   const auto start_ts = get_timestamp_sec();
-  srand(start_ts);
 
   std::random_device rd;
   std::mt19937 gen(rd());

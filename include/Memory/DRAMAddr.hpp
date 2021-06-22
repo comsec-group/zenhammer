@@ -18,7 +18,7 @@
 
 typedef size_t mem_config_t;
 
-typedef struct {
+struct MemConfiguration {
   size_t IDENTIFIER;
   size_t BK_SHIFT;
   size_t BK_MASK;
@@ -28,7 +28,7 @@ typedef struct {
   size_t COL_MASK;
   size_t DRAM_MTX[MTX_SIZE];
   size_t ADDR_MTX[MTX_SIZE];
-} MemConfiguration;
+};
 
 class DRAMAddr {
  private:
@@ -76,6 +76,8 @@ class DRAMAddr {
 #endif
 
   static uint64_t get_row_increment();
+
+  static void initialize_configs();
 };
 
 #ifdef ENABLE_JSON

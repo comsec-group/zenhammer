@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <vector>
+#include <random>
 
 #include "Utilities/AsmPrimitives.hpp"
 
@@ -10,17 +11,17 @@ class DramAnalyzer {
  private:
   std::vector<std::vector<volatile char *>> banks;
 
-  std::vector<std::vector<uint64_t>> bank_rank_masks;
-
   std::vector<uint64_t> bank_rank_functions;
 
   uint64_t row_function;
 
   volatile char *start_address;
 
-  std::vector<uint64_t> get_bank_rank(std::vector<volatile char *> &target_bank);
+  void find_targets(std::vector<volatile char *> &target_bank);
 
-  void find_targets(std::vector<volatile char *> &target_bank, size_t size);
+  std::mt19937 gen;
+
+  std::uniform_int_distribution<int> dist;
 
  public:
   explicit DramAnalyzer(volatile char *target);
@@ -34,8 +35,8 @@ class DramAnalyzer {
     before = rdtscp();
     lfence();
     for (size_t i = 0; i < DRAMA_ROUNDS; i++) {
-      *a1;
-      *a2;
+      (void)*a1;
+      (void)*a2;
       clflushopt(a1);
       clflushopt(a2);
       mfence();
@@ -43,8 +44,6 @@ class DramAnalyzer {
     after = rdtscp();
     return (int) ((after - before)/DRAMA_ROUNDS);
   }
-
-  void find_bank_rank_masks();
 
   std::vector<uint64_t> get_bank_rank_functions();
 
