@@ -106,14 +106,16 @@ void handle_args(int argc, char **argv) {
       {"dimm-id", {"-d", "--dimm-id"}, "internal identifier of the currently inserted DIMM (default: 0)", 1},
       {"ranks", {"-r", "--ranks"}, "number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)", 1},
 
-      {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 1},
+      {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 0},
       {"generate-patterns", {"-g", "--generate-patterns"}, "generates N patterns, but does not perform hammering; used by ARM port", 1},
       {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
 
-      {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, required for --replay-patterns", 1},
+      {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, loads patterns given by --replay-patterns or determines the best ones", 1},
 
-      {"sync", {"-s", "--sync"}, "synchronize with REFRESH while hammering (default: 1)", 1},
-      {"sweeping", {"-w", "--sweeping"}, "sweep the best pattern over a contig. memory area after fuzzing (default: Disabled)", 0},
+      // note that these two parameters don't require a value, their presence already equals a "true"
+      {"sync", {"-s", "--sync"}, "synchronize with REFRESH while hammering (default: present)", 0},
+      {"sweeping", {"-w", "--sweeping"}, "sweep the best pattern over a contig. memory area after fuzzing (default: absent)", 0},
+
       {"runtime-limit", {"-t", "--runtime-limit"}, "number of seconds to run the fuzzer before sweeping/terminating (default: 120)", 1},
       {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
@@ -154,7 +156,7 @@ void handle_args(int argc, char **argv) {
   /**
   * optional parameters
   */
-  program_args.sweeping = parsed_args["sweeping"].as<bool>(program_args.sweeping);
+  program_args.sweeping = parsed_args.has_option("sweeping") || program_args.sweeping;
   Logger::log_debug(format_string("Set --sweeping=%s", (program_args.sweeping ? "true" : "false")));
 
   program_args.runtime_limit = parsed_args["runtime-limit"].as<unsigned long>(program_args.runtime_limit);
