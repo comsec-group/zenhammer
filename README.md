@@ -16,9 +16,9 @@ Following, we quickly describe how to build and run Blacksmith.
 
 ### Prerequisites
 
-Blacksmith has been tested on Ubuntu 18.04 LTS with Linux kernel 4.15.0. As the Blacksmith codebase statically includes all of its dependencies, there is no need to install any package other than g++ (>= 8) and cmake (>= 3.14).
+Blacksmith has been tested on Ubuntu 18.04 LTS with Linux kernel 4.15.0. As the CMakeLists we ship with Blacksmith downloads all required dependencies at compile time, there is no need to install any package other than g++ (>= 8) and cmake (>= 3.14).
 
-To facilitate the development, we provide a Docker container (see [Dockerfile](docker/Dockerfile)) where all required tools and libraries are installed. This container can be configured, for example, as remote host in the CLion IDE, which automatically transfers the files via SSH to the Docker container (i.e., no manual mapping required).
+To facilitate the development, we also provide a Docker container (see [Dockerfile](docker/Dockerfile)) where all required tools and libraries are installed. This container can be configured, for example, as remote host in the CLion IDE, which automatically transfers the files via SSH to the Docker container (i.e., no manual mapping required).
 
 ### Building Blacksmith
 
