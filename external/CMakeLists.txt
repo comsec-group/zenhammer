@@ -1,5 +1,11 @@
 include(FetchContent)
 
+function(message)
+    if (NOT MESSAGE_QUIET)
+        _message(${ARGN})
+    endif()
+endfunction()
+
 # === ARGAGG ===================================================================
 
 # this is to silence the CMake warning "Policy CMP0048 is not set: project() command manages VERSION variables."
@@ -7,6 +13,7 @@ include(FetchContent)
 set(CMAKE_PROJECT_INCLUDE_BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/EnableCMP0048.cmake")
 
 message(STATUS "Fetching external dependency argagg")
+set(MESSAGE_QUIET ON)
 
 FetchContent_Declare(
         argagg
@@ -32,10 +39,12 @@ target_include_directories(
 unset(CMAKE_PROJECT_INCLUDE_BEFORE)
 
 message(STATUS "Fetching external dependency argagg -- done!")
+set(MESSAGE_QUIET OFF)
 
 # === ASMJIT ===================================================================
 
 message(STATUS "Fetching external dependency asmjit")
+set(MESSAGE_QUIET ON)
 
 FetchContent_Declare(
         asmjit
@@ -45,11 +54,13 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(asmjit)
 
+set(MESSAGE_QUIET OFF)
 message(STATUS "Fetching external dependency asmjit -- done!")
 
 # === NLOHMANN/JSON ============================================================
 
 message(STATUS "Fetching external dependency nlohmann/json")
+set(MESSAGE_QUIET ON)
 
 FetchContent_Declare(
         json
@@ -63,4 +74,5 @@ if (NOT json_POPULATED)
     add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif ()
 
+set(MESSAGE_QUIET OFF)
 message(STATUS "Fetching external dependency nlohmann/json -- done!")
