@@ -195,19 +195,6 @@ target_link_libraries(
         argagg
 )
 
-get_property(dirs1 TARGET blacksmith PROPERTY INCLUDE_DIRECTORIES)
-message(STATUS "blacksmith ${dirs1}")
-get_property(dirs1 TARGET blacksmith PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "blacksmith ${dirs1}")
-get_property(dirs1 TARGET bs PROPERTY INCLUDE_DIRECTORIES)
-message(STATUS "bs ${dirs1}")
-get_property(dirs1 TARGET bs PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "bs ${dirs1}")
-get_property(dirs1 TARGET asmjit PROPERTY INCLUDE_DIRECTORIES)
-message(STATUS "asmjit ${dirs1}")
-get_property(dirs1 TARGET asmjit PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "asmjit ${dirs1} ")
-
 # === CLEANUP ==================================================================
 
 unset(BLACKSMITH_ENABLE_JSON CACHE)
