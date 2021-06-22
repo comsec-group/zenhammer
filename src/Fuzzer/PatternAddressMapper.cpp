@@ -1,5 +1,7 @@
 #include "Fuzzer/PatternAddressMapper.hpp"
 
+#include <algorithm>
+
 #include "GlobalDefines.hpp"
 #include "Utilities/Uuid.hpp"
 #include "Utilities/Range.hpp"

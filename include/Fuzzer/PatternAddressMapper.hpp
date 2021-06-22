@@ -4,10 +4,10 @@
 #include <random>
 #include <set>
 #include <utility>
+#include <unordered_set>
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
-#include <unordered_set>
 #endif
 
 #include "Fuzzer/Aggressor.hpp"

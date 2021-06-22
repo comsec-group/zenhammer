@@ -223,7 +223,9 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
   }
 
   // parse the JSON file and extract HammeringPatterns matching any of the given IDs
+#ifdef ENABLE_JSON
   nlohmann::json json_file = nlohmann::json::parse(ifs);
+#endif
   std::vector<HammeringPattern> patterns;
 
   HammeringPattern best_pattern;
@@ -231,6 +233,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
 
   // this is for downwards-compatibility with the old JSON format where we just had a JSON array of HammeringPatterns,
   // i.e., without a separate 'metadata' section
+#ifdef ENABLE_JSON
   nlohmann::json patterns_array;
   patterns_array = json_file.contains("hammering_patterns") ? json_file["hammering_patterns"] : json_file;
 
@@ -278,6 +281,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
       }
     }
   }
+#endif
 
   return patterns;
 }

@@ -71,7 +71,9 @@ class DRAMAddr {
 
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 
+#ifdef ENABLE_JSON
   static nlohmann::json get_memcfg_json();
+#endif
 
   static uint64_t get_row_increment();
 };

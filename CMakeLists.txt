@@ -182,9 +182,10 @@ target_link_libraries(
         blacksmith
         PRIVATE
         bs
-        nlohmann_json::nlohmann_json
         argagg
 )
+
+# === CLEANUP ==================================================================
 
 unset(BLACKSMITH_ENABLE_JSON CACHE)
 unset(BLACKSMITH_ENABLE_JITTING CACHE)
