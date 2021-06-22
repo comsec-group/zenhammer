@@ -10,7 +10,7 @@
 #include "Memory/DRAMAddr.hpp"
 #include "Utilities/Logger.hpp"
 
-#include "../deps/argagg/include/argagg/argagg.hpp"
+#include <argagg/argagg.hpp>
 
 ProgramArguments program_args;
 
@@ -184,5 +184,3 @@ void handle_args(int argc, char **argv) {
     program_args.use_synchronization = parsed_args["sync"].as<bool>(true);
   }
 }
-
-

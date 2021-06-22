@@ -43,36 +43,47 @@ set(MESSAGE_QUIET OFF)
 
 # === ASMJIT ===================================================================
 
-message(STATUS "Fetching external dependency asmjit")
-set(MESSAGE_QUIET ON)
+if (BLACKSMITH_ENABLE_JITTING)
+    message(STATUS "Fetching external dependency asmjit")
+    set(MESSAGE_QUIET ON)
 
-FetchContent_Declare(
-        asmjit
-        GIT_REPOSITORY https://github.com/asmjit/asmjit.git
-        GIT_TAG 78de7d9c81a6ad1b0f732b52666960d9be1c6461
-)
+    FetchContent_Declare(
+            asmjit
+            GIT_REPOSITORY https://github.com/asmjit/asmjit.git
+            GIT_TAG 78de7d9c81a6ad1b0f732b52666960d9be1c6461
+    )
 
-FetchContent_MakeAvailable(asmjit)
+    FetchContent_MakeAvailable(asmjit)
 
-set(MESSAGE_QUIET OFF)
-message(STATUS "Fetching external dependency asmjit -- done!")
+
+    target_compile_features(
+            asmjit
+            PRIVATE
+            cxx_std_11
+    )
+
+    set(MESSAGE_QUIET OFF)
+    message(STATUS "Fetching external dependency asmjit -- done!")
+endif()
 
 # === NLOHMANN/JSON ============================================================
 
-message(STATUS "Fetching external dependency nlohmann/json")
-set(MESSAGE_QUIET ON)
+if (BLACKSMITH_ENABLE_JSON)
+    message(STATUS "Fetching external dependency nlohmann/json")
+    set(MESSAGE_QUIET ON)
 
-FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.9.1
-)
+    FetchContent_Declare(
+            json
+            GIT_REPOSITORY https://github.com/nlohmann/json.git
+            GIT_TAG v3.9.1
+    )
 
-FetchContent_GetProperties(json)
-if (NOT json_POPULATED)
-    FetchContent_Populate(json)
-    add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif ()
+    FetchContent_GetProperties(json)
+    if (NOT json_POPULATED)
+        FetchContent_Populate(json)
+        add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endif ()
 
-set(MESSAGE_QUIET OFF)
-message(STATUS "Fetching external dependency nlohmann/json -- done!")
+    set(MESSAGE_QUIET OFF)
+    message(STATUS "Fetching external dependency nlohmann/json -- done!")
+endif()

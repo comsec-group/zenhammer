@@ -1,12 +1,51 @@
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
-# === DEFINITIONS =============================================================
+# === OPTIONS ==================================================================
+
+set(
+        BLACKSMITH_ENABLE_JSON
+        ON
+        CACHE BOOL
+        "Use the nlohmann/json library to export JSON-formatted fuzzing data."
+        FORCE
+)
+
+set(
+        BLACKSMITH_ENABLE_JITTING
+        ON
+        CACHE BOOL
+        "Use the asmjit library to jit the hammering code."
+        FORCE
+)
+
+# TODO: sanitize before release!
+set(
+        BLACKSMITH_USE_SAMSUNG_PARAMS
+        OFF
+        CACHE BOOL
+        "Use debugging parameters specific to Samsung DIMMs."
+        FORCE
+)
+
+# TODO: sanitize before release!
+set(
+        BLACKSMITH_USE_DIMM_10_PARAMS
+        OFF
+        CACHE BOOL
+        "Use debugging parameters specific to DIMM 10 (Hyinx)."
+        FORCE
+)
+
+string(ASCII 27 ESC)
+
+# === DEFINITIONS ==============================================================
 
 set(GIT_COMMIT_HASH "NO_REPOSITORY")
 
 execute_process(
         COMMAND git status
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         RESULT_VARIABLE ret
         OUTPUT_QUIET
         ERROR_QUIET
@@ -56,17 +95,13 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(
-        libblacksmith
-        PRIVATE
-        asmjit
-        PUBLIC
-        nlohmann_json::nlohmann_json
-)
-
 # Note: PUBLIC to also force consumers (i.e., the blacksmith executable) to use
 # these features and options.
-target_compile_features(libblacksmith PUBLIC cxx_std_20)
+target_compile_features(
+        libblacksmith
+        PUBLIC
+        cxx_std_20
+)
 
 target_compile_options(
         libblacksmith
@@ -78,11 +113,56 @@ target_compile_options(
         -Wno-format-security
 )
 
-target_compile_definitions(
-        libblacksmith
-        PUBLIC
-        ENABLE_JSON
-)
+if (BLACKSMITH_ENABLE_JSON)
+    target_link_libraries(
+            libblacksmith
+            PUBLIC
+            nlohmann_json::nlohmann_json
+    )
+
+    target_compile_definitions(
+            libblacksmith
+            PUBLIC
+            ENABLE_JSON
+    )
+endif ()
+
+if (BLACKSMITH_ENABLE_JITTING)
+    target_link_libraries(
+            libblacksmith
+            PRIVATE
+            asmjit
+    )
+
+    target_compile_definitions(
+            libblacksmith
+            PUBLIC
+            ENABLE_JITTING
+    )
+endif ()
+
+# TODO: sanitize before release!
+if (BLACKSMITH_USE_SAMSUNG_PARAMS)
+    message("\n${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m")
+    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_SAMSUNG_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
+    message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
+    target_compile_definitions(
+            libblacksmith
+            PUBLIC
+            DEBUG_SAMSUNG
+    )
+endif ()
+
+if (BLACKSMITH_USE_DIMM_10_PARAMS)
+    message("\n${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m")
+    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_DIMM_10_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
+    message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
+    target_compile_definitions(
+            libblacksmith
+            PUBLIC
+            DEBUG_DIMM10
+    )
+endif ()
 
 # === BLACKSMITH ===============================================================
 
@@ -103,11 +183,16 @@ target_link_libraries(
         PRIVATE
         libblacksmith
         nlohmann_json::nlohmann_json
+        argagg
 )
 
 target_include_directories(
         blacksmith
         PRIVATE
         libblacksmith
-        argagg
 )
+
+unset(BLACKSMITH_ENABLE_JSON CACHE)
+unset(BLACKSMITH_ENABLE_JITTING CACHE)
+unset(BLACKSMITH_USE_SAMSUNG_PARAMS CACHE)
+unset(BLACKSMITH_USE_DIMM_10_PARAMS CACHE)
