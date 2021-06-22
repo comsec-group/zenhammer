@@ -83,9 +83,7 @@ DramAnalyzer::DramAnalyzer(volatile char *target) :
   std::random_device rd;
   gen = std::mt19937(rd());
   dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
-
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
-  std::vector<std::vector<uint64_t>>(NUM_BANKS, std::vector<uint64_t>());
 }
 
 std::vector<uint64_t> DramAnalyzer::get_bank_rank_functions() {
@@ -125,12 +123,14 @@ size_t DramAnalyzer::count_acts_per_ref() {
   (void)*b;
 
   auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, size_t num_numbers) {
-    size_t mean = running_sum/num_numbers;
-    uint64_t var = 0;
+    double mean = static_cast<double>(running_sum)/static_cast<double>(num_numbers);
+    double var = 0;
     for (const auto &num : values) {
-      var += static_cast<uint64_t>(std::pow(num - mean, 2));
+      if (static_cast<double>(num) < mean) continue;
+      var += std::pow(static_cast<double>(num) - mean, 2);
     }
-    return std::sqrt(var/num_numbers);
+    auto val = std::sqrt(var/static_cast<double>(num_numbers));
+    return val;
   };
 
   for (size_t i = 0;; i++) {
@@ -148,8 +148,8 @@ size_t DramAnalyzer::count_acts_per_ref() {
         uint64_t value = (count - count_old)*2;
         acts.push_back(value);
         running_sum += value;
-        // check after each 200 data points if our standard deviation reached 0 -> then stop collecting measurements
-        if ((acts.size()%200)==0 && compute_std(acts, running_sum, acts.size())==0) break;
+        // check after each 200 data points if our standard deviation reached 1 -> then stop collecting measurements
+        if ((acts.size()%200)==0 && compute_std(acts, running_sum, acts.size())<3.0) break;
       }
       count_old = count;
     }
