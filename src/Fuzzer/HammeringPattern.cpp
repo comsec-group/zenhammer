@@ -102,7 +102,7 @@ AggressorAccessPattern &HammeringPattern::get_access_pattern_by_aggressor(Aggres
 PatternAddressMapper &HammeringPattern::get_most_effective_mapping() {
   if (address_mappings.empty()) {
     Logger::log_error("get_most_effective_mapping() failed: No mappings existing!");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   PatternAddressMapper &best_mapping = address_mappings.front();
   for (const auto& mapping : address_mappings) {

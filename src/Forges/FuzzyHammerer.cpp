@@ -153,7 +153,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
           continue;
         Logger::log_info(format_string("Running pattern %s for address set %s.",
             pattern.instance_id.c_str(), mapper.get_instance_id().c_str()));
-        replaying_hammerer.load_parameters_from_pattern(pattern, mapper);
+        replaying_hammerer.derive_FuzzingParameterSet_values(pattern, mapper);
         probe_mapping_and_scan(mapper, memory, replaying_hammerer.params, true);
       }
 

@@ -25,7 +25,7 @@ void Logger::close() {
 void Logger::log_info(const std::string &message, bool newline) {
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {

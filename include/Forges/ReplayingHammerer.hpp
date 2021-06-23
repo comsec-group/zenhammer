@@ -54,17 +54,18 @@ class ReplayingHammerer {
                                                         const std::unordered_set<std::string> &pattern_ids);
 
   PatternAddressMapper &determine_most_effective_mapping(HammeringPattern &patt,
-                                                         bool optimize_hammering_num_reps);
+                                                         bool optimize_hammering_num_reps,
+                                                         bool offline_mode);
 
-  void run_refresh_alignment_experiment(PatternAddressMapper &mapper);
+  [[maybe_unused]] void run_refresh_alignment_experiment(PatternAddressMapper &mapper);
 
-  void run_code_jitting_probing(PatternAddressMapper &mapper);
+  [[maybe_unused]] void run_code_jitting_probing(PatternAddressMapper &mapper);
 
-  void find_indirect_effective_aggs(PatternAddressMapper &mapper,
+  [[maybe_unused]] void find_indirect_effective_aggs(PatternAddressMapper &mapper,
                                     const std::unordered_set<AggressorAccessPattern> &direct_effective_aaps,
                                     std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs);
 
-  void run_pattern_params_probing(PatternAddressMapper &mapper,
+  [[maybe_unused]] void run_pattern_params_probing(PatternAddressMapper &mapper,
                                   const std::unordered_set<AggressorAccessPattern> &direct_effective_aggs,
                                   std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs);
  public:
@@ -85,7 +86,7 @@ class ReplayingHammerer {
   void find_direct_effective_aggs(PatternAddressMapper &mapper,
                                   std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);
 
-  void load_parameters_from_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper);
+  void derive_FuzzingParameterSet_values(HammeringPattern &pattern, PatternAddressMapper &mapper);
 
   SweepSummary sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper, size_t num_reps,
                              size_t size_bytes);
@@ -99,6 +100,13 @@ class ReplayingHammerer {
 
 // the FuzzingParameterSet instance belonging to the
 FuzzingParameterSet params;
+
+  size_t hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter, HammeringPattern &pattern,
+                        PatternAddressMapper &mapper, FLUSHING_STRATEGY flushing_strategy,
+                        FENCING_STRATEGY fencing_strategy, unsigned long num_reps, int aggressors_for_sync,
+                        int num_activations, bool early_stopping, bool sync_each_ref, bool verbose_sync,
+                        bool verbose_memcheck, bool verbose_params, bool wait_before_hammering,
+                        bool check_flips_after_each_rep, std::vector<volatile char *> &hammering_accesses_vec);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
