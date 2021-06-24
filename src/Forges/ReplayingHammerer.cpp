@@ -409,7 +409,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
 
   // do sweep over 1x256 MiB of data and write summary into file
-  Logger::log_analysis_stage("Doing sweep over 1x256 MiB of data.");
+  Logger::log_analysis_stage(format_string("Doing sweep over 1x%d MiB of data.", SWEEP_MEM_SIZE));
   replay_patterns_brief({best_pattern}, SWEEP_MEM_SIZE, 1, true);
 
 //    // ==== Experiment: Does alignment with REF play a role?
