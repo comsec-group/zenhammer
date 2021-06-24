@@ -202,6 +202,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 
   std::stringstream ss;
 
+  std::vector<std::pair<size_t,size_t>> offset_bitflips;
   std::vector<volatile char *> random_rows = best_pattern_mapping.get_random_nonaccessed_rows(params.get_max_row_no());
   std::vector<volatile char *> exported_pattern;
   best_pattern_mapping.export_pattern(best_pattern.aggressors, params.get_base_period(), exported_pattern);
@@ -232,8 +233,9 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
         true,
         exported_pattern);
 
-    // check for bit flips
+
     ss << std::setfill('0') << std::setw(2) << cur_offset << ": " << num_bitflips << "\n";
+    offset_bitflips.emplace_back(cur_offset, num_bitflips);
 
     // update offset
     cur_offset = (cur_offset + 1) % params.get_num_activations_per_t_refi();
@@ -394,6 +396,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 
   // sampler size
   json_file["experiments"]["sampler_size"] = sampler_size;
+  json_file["experiments"]["offset_intensity"] = offset_bitflips;
 
   // write JSON file back to disk
   std::ofstream stream("fuzz-summary-extended.json");
