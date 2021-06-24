@@ -90,7 +90,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   const size_t REPEATABILITY_HAMMER_REPS = 10;
   const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
   const size_t DETERMINISM_HAMMER_REPS = 10;
-  const size_t SWEEP_MEM_SIZE = MB(8);
+//  const size_t SWEEP_MEM_SIZE = MB(8);
 
   // mapping from pattern ID to number of bit flips of the most effective mapping
   std::unordered_map<std::string, int> pattern_id_to_bitflips;
@@ -347,12 +347,17 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
         best_pattern_mapping.aggressor_to_addr[agg.id] = original_mappings[agg.id];
     } else {
       // otherwise: increment num_remapped_aggs and continue
-      num_remapped_aggs += best_pattern.agg_access_patterns.at(i).aggressors.size();
+      num_remapped_aggs += original_mappings.size();
     }
   }
 
   // collect stat: sampler size
-  size_t sampler_size = best_pattern.aggressors.size() - num_remapped_aggs;
+  Logger::log_info(format_string("best_pattern_mapping.aggressor_to_addr.size() = %ld", best_pattern_mapping.aggressor_to_addr.size()));
+  Logger::log_info(format_string("num_remapped_aggs = %ld", num_remapped_aggs));
+
+  size_t sampler_size = best_pattern_mapping.aggressor_to_addr.size() - num_remapped_aggs;
+
+  Logger::log_info(format_string("Detected sampler size: %d aggressors", sampler_size));
 
   // augment loaded fuzz summary by
   //  - repeatability_data  (struct as child of address mapping?)
@@ -409,8 +414,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
 
   // do sweep over 1x256 MiB of data and write summary into file
-  Logger::log_analysis_stage(format_string("Doing sweep over 1x%d MiB of data.", SWEEP_MEM_SIZE));
-  replay_patterns_brief({best_pattern}, SWEEP_MEM_SIZE, 1, true);
+//  Logger::log_analysis_stage(format_string("Doing sweep over 1x%d MiB of data.", SWEEP_MEM_SIZE/1024/1024));
+//  replay_patterns_brief({best_pattern}, SWEEP_MEM_SIZE, 1, true);
 
 //    // ==== Experiment: Does alignment with REF play a role?
 //
