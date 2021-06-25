@@ -41,7 +41,7 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
     Logger::log_data((*it).get_mapping_text_repr());
 
     size_t triggered_bitflips = 0;
-    if (offline_mode) {
+    if (!offline_mode) {
       // try the original location where this pattern initially triggered a bit flip to be sure we are trying a pattern
       // that actually works when replaying it
       Logger::log_info("Hammering pattern with mapping to see how effective it is.");
@@ -90,11 +90,12 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   const size_t REPEATABILITY_MEASUREMENTS = 15;   // FIXME: reset to 20
   const size_t REPEATABILITY_HAMMER_REPS = 10;
   const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
-  const size_t DETERMINISM_HAMMER_REPS = 10;
+  const size_t DETERMINISM_HAMMER_REPS = 5;
 //  const size_t SWEEP_MEM_SIZE = MB(8);
 
   // mapping from pattern ID to number of bit flips of the most effective mapping
   std::unordered_map<std::string, int> pattern_id_to_bitflips;
+  std::unordered_map<std::string, int> pattern_id_to_length;
 
   struct RepeatabilityData {
     std::string pattern_id;
@@ -114,6 +115,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     // extract the mapping that was most effective during the fuzzing run
     PatternAddressMapper &mapper = determine_most_effective_mapping(patt, true, true);
     pattern_id_to_bitflips.insert(std::make_pair(patt.instance_id, mapper.count_bitflips()));
+    pattern_id_to_length.insert(std::make_pair(patt.instance_id, patt.total_activations));
 
 #if 0
     // initialize the FuzzingParameterSet by extracting the data from the pattern and mapping
@@ -180,21 +182,44 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   }  //   for (auto &patt : loaded_patterns)
 
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // ::: DETERMINISM OF MITIGATION
+  // ::: BLIND SPOTS OF MITIGATION
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  Logger::log_analysis_stage("Determining determinism of mitigation.");
+  Logger::log_analysis_stage("Determining blind spots of mitigation.");
 
   // determine the best pattern's ID (only for that we are gonna do the sweep)
   std::vector<std::pair<std::string, int>> pattern_bitflips_sorted(
       pattern_id_to_bitflips.begin(), pattern_id_to_bitflips.end());
   std::sort(
       pattern_bitflips_sorted.begin(), pattern_bitflips_sorted.end(),
-      [](const auto& a, const auto& b) -> bool { return a.second < b.second; });
+      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
+//
+//  std::vector<std::pair<std::string, int>> pattern_length_sorted(
+//      pattern_id_to_length.begin(), pattern_id_to_length.end());
+//  std::sort(
+//      pattern_length_sorted.begin(), pattern_length_sorted.end(),
+//      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
+
+//  std::vector<std::pair<std::string, long>> ranks;
+//  long rank_bitflips = 1;
+//  for (const auto &[id, bitflips] : pattern_bitflips_sorted) {
+//    auto length = std::find(pattern_length_sorted.begin(), pattern_length_sorted.end(), id);
+//    auto rank_length = std::distance(pattern_length_sorted.begin(), length);
+//    ranks.emplace_back(id, rank_length + rank_bitflips);
+//    rank_bitflips++;
+//  }
+
+//  std::vector<std::pair<std::string, int>> ranks_sorted(
+//      ranks.begin(), ranks.end());
+//  std::sort(
+//      ranks.begin(), ranks.end(),
+//      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
+
+
 
   // Iterate over 5 best patterns.
   std::map<size_t, size_t> offset_flips_map;
 
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 1; ++i) {
     auto pattern_id = pattern_bitflips_sorted[i].first;
     auto pattern = *std::find_if(loaded_patterns.begin(), loaded_patterns.end(),
                                  [&pattern_id](HammeringPattern& hp) {
@@ -202,14 +227,17 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
                                  });
     auto mapping = pattern.get_most_effective_mapping();
 
+    derive_FuzzingParameterSet_values(pattern, mapping);
+
+
     Logger::log_info(format_string(
-        "Determining determinism for pattern %s/%s (%lu flips).",
+        "Determining blind spots for pattern %s/%s (%lu flips).",
         pattern.instance_id.c_str(), mapping.get_instance_id().c_str(),
         pattern_bitflips_sorted[i].second));
 
     // Determine which aggressors caused flips.
-    std::unordered_set<AggressorAccessPattern> effective_aggressors;
-    find_direct_effective_aggs(pattern, mapping, effective_aggressors);
+//    std::unordered_set<AggressorAccessPattern> effective_aggressors;
+//    find_direct_effective_aggs(pattern, mapping, effective_aggressors);
 
     //
     std::stringstream ss;
@@ -220,8 +248,9 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     mapping.export_pattern(pattern.aggressors, params.get_base_period(),
                            exported_pattern);
 
-    auto offset = effective_aggressors.begin()->start_offset;
-    for (auto k = params.get_total_acts_pattern(); k > 0; k--) {
+    auto offset = 0; //effective_aggressors.begin()->start_offset;
+    for (auto k = pattern.total_activations; k > 0; k--) {
+
       // shift offset by one
       std::rotate(exported_pattern.rbegin(), exported_pattern.rbegin() + 1,
                   exported_pattern.rend());
@@ -236,7 +265,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
           params, jitter, pattern, mapping, jitter.flushing_strategy,
           jitter.fencing_strategy, DETERMINISM_HAMMER_REPS,
           jitter.num_aggs_for_sync, jitter.total_activations, false,
-          jitter.pattern_sync_each_ref, false, false, false, false, true,
+          jitter.pattern_sync_each_ref, false, false, false, false, false,
           exported_pattern);
 
       ss << std::setfill('0') << std::setw(2) << offset << ": " << num_bitflips
@@ -250,6 +279,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 
       // update offset
       offset = (offset + 1) % params.get_total_acts_pattern();
+
+      Logger::log_info(format_string("Pattern %d, offset %d/%d, bitflips %d", i, params.get_total_acts_pattern()-k, params.get_total_acts_pattern(), num_bitflips));
     }
 
     Logger::log_info("Reporting 'offset: bitflips':");
