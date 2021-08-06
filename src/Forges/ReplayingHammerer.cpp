@@ -19,6 +19,7 @@ double ReplayingHammerer::last_reproducibility_score = 0;
 PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(HammeringPattern &patt,
                                                                           bool optimize_hammering_num_reps,
                                                                           bool offline_mode) {
+  Logger::log_debug("determine_most_effective_mapping called!");
 
   if (patt.address_mappings.empty()) {
     Logger::log_failure(
@@ -86,9 +87,13 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
 void ReplayingHammerer::replay_patterns(const std::string& json_filename,
                                         const std::unordered_set<std::string> &pattern_ids) {
 
-  const size_t REPEATABILITY_MAX_NUM_PATTERNS = 10;   // FIXME: reset to 10
-  const size_t REPEATABILITY_MEASUREMENTS = 15;   // FIXME: reset to 20
-  const size_t REPEATABILITY_HAMMER_REPS = 10;
+  const size_t REPEATABILITY_MAX_NUM_PATTERNS = 10;
+//  const size_t REPEATABILITY_MEASUREMENTS = 10;
+//  const size_t REPEATABILITY_HAMMER_REPS = 50;
+//
+  const size_t REPEATABILITY_MEASUREMENTS = 100;
+  const size_t REPEATABILITY_HAMMER_REPS = 50;
+
   const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
   const size_t DETERMINISM_HAMMER_REPS = 5;
 //  const size_t SWEEP_MEM_SIZE = MB(8);
@@ -112,13 +117,15 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 
   size_t processed_patterns = 0;
   for (auto &patt : loaded_patterns) {
+    Logger::log_debug("Calling determine_most_effective_mapping");
     // extract the mapping that was most effective during the fuzzing run
-    PatternAddressMapper &mapper = determine_most_effective_mapping(patt, true, true);
+    PatternAddressMapper &mapper = determine_most_effective_mapping(patt, false, true);
     pattern_id_to_bitflips.insert(std::make_pair(patt.instance_id, mapper.count_bitflips()));
     pattern_id_to_length.insert(std::make_pair(patt.instance_id, patt.total_activations));
 
-#if 0
+
     // initialize the FuzzingParameterSet by extracting the data from the pattern and mapping
+    Logger::log_debug("Calling derive_FuzzingParameterSet_values");
     derive_FuzzingParameterSet_values(patt, mapper);
 
     // log to inform user that we are now starting the analysis steps
@@ -135,6 +142,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     Logger::log_analysis_stage("Repeatability experiment");
+    Logger::log_info(format_string("REPEATABILITY_MEASUREMENTS: %d", REPEATABILITY_MEASUREMENTS));
+    Logger::log_info(format_string("REPEATABILITY_HAMMER_REPS: %d", REPEATABILITY_HAMMER_REPS));
 
     // do repeatability experiment to see how well repeatable bit flips are
     struct RepeatabilityData rep_data{
@@ -147,6 +156,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     size_t cnt_round = 0;
     std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(params.get_max_row_no());
 
+    Logger::log_data("ROUND\t#BIT_FLIPS");
+
     std::stringstream bitflips_per_round;
     while (cnt_round < REPEATABILITY_MEASUREMENTS) {
       // hammer the pattern
@@ -155,9 +166,11 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
           jitter.fencing_strategy, REPEATABILITY_HAMMER_REPS, jitter.num_aggs_for_sync,
           jitter.total_activations, false,
           jitter.pattern_sync_each_ref,
-          false, false, false,false, true);
+          false, false, false,false, false);
 
       bitflips_per_round << " " << num_bitflips;
+
+      Logger::log_data(format_string("%ld\t%lu", cnt_round, num_bitflips));
 
       // update the stats
       rep_data.bitflips_per_round.push_back(num_bitflips);
@@ -173,14 +186,50 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     Logger::log_info(format_string("Rounds with bitflips: %d/%d", rep_data.rounds_with_bitflips, rep_data.total_rounds));
     Logger::log_info(format_string("Bitflips per round: %s", bitflips_per_round.str().c_str()));
 
+    // open the JSON file
+    std::ifstream ifs(json_filename);
+    if (!ifs.is_open()) {
+      Logger::log_error(format_string("Could not open given file (%s).", json_filename.c_str()));
+      exit(EXIT_FAILURE);
+    }
+    nlohmann::json json_file = nlohmann::json::parse(ifs);
+
+    // find pattern in JSON file
+    for (auto &p : json_file["patterns"]) {
+      if (p["id"] != patt.instance_id)
+        continue;
+
+      // find mapping of pattern in JSON file
+      for (auto &m : p["address_mappings"]) {
+        if (m["id"] == mapper.get_instance_id()) {
+          // insert reproducibility score
+          m["reproducibility_score"] = static_cast<int>(
+              (static_cast<double>(rep_data.rounds_with_bitflips)/static_cast<double>(rep_data.total_rounds))*100);
+          break;
+        }
+      }
+
+      break;
+    }
+
+    // write back JSON file to disk and close ifs
+    std::ostringstream filename;
+    filename << "dimm" << program_args.dimm_id << "-fuzz-summary-extended.json";
+    std::ofstream stream(filename.str());
+    stream << json_file << std::endl;
+    stream.close();
+    ifs.close();
+
     // store information gathered during repeatability experiment
     repeatability_data.insert(std::make_pair(mapper.get_instance_id(), std::move(rep_data)));
 
     processed_patterns++;
     if (processed_patterns >= REPEATABILITY_MAX_NUM_PATTERNS) break;
-#endif
-  }  //   for (auto &patt : loaded_patterns)
 
+
+
+  }  //   for (auto &patt : loaded_patterns)
+#if 0
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
   // ::: BLIND SPOTS OF MITIGATION
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -499,6 +548,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 //
 //    run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
 //  }
+
+#endif
 }
 
 void ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
