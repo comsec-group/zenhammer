@@ -91,8 +91,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 //  const size_t REPEATABILITY_MEASUREMENTS = 10;
 //  const size_t REPEATABILITY_HAMMER_REPS = 50;
 //
-  const size_t REPEATABILITY_MEASUREMENTS = 100;
-  const size_t REPEATABILITY_HAMMER_REPS = 50;
+  const size_t REPEATABILITY_MEASUREMENTS = 1000;
+  const size_t REPEATABILITY_HAMMER_REPS = 100;
 
   const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
   const size_t DETERMINISM_HAMMER_REPS = 5;
