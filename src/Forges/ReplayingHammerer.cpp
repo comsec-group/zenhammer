@@ -147,8 +147,6 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     int cur_try = 0;
 
     Logger::log_analysis_stage("Repeatability experiment");
-    Logger::log_info(format_string("REPEATABILITY_MEASUREMENTS: %d", REPEATABILITY_MEASUREMENTS));
-    Logger::log_info(format_string("REPEATABILITY_HAMMER_REPS: %d", REPEATABILITY_HAMMER_REPS));
 
     // do repeatability experiment to see how well repeatable bit flips are
     struct RepeatabilityData rep_data{
