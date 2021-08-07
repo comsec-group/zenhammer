@@ -9,6 +9,7 @@
 
 #ifdef ENABLE_JSON
 #include <Blacksmith.hpp>
+#include <Utilities/TimeHelper.hpp>
 #endif
 
 #define M(VAL) (VAL##000000)
@@ -86,6 +87,7 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
 
 void ReplayingHammerer::replay_patterns(const std::string& json_filename,
                                         const std::unordered_set<std::string> &pattern_ids) {
+  const auto start_ts = get_timestamp_sec();
 
   const size_t REPEATABILITY_MAX_NUM_PATTERNS = 10;
   const size_t REPEATABILITY_MEASUREMENTS = 1000;
@@ -102,8 +104,10 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   struct RepeatabilityData {
     std::string pattern_id;
     std::string mapping_id;
-    int total_rounds{};
-    int rounds_with_bitflips{};
+    int total_tries{};
+    size_t total_time_ms;
+    std::vector<size_t> retries_per_round;
+    std::vector<size_t> time_per_round_ms;
     std::vector<size_t> bitflips_per_round;
   };
   // mapping from mapping ID to repeatability data
@@ -120,7 +124,6 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     pattern_id_to_bitflips.insert(std::make_pair(patt.instance_id, mapper.count_bitflips()));
     pattern_id_to_length.insert(std::make_pair(patt.instance_id, patt.total_activations));
 
-
     // initialize the FuzzingParameterSet by extracting the data from the pattern and mapping
     Logger::log_debug("Calling derive_FuzzingParameterSet_values");
     derive_FuzzingParameterSet_values(patt, mapper);
@@ -130,13 +133,18 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
         format_string("Analyzing pattern %s using mapping %s:",
             patt.instance_id.c_str(),
             mapper.get_instance_id().c_str()));
-//    Logger::log_data(mapper.get_mapping_text_repr());
-//    params.print_static_parameters();
-//    params.print_semi_dynamic_parameters();
 
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-    // ::: REPEATABILITY
+    // ::: REPRODUCIBILITY
+    // ::: In this experiment we determine how long it takes to retrigger bit flips for a given pattern 10 times.
+    // ::: We report how often we needed to retry the pattern and how long it takes to trigger them on average (time).
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    const size_t ROUNDS_WITH_BITFLIPS_GOAL = 10;
+    size_t rounds_with_bitflips = 0;
+
+    const int MAX_RETRIES = 1000;
+    int cur_try = 0;
 
     Logger::log_analysis_stage("Repeatability experiment");
     Logger::log_info(format_string("REPEATABILITY_MEASUREMENTS: %d", REPEATABILITY_MEASUREMENTS));
@@ -146,76 +154,75 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     struct RepeatabilityData rep_data{
       .pattern_id = patt.instance_id,
       .mapping_id = mapper.get_instance_id(),
-      .total_rounds = 0,
-      .rounds_with_bitflips = 0,
+      .total_tries = 0,
+      .total_time_ms = 0,
+      .retries_per_round = std::vector<size_t>(),
+      .time_per_round_ms = std::vector<size_t>(),
       .bitflips_per_round = std::vector<size_t>()
     };
-    size_t cnt_round = 0;
+
     std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(params.get_max_row_no());
 
-    Logger::log_data("ROUND\t#BIT_FLIPS");
+    Logger::log_data("ROUND\tTRY\t#BIT_FLIPS");
+    while (rounds_with_bitflips++ < ROUNDS_WITH_BITFLIPS_GOAL) {
 
-    std::stringstream bitflips_per_round;
-    while (cnt_round < REPEATABILITY_MEASUREMENTS) {
-      // hammer the pattern
-      CodeJitter &jitter = mapper.get_code_jitter();
-      auto num_bitflips = hammer_pattern(params, jitter, patt, mapper, jitter.flushing_strategy,
-          jitter.fencing_strategy, REPEATABILITY_HAMMER_REPS, jitter.num_aggs_for_sync,
-          jitter.total_activations, false,
-          jitter.pattern_sync_each_ref,
-          false, false, false,false, false);
+      bool success = false;
+      int64_t time_start_us = get_timestamp_us();
 
-      bitflips_per_round << " " << num_bitflips;
+      cur_try = 0;
+      while (cur_try++ < MAX_RETRIES && !success) {
+        // hammer the pattern
+        CodeJitter &jitter = mapper.get_code_jitter();
+        auto num_bitflips = hammer_pattern(params,jitter,patt,mapper, jitter.flushing_strategy,
+            jitter.fencing_strategy, 1, jitter.num_aggs_for_sync, jitter.total_activations,
+            false, jitter.pattern_sync_each_ref, false, false, false,
+            false,false);
 
-      Logger::log_data(format_string("%ld\t%lu", cnt_round, num_bitflips));
+        success = (num_bitflips > 0);
+        Logger::log_data(format_string("%ld\t%ld\t%lu", rounds_with_bitflips, cur_try, num_bitflips));
 
-      // update the stats
-      rep_data.bitflips_per_round.push_back(num_bitflips);
-      rep_data.rounds_with_bitflips += static_cast<int>((num_bitflips > 0));
-      rep_data.total_rounds++;
+        if (success || cur_try == MAX_RETRIES) {
+          int64_t elapsed_time_us = get_timestamp_us() - time_start_us;
 
-      // wait a bit and do some random accesses meanwhile to clear the sampler's state
-      FuzzyHammerer::do_random_accesses(random_rows, 64000);
+          rep_data.total_tries += cur_try;
+          rep_data.total_time_ms += elapsed_time_us;
 
-      cnt_round++;
-    }
+          rep_data.retries_per_round.push_back(cur_try);
+          rep_data.time_per_round_ms.push_back(elapsed_time_us);
+          rep_data.bitflips_per_round.push_back(num_bitflips);
 
-    Logger::log_info(format_string("Rounds with bitflips: %d/%d", rep_data.rounds_with_bitflips, rep_data.total_rounds));
-    Logger::log_info(format_string("Bitflips per round: %s", bitflips_per_round.str().c_str()));
-
-    // open the JSON file
-    std::ifstream ifs(json_filename);
-    if (!ifs.is_open()) {
-      Logger::log_error(format_string("Could not open given file (%s).", json_filename.c_str()));
-      exit(EXIT_FAILURE);
-    }
-    nlohmann::json json_file = nlohmann::json::parse(ifs);
-
-    // find pattern in JSON file
-    for (auto &p : json_file["hammering_patterns"]) {
-      if (p["id"] != patt.instance_id)
-        continue;
-
-      // find mapping of pattern in JSON file
-      for (auto &m : p["address_mappings"]) {
-        if (m["id"] == mapper.get_instance_id()) {
-          // insert reproducibility score
-          m["reproducibility_score"] = static_cast<double>(
-              (static_cast<double>(rep_data.rounds_with_bitflips)/static_cast<double>(rep_data.total_rounds))*100);
           break;
         }
-      }
 
-      break;
+        // wait a bit and do some random accesses meanwhile to clear the sampler's state
+        FuzzyHammerer::do_random_accesses(random_rows, 64000);
+      }
     }
+
 #ifdef ENABLE_JSON
+    nlohmann::json meta;
+    meta["start"] = start_ts;
+    meta["end"] = get_timestamp_sec();
+    meta["memory_config"] = DRAMAddr::get_memcfg_json();
+    meta["dimm_id"] = program_args.dimm_id;
+
+    nlohmann::json experiment;
+    experiment["pattern_id"] = rep_data.pattern_id;
+    experiment["mapping_id"] = rep_data.mapping_id;
+    experiment["total_tries"] = rep_data.total_tries;
+    experiment["total_time_ms"] = rep_data.total_time_ms;
+    experiment["retries_per_round"] = rep_data.retries_per_round;
+    experiment["time_per_round_ms"] = rep_data.time_per_round_ms;
+    experiment["bitflips_per_round"] = rep_data.bitflips_per_round;
+
+    nlohmann::json root;
+    root["metadata"] = meta;
+    root["reproducibility"] = experiment;
+
     // write back JSON file to disk and close ifs
-    std::ostringstream filename;
-    filename << "dimm" << program_args.dimm_id << "-fuzz-summary-extended.json";
-    std::ofstream stream(filename.str());
-    stream << json_file << std::endl;
+    std::ofstream stream("reproducibility-experiment.json");
+    stream << root << std::endl;
     stream.close();
-    ifs.close();
 #endif
 
     // store information gathered during repeatability experiment
