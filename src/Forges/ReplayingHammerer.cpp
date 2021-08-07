@@ -195,7 +195,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
         // wait a bit before retrying
         const auto start = get_timestamp_us();
         auto current = get_timestamp_us();
-        const auto wait_limit = Range<int>(0, 64000).get_random_number(gen);
+        const auto wait_limit = Range<int>(0, 1000).get_random_number(gen);
         while (current-start < wait_limit) {
           // random workload
           current = get_timestamp_us();
