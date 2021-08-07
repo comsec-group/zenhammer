@@ -88,14 +88,11 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
                                         const std::unordered_set<std::string> &pattern_ids) {
 
   const size_t REPEATABILITY_MAX_NUM_PATTERNS = 10;
-//  const size_t REPEATABILITY_MEASUREMENTS = 10;
-//  const size_t REPEATABILITY_HAMMER_REPS = 50;
-//
   const size_t REPEATABILITY_MEASUREMENTS = 1000;
   const size_t REPEATABILITY_HAMMER_REPS = 100;
 
-  const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
-  const size_t DETERMINISM_HAMMER_REPS = 5;
+//  const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
+//  const size_t DETERMINISM_HAMMER_REPS = 5;
 //  const size_t SWEEP_MEM_SIZE = MB(8);
 
   // mapping from pattern ID to number of bit flips of the most effective mapping
@@ -211,7 +208,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 
       break;
     }
-
+#ifdef ENABLE_JSON
     // write back JSON file to disk and close ifs
     std::ostringstream filename;
     filename << "dimm" << program_args.dimm_id << "-fuzz-summary-extended.json";
@@ -219,6 +216,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     stream << json_file << std::endl;
     stream.close();
     ifs.close();
+#endif
 
     // store information gathered during repeatability experiment
     repeatability_data.insert(std::make_pair(mapper.get_instance_id(), std::move(rep_data)));
