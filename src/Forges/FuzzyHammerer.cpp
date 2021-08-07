@@ -16,6 +16,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   Logger::log_info(
       format_string("Starting frequency-based fuzzer run with time limit of %l minutes.", runtime_limit/60));
 
+  // make sure that this is empty (e.g., from previous call to this function)
   map_pattern_mappings_bitflips.clear();
 
   FuzzingParameterSet fuzzing_params(acts);
@@ -119,25 +120,37 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     Logger::log_info("Checking reproducibility of bit flips.");
   }
 
-  Logger::log_info("Choosing a subset of max. 5 patterns for the reproducibility check to reduce compute time.");
+
   // checking reproducibility for all found patterns takes too long on DIMMs with many patterns, therefore we limit the
-  // reproducibility check to the top-5 patterns we found (top-5 = the 5 patterns that triggered the most bit flips)
-  std::map<size_t, HammeringPattern, std::greater<>> best_patterns;
+  // reproducibility check to the top-k patterns we found (top-k: the k patterns that triggered the most bit flips)
+  const size_t MAX_NUM_PATTERNS_REPRODUCIBILITY = 5;
+  Logger::log_info(format_string(
+      "Choosing a subset of max. %lu patterns for the reproducibility check to reduce compute time.",
+      MAX_NUM_PATTERNS_REPRODUCIBILITY));
+
+  // we need a std::vector as value because there might be multiple patterns with the same number of triggered bit flips
+  // we use std::greater to automatically sort the map as we are interested in the k best patterns
+  std::map<size_t, std::vector<HammeringPattern>, std::greater<>> best_patterns;
   std::unordered_set<std::string> patterns_for_reproducibility_check;
   for (auto &pattern : effective_patterns) {
     size_t total_bitflips = 0;
     for (const auto& mapper : pattern.address_mappings) {
       total_bitflips += mapper.bit_flips.size();
     }
-    best_patterns[total_bitflips] = pattern;
+    best_patterns[total_bitflips].push_back(pattern);
   }
+
   size_t cnt = 0;
   for (auto &entry : best_patterns) {
-    Logger::log_info(format_string("Pick %d: Pattern %s triggered %d bit flips.",
-        cnt, entry.second.instance_id.c_str(), entry.first));
-    patterns_for_reproducibility_check.insert(entry.second.instance_id);
-    cnt++;
-    if (cnt == 5) break;
+    for (auto &pattern : entry.second) {
+      Logger::log_info(
+          format_string("Pick %d: Pattern %s triggered %d bit flips.",
+              cnt, pattern.instance_id.c_str(), entry.first));
+      patterns_for_reproducibility_check.insert(pattern.instance_id);
+      cnt++;
+      if (cnt == MAX_NUM_PATTERNS_REPRODUCIBILITY)
+        break;
+    }
   }
 
   for (auto &pattern : effective_patterns) {
