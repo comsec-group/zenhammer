@@ -105,9 +105,9 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     std::string pattern_id;
     std::string mapping_id;
     int total_tries{};
-    size_t total_time_ms;
+    size_t total_time_us;
     std::vector<size_t> retries_per_round;
-    std::vector<size_t> time_per_round_ms;
+    std::vector<size_t> time_per_round_us;
     std::vector<size_t> bitflips_per_round;
   };
   // mapping from mapping ID to repeatability data
@@ -153,9 +153,9 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
       .pattern_id = patt.instance_id,
       .mapping_id = mapper.get_instance_id(),
       .total_tries = 0,
-      .total_time_ms = 0,
+      .total_time_us = 0,
       .retries_per_round = std::vector<size_t>(),
-      .time_per_round_ms = std::vector<size_t>(),
+      .time_per_round_us = std::vector<size_t>(),
       .bitflips_per_round = std::vector<size_t>()
     };
 
@@ -183,10 +183,10 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
           int64_t elapsed_time_us = get_timestamp_us() - time_start_us;
 
           rep_data.total_tries += cur_try;
-          rep_data.total_time_ms += elapsed_time_us;
+          rep_data.total_time_us += elapsed_time_us;
 
           rep_data.retries_per_round.push_back(cur_try);
-          rep_data.time_per_round_ms.push_back(elapsed_time_us);
+          rep_data.time_per_round_us.push_back(elapsed_time_us);
           rep_data.bitflips_per_round.push_back(num_bitflips);
 
           break;
@@ -214,9 +214,9 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     experiment["pattern_id"] = rep_data.pattern_id;
     experiment["mapping_id"] = rep_data.mapping_id;
     experiment["total_tries"] = rep_data.total_tries;
-    experiment["total_time_ms"] = rep_data.total_time_ms;
+    experiment["total_time_us"] = rep_data.total_time_us;
     experiment["retries_per_round"] = rep_data.retries_per_round;
-    experiment["time_per_round_ms"] = rep_data.time_per_round_ms;
+    experiment["time_per_round_us"] = rep_data.time_per_round_us;
     experiment["bitflips_per_round"] = rep_data.bitflips_per_round;
 
     nlohmann::json root;
