@@ -176,7 +176,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
         auto num_bitflips = hammer_pattern(params,jitter,patt,mapper, jitter.flushing_strategy,
             jitter.fencing_strategy, 1, jitter.num_aggs_for_sync, jitter.total_activations,
             false, jitter.pattern_sync_each_ref, false, false, false,
-            false,false);
+            false,true);
 
         success = (num_bitflips > 0);
         Logger::log_data(format_string("%ld\t%ld\t%lu", rounds_with_bitflips, cur_try, num_bitflips));
@@ -194,8 +194,14 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
           break;
         }
 
-        // wait a bit and do some random accesses meanwhile to clear the sampler's state
-        FuzzyHammerer::do_random_accesses(random_rows, 64000);
+        // wait a bit before retrying
+        const auto start = get_timestamp_us();
+        auto current = get_timestamp_us();
+        const auto wait_limit = Range<int>(0, 64000).get_random_number(gen);
+        while (current-start < wait_limit) {
+          // random workload
+          current = get_timestamp_us();
+        }
       }
     }
 
