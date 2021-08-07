@@ -192,7 +192,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     nlohmann::json json_file = nlohmann::json::parse(ifs);
 
     // find pattern in JSON file
-    for (auto &p : json_file["patterns"]) {
+    for (auto &p : json_file["hammering_patterns"]) {
       if (p["id"] != patt.instance_id)
         continue;
 
@@ -200,7 +200,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
       for (auto &m : p["address_mappings"]) {
         if (m["id"] == mapper.get_instance_id()) {
           // insert reproducibility score
-          m["reproducibility_score"] = static_cast<int>(
+          m["reproducibility_score"] = static_cast<double>(
               (static_cast<double>(rep_data.rounds_with_bitflips)/static_cast<double>(rep_data.total_rounds))*100);
           break;
         }
