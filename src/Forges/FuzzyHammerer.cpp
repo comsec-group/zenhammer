@@ -291,7 +291,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
   int num_aggs_for_sync = fuzzing_params.get_random_num_aggressors_for_sync();
   Logger::log_info("Creating ASM code for hammering.");
   code_jitter.jit_strict(fuzzing_params.get_num_activations_per_t_refi(),
-      FLUSHING_STRATEGY::EARLIEST_POSSIBLE, FENCING_STRATEGY::LATEST_POSSIBLE,
+      fuzzing_params.flushing_strategy, fuzzing_params.fencing_strategy,
       hammering_accesses_vec, sync_at_each_ref, num_aggs_for_sync,
       fuzzing_params.get_hammering_total_num_activations());
 

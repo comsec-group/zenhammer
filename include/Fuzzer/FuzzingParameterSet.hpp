@@ -48,10 +48,6 @@ class FuzzingParameterSet {
 
   Range<int> wait_until_start_hammering_refs;
 
-  FLUSHING_STRATEGY flushing_strategy;
-
-  FENCING_STRATEGY fencing_strategy;
-
   std::discrete_distribution<int> N_sided_probabilities;
 
   [[nodiscard]] std::string get_dist_string() const;
@@ -62,6 +58,10 @@ class FuzzingParameterSet {
   FuzzingParameterSet() = default;
 
   explicit FuzzingParameterSet(int measured_num_acts_per_ref);
+
+  FLUSHING_STRATEGY flushing_strategy;
+
+  FENCING_STRATEGY fencing_strategy;
 
   [[maybe_unused]] int get_random_bank_no();
 
