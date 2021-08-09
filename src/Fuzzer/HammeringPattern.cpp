@@ -58,7 +58,7 @@ int HammeringPattern::get_num_digits(size_t x) {
              (x < 100000 ? 5 :
               (x < 1000000 ? 6 :
                (x < 10000000 ? 7 :
-                (x < 100000000 ? 8 :
+              (x < 100000000 ? 8 :
                  (x < 1000000000 ? 9 : 10)))))))));
 }
 
@@ -106,7 +106,7 @@ PatternAddressMapper &HammeringPattern::get_most_effective_mapping() {
   }
   PatternAddressMapper &best_mapping = address_mappings.front();
   for (const auto& mapping : address_mappings) {
-    if (mapping.bit_flips.size() > best_mapping.bit_flips.size()) {
+    if (mapping.count_bitflips() > best_mapping.count_bitflips()) {
       best_mapping = mapping;
     }
   }

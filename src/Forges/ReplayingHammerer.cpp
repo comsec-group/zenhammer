@@ -90,8 +90,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
   const auto start_ts = get_timestamp_sec();
 
   const size_t REPEATABILITY_MAX_NUM_PATTERNS = 10;
-  const size_t REPEATABILITY_MEASUREMENTS = 1000;
-  const size_t REPEATABILITY_HAMMER_REPS = 100;
+//  const size_t REPEATABILITY_MEASUREMENTS = 1000;
+//  const size_t REPEATABILITY_HAMMER_REPS = 100;
 
 //  const size_t LOCDEPENDENCE_HAMMER_REPS = 10;
 //  const size_t DETERMINISM_HAMMER_REPS = 5;
@@ -568,8 +568,10 @@ void ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
   replay_patterns_brief(patterns, sweep_bytes, 1, running_on_original_dimm);
 }
 
-void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns, size_t sweep_bytes,
-                                              size_t num_locations, bool running_on_original_dimm = false) {
+void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns,
+                                              size_t sweep_bytes,
+                                              size_t num_locations,
+                                              bool running_on_original_dimm = false) {
 #ifdef ENABLE_JSON
   nlohmann::json runs;
   auto start = std::chrono::system_clock::now();
@@ -777,7 +779,7 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
   for (; num_tries <= num_reps; num_tries++) {
     // TODO: Analyze using Hynix whether this waiting really makes sense, otherwise remove it
     // wait a specific time while doing some random accesses before starting hammering
-    auto wait_until_hammering_us = fuzz_params.get_random_wait_until_start_hammering_microseconds();
+    auto wait_until_hammering_us = fuzz_params.get_random_wait_until_start_hammering_us();
 
     if (verbose_params) {
       FuzzingParameterSet::print_dynamic_parameters2(sync_each_ref, wait_until_hammering_us, aggressors_for_sync);
@@ -833,8 +835,8 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
   auto max_address = (__uint64_t) mem.get_starting_address() + size_bytes;
   auto row_end = DRAMAddr((void *) max_address).row;
   auto num_rows = row_end - row_start;
-  Logger::log_info(format_string("Sweeping pattern over %d MB, equiv. to %d rows, with each %d repetitions.",
-      size_bytes/1024/1024, num_rows, num_reps));
+  Logger::log_info(format_string("Sweeping pattern %s with mapping %s over %d MB, equiv. to %d rows, with each %d repetitions.",
+      pattern.instance_id.c_str(), mapper.get_instance_id().c_str(), size_bytes/1024/1024, num_rows, num_reps));
 
   auto init_ss = [](std::stringstream &stringstream) {
     stringstream.str("");
@@ -873,7 +875,7 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
     Logger::log_data(ss.str());
   }
 
-  Logger::log_info("Printing summary of sweeping pattern.");
+  Logger::log_info("Summary of sweeping pattern:");
   Logger::log_data(format_string("Total corruptions: %ld", total_bit_flips_sweeping));
   size_t z2o_corruptions = 0;
   size_t o2z_corruptions = 0;
@@ -963,7 +965,8 @@ void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
   // prerequisite: know which aggressor pair triggered a bit flip
   // get all flipped rows
   std::set<int> flipped_rows;
-  for (const auto &bf : mapper.bit_flips) flipped_rows.insert(static_cast<int>(bf.address.row));
+  if (mapper.bit_flips.size() == 0) return;
+  for (const auto &bf : mapper.bit_flips.at(0)) flipped_rows.insert(static_cast<int>(bf.address.row));
 
   // map to keep track of best guess which AggressorAccessPattern caused a bit flip.
   // maps (aggressor ID) to (distance, AggressorAccessPattern)

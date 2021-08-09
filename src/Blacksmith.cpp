@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     }
   } else if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, static_cast<int>(program_args.acts_per_ref), program_args.runtime_limit,
-        program_args.probes_per_pattern, program_args.sweeping);
+        program_args.num_address_mappings_per_pattern, program_args.sweeping);
   } else if (!program_args.do_fuzzing) {
 //    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
 //    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
@@ -156,8 +156,8 @@ void handle_args(int argc, char **argv) {
   program_args.acts_per_ref = parsed_args["acts-per-ref"].as<size_t>(program_args.acts_per_ref);
   Logger::log_debug(format_string("Set --acts-per-ref=%d", program_args.acts_per_ref));
 
-  program_args.probes_per_pattern = parsed_args["probes"].as<size_t>(program_args.probes_per_pattern);
-  Logger::log_debug(format_string("Set --probes=%d", program_args.probes_per_pattern));
+  program_args.num_address_mappings_per_pattern = parsed_args["probes"].as<size_t>(program_args.num_address_mappings_per_pattern);
+  Logger::log_debug(format_string("Set --probes=%d", program_args.num_address_mappings_per_pattern));
 
   /**
    * program modes
@@ -166,7 +166,7 @@ void handle_args(int argc, char **argv) {
     auto num_activations = parsed_args["generate-patterns"].as<int>(84);
     // this must happen AFTER probes-per-pattern has been parsed
     // note: the following method call does not return anymore
-    handle_arg_generate_patterns(num_activations, program_args.probes_per_pattern);
+    handle_arg_generate_patterns(num_activations, program_args.num_address_mappings_per_pattern);
   } else if (parsed_args.has_option("load-json")) {
     program_args.load_json_filename = parsed_args["load-json"].as<std::string>("");
     if (parsed_args.has_option("replay-patterns")) {

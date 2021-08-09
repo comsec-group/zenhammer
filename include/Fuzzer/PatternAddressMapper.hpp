@@ -56,7 +56,7 @@ class PatternAddressMapper {
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
 
   // the bit flips that were detected while running the pattern with this mapping
-  std::vector<BitFlip> bit_flips;
+  std::vector<std::vector<BitFlip>> bit_flips;
 
   // the reproducibility score of this mapping, e.g.,
   //    1   => 100%: was reproducible in all reproducibility runs executed,

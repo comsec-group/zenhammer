@@ -17,8 +17,10 @@ struct ProgramArguments {
   std::string load_json_filename;
   // the IDs of the patterns to be loaded from a given JSON file
   std::unordered_set<std::string> pattern_ids{};
-  // total number of (different) locations (i.e., Aggressor ID -> DRAM rows mapping) where we try a pattern
-  size_t probes_per_pattern = NUM_BANKS/4;
+  // total number of mappings (i.e., Aggressor ID -> DRAM rows mapping) to try for a pattern
+  size_t num_address_mappings_per_pattern = 3;
+  // number of DRAM locations we use to check a (pattern, address mapping)'s effectiveness
+  size_t num_dram_locations_per_mapping = 3;
   // whether to sweep the 'best pattern' that was found during fuzzing afterward over a contiguous chunk of memory
   bool sweeping = false;
   // the ID of the DIMM that is currently inserted

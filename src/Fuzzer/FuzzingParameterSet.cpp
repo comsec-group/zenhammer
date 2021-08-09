@@ -125,7 +125,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
 
-#elseif DEBUG_DIMM10
+#else
+#if DEBUG_DIMM10
 
   num_activations_per_tREFI = 94;
 
@@ -199,6 +200,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // == fix values/formulas that must be configured before running this program ======
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
+//  agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
+  // FIXME Hacky solution at the moment implemented in get_agg_intra_distance()
   agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
@@ -248,7 +251,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
 
 #endif
-
+#endif
   if (print) print_semi_dynamic_parameters();
 }
 
@@ -307,8 +310,10 @@ int FuzzingParameterSet::get_num_base_periods() const {
   return (int)(get_total_acts_pattern()/(size_t)get_base_period());
 }
 
-int FuzzingParameterSet::get_agg_intra_distance() const {
-  return agg_intra_distance;
+int FuzzingParameterSet::get_agg_intra_distance() {
+//  return agg_intra_distance;
+// pick 2 with 66% and pick 1 with 33%
+  return Range<int>(1, 3).get_random_number(gen) > 1 ? 2: 1;
 }
 
 int FuzzingParameterSet::get_agg_inter_distance() const {
@@ -319,9 +324,9 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
   return Range<>(amplitude.min, std::min(amplitude.max, max)).get_random_number(gen);
 }
 
-int FuzzingParameterSet::get_random_wait_until_start_hammering_microseconds() {
+int FuzzingParameterSet::get_random_wait_until_start_hammering_us() {
   // each REF interval has a length of 7.8 us, for simplicity we assume 8 us
-  return wait_until_start_hammering_refs.get_random_number(gen);
+  return wait_until_start_hammering_refs.get_random_number(gen) * 8;
 }
 
 bool FuzzingParameterSet::get_random_sync_each_ref() {

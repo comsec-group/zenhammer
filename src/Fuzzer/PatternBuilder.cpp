@@ -66,12 +66,15 @@ void PatternBuilder::fill_slots(const size_t start_period,
   }
 }
 
-void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors) {
+void PatternBuilder::get_n_aggressors(size_t N, std::vector<Aggressor> &aggs) {
   // clean any existing aggressor in the given vector
   aggs.clear();
 
-  // increment the ID cyclically until we added N aggressors
-  for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1)%max_num_aggressors)) {
+  // increment the aggressor ID cyclically, up to max_num_aggressors
+//  for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1)%max_num_aggressors)) {
+
+  // increment the aggressor ID so that all aggressors in the abstract pattern are unique
+  for (size_t added_aggs = 0; added_aggs < N; aggressor_id_counter = ((aggressor_id_counter + 1))) {
     aggs.emplace_back(aggressor_id_counter);
     added_aggs++;
   }
@@ -170,7 +173,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
         num_aggressors = ((next_prefilled_idx - k)==1) ? 1 : params.get_random_N_sided(next_prefilled_idx - k);
         cur_amplitude = params.get_random_amplitude((int) std::floor((next_prefilled_idx - k)/num_aggressors));
       }
-      get_n_aggressors(num_aggressors, aggressors, params.get_num_aggressors());
+      get_n_aggressors(num_aggressors, aggressors);
 
       pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, k);
       fill_slots(k, cur_period, cur_amplitude, aggressors, pattern.aggressors, pattern_length);
@@ -196,7 +199,7 @@ void PatternBuilder::generate_frequency_based_pattern(FuzzingParameterSet &param
       auto cur_m2 = cur_multiplicators.at(get_random_gaussian(cur_multiplicators));
       remove_smaller_than(cur_multiplicators, cur_m2);
       cur_period = base_period*cur_m2;
-      get_n_aggressors(num_aggressors, aggressors, params.get_num_aggressors());
+      get_n_aggressors(num_aggressors, aggressors);
       pattern.agg_access_patterns.emplace_back(cur_period, cur_amplitude, aggressors, next_slot);
       fill_slots(static_cast<size_t>(next_slot), cur_period, cur_amplitude, aggressors, pattern.aggressors, pattern_length);
     }

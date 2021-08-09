@@ -75,7 +75,7 @@ class FuzzingParameterSet {
 
   [[nodiscard]] int get_base_period() const;
 
-  [[nodiscard]] int get_agg_intra_distance() const;
+  [[nodiscard]] int get_agg_intra_distance();
 
   [[nodiscard]] int get_agg_inter_distance() const;
 
@@ -99,7 +99,7 @@ class FuzzingParameterSet {
 
   int get_random_num_aggressors_for_sync();
 
-  int get_random_wait_until_start_hammering_microseconds();
+  int get_random_wait_until_start_hammering_us();
 
   [[nodiscard]] int get_num_refresh_intervals() const;
 

@@ -43,17 +43,50 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   size_t row;
   int assignment_trial_cnt = 0;
 
+  size_t total_abstract_aggs = 0;
+  for (auto &acc_pattern : agg_access_patterns) total_abstract_aggs += acc_pattern.aggressors.size();
+  Logger::log_info(format_string("[PatternAddressMapper] Target no. of DRAM rows = %d",
+      fuzzing_params.get_num_aggressors()));
+  Logger::log_info(format_string("[PatternAddressMapper] Aggressors in AggressorAccessPattern = %d",
+      total_abstract_aggs));
+
   // probability to map aggressor to same row as another aggressor is already mapped to
-  const auto prob = 4; // 100 mod prob = X% (e.g., 100 mod 2 = 50%)
+  const int prob2 = 100 - (
+      static_cast<int>(
+          std::min(static_cast<double>(fuzzing_params.get_num_aggressors())/static_cast<double>(total_abstract_aggs),1.0)*100));
+  Logger::log_info(format_string("[PatternAddressMapper] Probability to map multiple AAPs to same DRAM row = %d", prob2));
+
+  std::random_device device;
+  std::mt19937 engine(device()); // Seed the random number engine
+  std::vector<int> weights = std::vector<int>({100-prob2, prob2});
+  std::discrete_distribution<> dist(weights.begin(), weights.end()); // Create the distribution
+
+  Logger::log_info("[PatternAddressMapper] weights =");
+  for (const auto &w : weights) {
+    Logger::log_data(format_string("%d", w));
+  }
+
+//  Logger::log_info("Generating 1k random numbers to see how well distribution works ");
+//  size_t cnt_0 = 0;
+//  size_t cnt_1 = 0;
+//  for (size_t i = 0; i < 1000; ++i) {
+//    if (dist(engine) == 0)
+//      cnt_0++;
+//    else
+//      cnt_1++;
+//  }
+//  Logger::log_info(format_string("cnt_0 = %lu", cnt_0));
+//  Logger::log_info(format_string("cnt_1 = %lu", cnt_1));
 
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
-
       const Aggressor &current_agg = acc_pattern.aggressors.at(i);
+
+      // aggressor has existing row mapping OR
       if (aggressor_to_addr.count(current_agg.id) > 0) {
         row = aggressor_to_addr.at(current_agg.id).row;
-      } else if (i > 0) {
-        // if this aggressor has any partners (N>1), we need to add the appropriate distance and cannot choose randomly
+      } else if (i > 0) {  // aggressor is part of a n>1 aggressor tuple
+        // we need to add the appropriate distance and cannot choose randomly
         auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
         // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
         cur_row = (last_addr.row + (size_t) fuzzing_params.get_agg_intra_distance())%fuzzing_params.get_max_row_no();
@@ -65,7 +98,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
         cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())%fuzzing_params.get_max_row_no();
 
-        bool map_to_existing_agg = ((Range<int>(1,100).get_random_number(gen) % prob) == 0);
+        bool map_to_existing_agg = dist(engine);
         if (map_to_existing_agg && !occupied_rows.empty()) {
             auto idx = Range<size_t>(1, occupied_rows.size()).get_random_number(gen)-1;
             auto it = occupied_rows.begin();
@@ -394,5 +427,7 @@ void PatternAddressMapper::compute_mapping_stats(std::vector<AggressorAccessPatt
 }
 
 size_t PatternAddressMapper::count_bitflips() const {
-  return bit_flips.size();
+  size_t sum = 0;
+  for (const auto &bf : bit_flips) sum += bf.size();
+  return sum;
 }

@@ -178,7 +178,14 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           // store detailed information about the bit flip
           BitFlip bitflip(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
           // ..in the mapping that triggered this bit flip
-          if (!reproducibility_mode) mapping.bit_flips.push_back(bitflip);
+          if (!reproducibility_mode) {
+            if (mapping.bit_flips.empty()) {
+              Logger::log_error("Cannot store bit flips found in given address mapping.\n"
+                                "You need to create an empty vector in PatternAddressMapper::bit_flips before calling "
+                                "check_memory.");
+            }
+            mapping.bit_flips.back().push_back(bitflip);
+          }
           // ..in an attribute of this class so that it can be retrived by the caller
           flipped_bits.push_back(bitflip);
           found_bitflips += bitflip.count_bit_corruptions();

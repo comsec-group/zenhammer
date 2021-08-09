@@ -44,7 +44,7 @@ class PatternBuilder {
                          std::vector<Aggressor> &accesses,
                          size_t pattern_length);
 
-  void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs, int max_num_aggressors);
+  void get_n_aggressors(size_t N, std::vector<Aggressor> &aggs);
 
   void prefill_pattern(int pattern_total_acts, std::vector<AggressorAccessPattern> &fixed_aggs);
 
