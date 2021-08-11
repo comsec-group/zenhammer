@@ -76,12 +76,12 @@ class ReplayingHammerer {
 
   void replay_patterns(const std::string& json_filename, const std::unordered_set<std::string> &pattern_ids);
 
-  void replay_patterns_brief(const std::string& json_filename,
-                             const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
-                             bool running_on_original_dimm);
+  size_t replay_patterns_brief(const std::string& json_filename,
+                               const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
+                               bool running_on_original_dimm);
 
-  void replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns, size_t sweep_bytes,
-                             size_t num_locations, bool running_on_original_dimm);
+  size_t replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns, size_t sweep_bytes,
+                               size_t num_locations, bool running_on_original_dimm);
 
   void find_direct_effective_aggs(PatternAddressMapper &mapper,
                                   std::unordered_set<AggressorAccessPattern> &direct_effective_aggs);

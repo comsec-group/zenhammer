@@ -235,8 +235,6 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     processed_patterns++;
     if (processed_patterns >= REPEATABILITY_MAX_NUM_PATTERNS) break;
 
-
-
   }  //   for (auto &patt : loaded_patterns)
 #if 0
   // :::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -561,21 +559,23 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
 #endif
 }
 
-void ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
-                                              const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
-                                              bool running_on_original_dimm) {
+size_t ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
+                                                const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
+                                                bool running_on_original_dimm) {
   auto patterns = load_patterns_from_json(json_filename, pattern_ids);
-  replay_patterns_brief(patterns, sweep_bytes, 1, running_on_original_dimm);
+  return replay_patterns_brief(patterns, sweep_bytes, 1, running_on_original_dimm);
 }
 
-void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns,
-                                              size_t sweep_bytes,
-                                              size_t num_locations,
-                                              bool running_on_original_dimm = false) {
+size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hammering_patterns,
+                                                size_t sweep_bytes,
+                                                size_t num_locations,
+                                                bool running_on_original_dimm = false) {
 #ifdef ENABLE_JSON
   nlohmann::json runs;
   auto start = std::chrono::system_clock::now();
 #endif
+
+  size_t bitflips_count = 0;
 
   int pattern_index = 1;
   for (auto &pattern : hammering_patterns) {
@@ -606,6 +606,7 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
     for (size_t i = 0; i < num_locations; ++i) {
       // do the sweep
       struct SweepSummary summary = sweep_pattern(pattern, mapper, 10, sweep_bytes, direct_effective_aggs);
+      bitflips_count += summary.observed_bitflips.size();
 
       // save the data about the sweep
 #ifdef ENABLE_JSON
@@ -652,6 +653,8 @@ void ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> hamm
   stream << root << std::endl;
   stream.close();
 #endif
+
+  return bitflips_count;
 }
 
 std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const std::string& json_filename,
