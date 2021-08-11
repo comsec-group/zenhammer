@@ -63,8 +63,6 @@ class FuzzingParameterSet {
 
   FENCING_STRATEGY fencing_strategy;
 
-  [[maybe_unused]] int get_random_bank_no();
-
   [[nodiscard]] int get_hammering_total_num_activations() const;
 
   [[nodiscard]] int get_num_aggressors() const;

@@ -91,75 +91,60 @@ void FuzzingParameterSet::set_num_activations_per_t_refi(int num_activations_per
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  if (num_activations_per_tREFI == -1) {
-    Logger::log_error("Called FuzzingParameterSet::randomize_parameters without valid num_activations_per_tREFI.");
+  if (num_activations_per_tREFI <= 0) {
+    Logger::log_error(
+        "Called FuzzingParameterSet::randomize_parameters without valid num_activations_per_tREFI.");
     return;
   }
 
-  if (print) Logger::log_info("Randomizing fuzzing parameters.");
+  if (print)
+    Logger::log_info("Randomizing fuzzing parameters.");
 
   // experimentally-determined debug parameters that very soon trigger bit flips on Samsung DIMMs (about 1-5 minutes)
 #ifdef DEBUG_SAMSUNG
-  // dynamic params
   N_sided = Range<int>(2, 2);
   amplitude = Range<int>(1, 6);
-  bank_no = Range<int>(0, NUM_BANKS - 1);
   use_sequential_aggressors = Range<int>(1, 1);
   sync_each_ref = Range<int>(0, 0);
   wait_until_start_hammering_refs = Range<int>(0, 0);
   num_aggressors_for_sync = Range<int>(2, 2);
   start_row = Range<int>(0, 4096);
-
-  // static params
   agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
   set_distribution(N_sided, {{2, 100}});
   hammering_total_num_activations = 5000000;
   max_row_no = 8192;
-
-  // semi-dynamic params
   num_aggressors = Range<int>(24, 64).get_random_number(gen);
   num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
-
 #else
 #if DEBUG_DIMM10
-
   num_activations_per_tREFI = 94;
-
-  // dynamic params
   N_sided = Range<int>(2, 2);
   amplitude = Range<int>(1, 8);
-  bank_no = Range<int>(0, NUM_BANKS - 1);
   use_sequential_aggressors = Range<int>(1, 1);
   sync_each_ref = Range<int>(0, 0);
   wait_until_start_hammering_refs = Range<int>(0, 0);
   num_aggressors_for_sync = Range<int>(1, 2);
   start_row = Range<int>(0, 4096);
-
-  // static params
   agg_intra_distance = Range<int>(2, 3).get_random_number(gen);
   flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   fencing_strategy = FENCING_STRATEGY::LATEST_POSSIBLE;
   set_distribution(N_sided, {{2, 100}});
   hammering_total_num_activations = 5000000;
   max_row_no = 8192;
-
-  // semi-dynamic params
   num_aggressors = Range<int>(6, 39).get_random_number(gen);
   num_refresh_intervals = std::pow(2, Range<int>(0, 3).get_random_number(gen));
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
   base_period = get_random_even_divisior(num_activations_per_tREFI, num_activations_per_tREFI/2);
   agg_inter_distance = Range<int>(3, 64).get_random_number(gen);
-
 #else // regular run
 
   // █████████ DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  //  == are randomized for each added aggressor ======
+  // are randomized for each added aggressor
 
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
@@ -168,14 +153,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
-  // we set the upper bound in dependent of N_sided.min but exclude 1 because an amplitude>1 does not make sense for a
-  // single aggressor
-  amplitude = Range<int>(1, num_activations_per_tREFI*4);
+  // we set the upper bound in dependent of N_sided.min but need to (manually) exclude 1 because an amplitude>1 does
+  // not make sense for a single aggressor
+  amplitude = Range<int>(1, num_activations_per_tREFI/2);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
-
-  // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  bank_no = Range<int>(0, NUM_BANKS - 1);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   use_sequential_aggressors = Range<int>(0, 1);
@@ -186,8 +168,6 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   wait_until_start_hammering_refs = Range<int>(10, 128);
-  // TODO: split into two params: if true -> 64 ms with random accesses
-  // TODO: other params (alignment) wait before hammering [0,32] REFs
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   num_aggressors_for_sync = Range<int>(2, 2);
@@ -196,12 +176,9 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   start_row = Range<int>(0, 2048);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  // == fix values/formulas that must be configured before running this program ======
+  // fix values/formulas that must be configured before running this program
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-//  agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
-  // FIXME Hacky solution at the moment implemented in get_agg_intra_distance()
   agg_intra_distance = Range<int>(2, 2).get_random_number(gen);
 
   // TODO: make this a dynamic fuzzing parameter that is randomized for each probed address set
@@ -215,41 +192,35 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-  std::unordered_map<int,int> probs;
-  probs.insert(std::make_pair(1, 20));
-  probs.insert(std::make_pair(2, 80));
-  set_distribution(N_sided, probs);
+  set_distribution(N_sided, {{1, 20}, {2, 80}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // hammering_total_num_activations is derived as follow:
-  //    REF interval: 7.8 μs (tREFI), retention time: 64 ms   => 8,000 - 10,000 REFs per interval
-  //    num_activations_per_tREFI: ≈100                       => 10,000 * 100 = 1M activations * 5 = 5M ACTs
+  //    REF interval: 7.8 μs (tREFI), retention time: 64 ms   => about 8k REFs per refresh window
+  //    num_activations_per_tREFI ≈100                       => 8k * 100 ≈ 8M activations and we hammer for 5M acts.
   hammering_total_num_activations = 5000000;
 
   max_row_no = 8192;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
-
-  // == are only randomized once when calling this function ======
+  // are only randomized once when calling this function
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range<int>(5, 32).get_random_number(gen);
+  num_aggressors = Range<int>(8, 96).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(0, 3).get_random_number(gen)));
+  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(0, 4).get_random_number(gen)));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
   base_period = get_random_even_divisior(total_acts_pattern, 4);
-  // TODO: should be max = number of refresh intervals
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(1, 24).get_random_number(gen);
-
 #endif
 #endif
   if (print) print_semi_dynamic_parameters();
@@ -269,10 +240,6 @@ std::string FuzzingParameterSet::get_dist_string() const {
     ss << i << "-sided: " << probs[i] << "/" << total << ", ";
   }
   return ss.str();
-}
-
-[[maybe_unused]] int FuzzingParameterSet::get_random_bank_no() {
-  return bank_no.get_random_number(gen);
 }
 
 int FuzzingParameterSet::get_hammering_total_num_activations() const {
@@ -311,9 +278,7 @@ int FuzzingParameterSet::get_num_base_periods() const {
 }
 
 int FuzzingParameterSet::get_agg_intra_distance() {
-//  return agg_intra_distance;
-// pick 2 with 66% and pick 1 with 33%
-  return Range<int>(1, 3).get_random_number(gen) > 1 ? 2: 1;
+  return agg_intra_distance;
 }
 
 int FuzzingParameterSet::get_agg_inter_distance() const {
@@ -325,8 +290,8 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
 }
 
 int FuzzingParameterSet::get_random_wait_until_start_hammering_us() {
-  // each REF interval has a length of 7.8 us, for simplicity we assume 8 us
-  return wait_until_start_hammering_refs.get_random_number(gen) * 8;
+  // each REF interval has a length of 7.8 us
+  return static_cast<int>(static_cast<double>(wait_until_start_hammering_refs.get_random_number(gen)) * 7.8);
 }
 
 bool FuzzingParameterSet::get_random_sync_each_ref() {
