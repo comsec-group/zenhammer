@@ -68,6 +68,8 @@ class PatternAddressMapper {
                            const std::vector<AggressorAccessPattern> &agg_access_patterns,
                            bool verbose);
 
+  void remap_aggressors(DRAMAddr &new_location);
+
   void export_pattern(std::vector<Aggressor> &aggressors, int base_period, std::vector<volatile char *> &addresses);
 
   [[nodiscard]] const std::string &get_instance_id() const;

@@ -431,3 +431,22 @@ size_t PatternAddressMapper::count_bitflips() const {
   for (const auto &bf : bit_flips) sum += bf.size();
   return sum;
 }
+
+void PatternAddressMapper::remap_aggressors(DRAMAddr &new_location) {
+  // determine the mapping with the smallest row no -- this is the start point where we apply our new location on
+  size_t smallest_row_no = std::numeric_limits<size_t>::max();
+  for (const auto &[id, addr]: aggressor_to_addr) {
+    smallest_row_no = std::min(smallest_row_no, addr.row);
+  }
+
+  // compute offset between old start row and new start row
+  size_t offset = new_location.row - smallest_row_no;
+
+  // now update each mapping's address
+  for (auto &[id, addr]: aggressor_to_addr) {
+    // we just overwrite the bank
+    addr.bank = new_location.bank;
+    // for the row, we need to shift accordingly to preserve the distances between aggressors
+    addr.row += offset;
+  }
+}
