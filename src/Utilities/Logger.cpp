@@ -19,13 +19,14 @@ void Logger::initialize() {
 }
 
 void Logger::close() {
+  instance.logfile << std::endl;
   instance.logfile.close();
 }
 
 void Logger::log_info(const std::string &message, bool newline) {
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
@@ -37,12 +38,12 @@ void Logger::log_highlight(const std::string &message, bool newline) {
 void Logger::log_error(const std::string &message, bool newline) {
   instance.logfile << FC_RED "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_data(const std::string &message, bool newline) {
   instance.logfile << message;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_analysis_stage(const std::string &message, bool newline) {
@@ -53,7 +54,7 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
   while (remaining_chars--) ss << "█";
   instance.logfile << ss.str();
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_debug(const std::string &message, bool newline) {
@@ -97,19 +98,19 @@ void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsign
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
                    << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
   instance.logfile << FC_GREEN << "[!] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_failure(const std::string &message, bool newline) {
   instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile << "\n";
 }
 
 void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {
