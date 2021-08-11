@@ -151,7 +151,13 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   json_export.close();
 #endif
 
-  size_t SWEEP_MEM_SIZE_BEST_PATTERN = 8*1024*1024; // in bytes
+  // define the location where we are going to do the large sweep
+  DRAMAddr sweep_start = DRAMAddr(
+      Range<int>(0, NUM_BANKS-1).get_random_number(gen),
+      Range<int>(0, 4095).get_random_number(gen),
+      0);
+
+  size_t SWEEP_MEM_SIZE_BEST_PATTERN = 2*1024*1024; // in bytes
   Logger::log_info(format_string("Doing a sweep of %d MB to determine most effective pattern.",
       SWEEP_MEM_SIZE_BEST_PATTERN));
 
@@ -164,7 +170,12 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
   for (auto &patt : effective_patterns) {
     for (auto &mapping : patt.address_mappings) {
+      //  move the pattern to the target DRAM location
+      mapping.remap_aggressors(sweep_start);
+
+      // do the minisweep
       SweepSummary summary = replaying_hammerer.sweep_pattern(patt, mapping, 10, SWEEP_MEM_SIZE_BEST_PATTERN, {});
+
       PatternMappingStat pms;
       pms.pattern_id = patt.instance_id;
       pms.mapping_id = mapping.get_instance_id();
@@ -174,8 +185,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
   // printout - just for debugging
   Logger::log_info("Summary of minisweep:");
-  Logger::log_data(format_string("%4s\t%-6s\t%-8s\t%-8s",
-      "Rank", "#Flips", "Pattern ID", "Mapping ID\n"));
+  Logger::log_data(
+      format_string("%4s\t%-6s\t%-8s\t%-8s", "Rank", "#Flips", "Pattern ID", "Mapping ID\n"));
   int rank = 1;
   for (const auto &[k,v] : patterns_stat) {
     Logger::log_data(format_string("%4d\t%6d\t%-8s\t%-8s",
@@ -190,36 +201,41 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   const std::string best_pattern_mapping_id = patterns_stat.begin()->second.mapping_id;
   Logger::log_info(format_string("best_pattern_mapping_id = %s", best_pattern_mapping_id.c_str()));
 
-  for (auto &pattern : effective_patterns) {
-    Logger::log_info(format_string("Effective pattern: %s", pattern.instance_id.c_str()));
+  if (!sweep_best_pattern){
+    return;
+  }
 
-    if (pattern.instance_id!=best_pattern_id)
+  size_t num_bitflips_sweep = 0;
+  for (const auto &[k,v] : patterns_stat) {
+    // find the pattern in the effective_patterns list as patterns_stat just contains the pattern/mapping ID
+    auto target_pattern_id = v.pattern_id;
+    auto best_pattern_for_sweep = std::find_if(effective_patterns.begin(), effective_patterns.end(), [&](auto &pattern) {
+      return pattern.instance_id == target_pattern_id;
+    });
+    if (best_pattern_for_sweep == effective_patterns.end()) {
+      Logger::log_error(format_string("Could not find pattern %s in effective patterns list.",
+          target_pattern_id.c_str()));
       continue;
+    }
 
     // remove all mappings from best pattern except the 'best mapping' because the sweep function does otherwise not
     // know which the best mapping is
-    for (auto it = pattern.address_mappings.begin(); it != pattern.address_mappings.end(); ) {
+    for (auto it = best_pattern_for_sweep->address_mappings.begin(); it != best_pattern_for_sweep->address_mappings.end(); ) {
       if (it->get_instance_id() != best_pattern_mapping_id) {
-        it = pattern.address_mappings.erase(it);
+        it = best_pattern_for_sweep->address_mappings.erase(it);
       } else {
         ++it;
       }
     }
 
-    if (sweep_best_pattern) {
-      // apply the 'best' pattern over a contiguous chunk of memory
-      // note that log_overall_statistics shows the number of bit flips of the best pattern's most effective mapping, as
-      // metric to determine the best pattern we use the number of bit flips over all mappings of that pattern
-      replaying_hammerer.set_params(fuzzing_params);
+    // do sweep with 1x256MB of memory
+    replaying_hammerer.set_params(fuzzing_params);
+    num_bitflips_sweep = replaying_hammerer.replay_patterns_brief({*best_pattern_for_sweep},
+        MB(256), 1, true);
 
-      // do sweep with 1x256MB of memory
-      replaying_hammerer.replay_patterns_brief({pattern},
-          MB(256),
-          1,
-          true);
-    }
-
-    break; // end for-loop
+    // if the sweep was not successful, we take the next best pattern and repeat
+    if (num_bitflips_sweep > 0)
+      break;
   }
 }
 

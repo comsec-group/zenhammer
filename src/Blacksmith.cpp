@@ -53,7 +53,8 @@ int main(int argc, char **argv) {
   if (!program_args.load_json_filename.empty()) {
     ReplayingHammerer replayer(memory);
     if (program_args.sweeping) {
-      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids, MB(256), false);
+      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids,
+          MB(256), false);
     } else {
       replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
     }
