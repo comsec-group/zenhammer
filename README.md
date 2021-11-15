@@ -2,11 +2,9 @@
 
 [![Academic Code](https://img.shields.io/badge/Origin-Academic%20Code-C1ACA0.svg?style=flat)]() [![Language Badge](https://img.shields.io/badge/Made%20with-C/C++-blue.svg)](https://isocpp.org/std/the-standard) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![contributions welcome](https://img.shields.io/badge/Contributions-welcome-lightgray.svg?style=flat)]()
 
-[![Preprint: arXiv](https://img.shields.io/badge/Preprint-arXiv:0000.0000-orange.svg)](arxiv.org/) [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022) [![Funding](https://img.shields.io/badge/Grant-NCCR%20Automation%20(51NF40180545)-red.svg)](http://www.snf.ch/en/researchinFocus/nccr/automation/)
+[![Preprint: arXiv](https://img.shields.io/badge/Preprint-COMSEC-orange.svg)](https://comsec.ethz.ch/wp-content/files/blacksmith_sp22.pdf) [![Paper](https://img.shields.io/badge/To%20appear%20in-IEEE%20S&P%20'22-brightgreen.svg)](https://www.ieee-security.org/TC/SP2022/program-papers.html) [![Funding](https://img.shields.io/badge/Grant-NCCR%20Automation%20(51NF40180545)-red.svg)](https://nccr-automation.ch/)
 
-**TODO**: Add arXiv ID + link once paper got accepted.
-
-This repository provides the code accompanying the paper _[Blacksmith: Compromising Target Row Refresh by Rowhammering in the Frequency Domain](about:blank)_ that is to appear in IEEE S&P 2022.
+This repository provides the code accompanying the paper _[Blacksmith: Scalable Rowhammering in the Frequency Domain](https://comsec.ethz.ch/wp-content/files/blacksmith_sp22.pdf)_ that is to appear in the IEEE conference Security & Privacy (S&P) 2022.
 
 This is the implementation of our Blacksmith Rowhammer fuzzer. This fuzzer crafts novel non-uniform Rowhammer access patterns based on the concepts of frequency, phase, and amplitude. Our evaluation on 40 DIMMs showed that it is able to bypass recent Target Row Refresh (TRR) in-DRAM mitigations effectively and as such can could trigger bit flips on all 40 tested DIMMs.
 
@@ -46,7 +44,7 @@ in case that a bit flip was found. After finishing the Blacksmith run, you can f
 ## Supported Parameters
 
 Blacksmith supports the command-line arguments listed in the following.
-Except the `--dimm-id` and `ranks`, all parameters are optional.
+Except for the parameters `--dimm-id` and `--ranks` all other parameters are optional.
 
 ```
     -h, --help
@@ -88,9 +86,9 @@ Except the `--dimm-id` and `ranks`, all parameters are optional.
 
 ```
 
-The default values of the parameters can be found in the [`struct ProgramArguments`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/Blacksmith.hpp#L8).
+The default values of the parameters can be found in the [`struct ProgramArguments`](include/Blacksmith.hpp#L8).
 
-Configuration parameters of Blacksmith that we did not need to modify frequently, and thus are not runtime parameters, can be found in the [`GlobalDefines.hpp`](https://gitlab.ethz.ch/comsec/blacksmith-project/blacksmith/-/blob/master/include/GlobalDefines.hpp) file.
+Configuration parameters of Blacksmith that we did not need to modify frequently, and thus are not runtime parameters, can be found in the [`GlobalDefines.hpp`](include/GlobalDefines.hpp) file.
 
 ## Blacksmith Experiments
 
@@ -128,6 +126,16 @@ Upon request, we can provide the collected data (stdout.log, JSON) of these expe
 
 ## Citing our Work
 
-**TODO**: Add BibTeX entry for citing our paper and code.
+To cite Blacksmith in academic papers, please use the following BibTeX entry:
 
-**TODO**: Register DOI after releasing on Github as described [here](https://guides.github.com/activities/citable-code/).
+```
+@inproceedings{jattke2021blacksmith,
+  title = {{{BLACKSMITH}}: Rowhammering in the {{Frequency Domain}}},
+  shorttitle = {Blacksmith},
+  booktitle = {{{IEEE S}}\&{{P}} '22},
+  author = {Jattke, Patrick and {van der Veen}, Victor and Frigo, Pietro and Gunter, Stijn and Razavi, Kaveh},
+  year = {2021},
+  month = nov,
+  note = {\url{https://comsec.ethz.ch/wp-content/files/blacksmith_sp22.pdf}}
+}
+```
