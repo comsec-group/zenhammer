@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import json
+import ujson
 import logging
 import pathlib
 import sys
@@ -30,60 +30,65 @@ def find_patterns(file: pathlib.Path, best_only: bool) -> List[Dict]:
     dimm = file.name[:file.name.find('.')]
 
     with open(file, 'r') as f:
-        raw_patterns = f.read()
+        # raw_patterns = f.read()
 
-    patterns = json.loads(raw_patterns)
-    _logger.info('[%s] parsed %d patterns' % (dimm, len(patterns)))
+        all_patterns = ujson.load(f)
+        _logger.info('[%s] parsed %d patterns' % (dimm, len(all_patterns)))
 
-    unique_patterns = set()
-    good_patterns = []
-    best_pattern = None
-    best_score = 0
+        unique_patterns = set()
+        good_patterns = []
+        best_pattern = None
+        best_score = 0
 
-    for pattern in patterns:
-        for mapping in pattern['address_mappings']:
-            flips = mapping['bit_flips']
-            if not flips:
-                continue
+        for pattern in all_patterns["hammering_patterns"]:
 
-            unique_patterns.add(pattern['id'])
-            good_patterns.append(pattern)
+            for mapping in pattern['address_mappings']:
+                flips = mapping['bit_flips']
+                if not flips:
+                    continue
 
-            score = 0
-            for flip in flips:
-                # More than one flip can occur in a word (and has been observed
-                # to occur), so we compute the Hamming weight for the flip
-                # bitmask. Probably not the most efficient implementation, but
-                # performance seems OK.
-                score += bin(flip['bitmask']).count('1')
+                unique_patterns.add(pattern['id'])
+                good_patterns.append(pattern)
 
-            _logger.debug(
-                '[%s] pattern/mapping %s/%s resulted in %d flips in %d words' % (
-                    dimm, pattern['id'], mapping['id'], score, len(flips)))
+                score = 0
+                for loc in flips:
+                    if len(loc) == 0:
+                        continue
+                    else:
+                        for l in loc:
+                            # More than one flip can occur in a word (and has been observed
+                            # to occur), so we compute the Hamming weight for the flip
+                            # bitmask. Probably not the most efficient implementation, but
+                            # performance seems OK.
+                            score += bin(l['bitmask']).count('1')
 
-            if score > best_score:
-                best_score = score
-                best_pattern = pattern
+                _logger.debug(
+                    '[%s] pattern/mapping %s/%s resulted in %d flips in %d words' % (
+                        dimm, pattern['id'], mapping['id'], score, len(flips)))
 
-    if not good_patterns:
-        _logger.warning(
-            '[%s] file did not contain any flip-generating patterns' % dimm)
-        return []
+                if score > best_score:
+                    best_score = score
+                    best_pattern = pattern
 
-    _logger.info(
-        '[%s] found %d unique patterns resulting in flips' % (
-            dimm, len(unique_patterns)))
-    if best_only:
+        if not good_patterns:
+            _logger.warning(
+                '[%s] file did not contain any flip-generating patterns' % dimm)
+            return []
+
         _logger.info(
-            '[%s] best pattern (%s) resulted in %d flips' % (
-                dimm, best_pattern['id'], best_score))
+            '[%s] found %d unique patterns resulting in flips' % (
+                dimm, len(unique_patterns)))
+        if best_only:
+            _logger.info(
+                '[%s] best pattern (%s) resulted in %d flips' % (
+                    dimm, best_pattern['id'], best_score))
 
-        # By this point, we know that good_patterns is not empty, i.e. there is
-        # at least one pattern that caused some bit to flip. Hence, there must
-        # also be a best pattern, and best_pattern is not None.
-        return [best_pattern]
-    else:
-        return good_patterns
+            # By this point, we know that good_patterns is not empty, i.e. there is
+            # at least one pattern that caused some bit to flip. Hence, there must
+            # also be a best pattern, and best_pattern is not None.
+            return [best_pattern]
+        else:
+            return good_patterns
 
 
 def run() -> None:
@@ -103,6 +108,7 @@ def run() -> None:
 
     # Check that the provided files exist
     paths = [pathlib.Path(file) for file in args.files]
+    print(paths)
     for path in list(paths):
         if not path.exists():
             _logger.warning(
@@ -120,7 +126,7 @@ def run() -> None:
     _logger.info(
         'selected %d patterns from %d runs' % (len(best_patterns), len(paths)))
 
-    output = json.dumps(best_patterns)
+    output = ujson.dumps(best_patterns)
     if args.output:
         with open(args.output, 'w') as f:
             f.write(output)
