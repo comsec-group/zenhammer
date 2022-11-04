@@ -5,7 +5,7 @@
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
-  hammer(aggressors, HAMMER_ROUNDS);
+  hammer(aggressors, HAMMER_RNDS);
 }
 
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_t reps) {
@@ -59,7 +59,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 
   // perform hammering for HAMMER_ROUNDS/ref_rounds times
-  for (size_t i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
+  for (size_t i = 0; i < HAMMER_RNDS/ref_rounds; i++) {
     for (size_t j = 0; j < agg_rounds; j++) {
       for (size_t k = 0; k < aggressors.size() - 2; k++) {
         (void)(*aggressors[k]);
@@ -251,14 +251,17 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
 #endif
 }
 
-[[maybe_unused]] void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_limit) {
+[[maybe_unused]] void TraditionalHammerer::n_sided_hammer(Memory &memory,
+                                                          int acts,
+                                                          long runtime_limit,
+                                                          size_t max_agg_rows) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
 
   const auto execution_limit = get_timestamp_sec() + runtime_limit;
   while (get_timestamp_sec() < execution_limit) {
-    size_t aggressor_rows_size = (dist(gen)%(MAX_ROWS - 3)) + 3;  // number of aggressor rows
+    size_t aggressor_rows_size = (dist(gen)%(max_agg_rows - 3)) + 3;  // number of aggressor rows
     size_t v = 2;  // distance between aggressors (within a pair)
     size_t d = dist(gen)%16;  // distance of each double-sided aggressor pair
 
