@@ -87,6 +87,7 @@ add_library(
         src/Memory/Memory.cpp
         src/Utilities/Enums.cpp
         src/Utilities/Logger.cpp
+        src/Utilities/Pagemap.cpp
 )
 
 target_include_directories(
