@@ -7,6 +7,7 @@
 
 // initialize the bank_counter (static var)
 int PatternAddressMapper::bank_counter = 0;
+int PatternAddressMapper::subchannel_counter = 0;
 
 PatternAddressMapper::PatternAddressMapper()
     : instance_id(uuid::gen_uuid()) { /* NOLINT */
@@ -26,7 +27,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   // retrieve and then store randomized values as they should be the same for all added addresses
   // (store bank_no as field for get_random_nonaccessed_rows)
   bank_no = PatternAddressMapper::bank_counter;
+  subchannel_no = PatternAddressMapper::subchannel_counter;
   PatternAddressMapper::bank_counter = (PatternAddressMapper::bank_counter + 1) % NUM_BANKS;
+  PatternAddressMapper::subchannel_counter = (PatternAddressMapper::subchannel_counter + 1) % NUM_SUBCHANNELS;
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   const int start_row = fuzzing_params.get_random_start_row();
   if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
@@ -45,25 +48,25 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   size_t total_abstract_aggs = 0;
   for (auto &acc_pattern : agg_access_patterns) total_abstract_aggs += acc_pattern.aggressors.size();
-  Logger::log_info(format_string("[PatternAddressMapper] Target no. of DRAM rows = %d",
+  Logger::log_debug(format_string("[PatternAddressMapper] Target no. of DRAM rows = %d",
       fuzzing_params.get_num_aggressors()));
-  Logger::log_info(format_string("[PatternAddressMapper] Aggressors in AggressorAccessPattern = %d",
+  Logger::log_debug(format_string("[PatternAddressMapper] Aggressors in AggressorAccessPattern = %d",
       total_abstract_aggs));
 
   // probability to map aggressor to same row as another aggressor is already mapped to
   const int prob2 = 100 - (
       static_cast<int>(
           std::min(static_cast<double>(fuzzing_params.get_num_aggressors())/static_cast<double>(total_abstract_aggs),1.0)*100));
-  Logger::log_info(format_string("[PatternAddressMapper] Probability to map multiple AAPs to same DRAM row = %d", prob2));
+  Logger::log_debug(format_string("[PatternAddressMapper] Probability to map multiple AAPs to same DRAM row = %d", prob2));
 
   std::random_device device;
   std::mt19937 engine(device()); // Seed the random number engine
   std::vector<int> weights = std::vector<int>({100-prob2, prob2});
   std::discrete_distribution<> dist(weights.begin(), weights.end()); // Create the distribution
 
-  Logger::log_info("[PatternAddressMapper] weights =");
+  Logger::log_debug("[PatternAddressMapper] weights =");
   for (const auto &w : weights) {
-    Logger::log_data(format_string("%d", w));
+    Logger::log_debug(format_string("%d", w));
   }
 
 //  Logger::log_info("Generating 1k random numbers to see how well distribution works ");
@@ -126,7 +129,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
-      aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(static_cast<size_t>(bank_no), row, 0)));
+      aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(subchannel_no, static_cast<size_t>(bank_no), row, 0)));
     }
   }
 

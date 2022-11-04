@@ -46,11 +46,14 @@ class PatternAddressMapper {
   size_t min_row = 0;
   size_t max_row = 0;
   int bank_no = 0;
+  int subchannel_no = 0;
 
   // a global counter that makes sure that we test patterns on all banks equally often
   // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
   // this may happen after we tested more than one pattern)
   static int bank_counter;
+
+  static int subchannel_counter;
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
