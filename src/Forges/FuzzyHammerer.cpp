@@ -325,11 +325,11 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
     auto wait_until_hammering_us = fuzzing_params.get_random_wait_until_start_hammering_us();
     FuzzingParameterSet::print_dynamic_parameters2(sync_at_each_ref, wait_until_hammering_us, num_aggs_for_sync);
 
-    std::vector<volatile char *> random_rows;
-    if (wait_until_hammering_us > 0) {
-      random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
-      do_random_accesses(random_rows, wait_until_hammering_us);
-    }
+//    std::vector<volatile char *> random_rows;
+//    if (wait_until_hammering_us > 0) {
+//      random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
+//      do_random_accesses(random_rows, wait_until_hammering_us);
+//    }
 
     // do hammering
     code_jitter.hammer_pattern(fuzzing_params, true);
@@ -341,11 +341,11 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
     std::mt19937 gen = std::mt19937(std::random_device()());
     mapper.shift_mapping(Range<int>(1,32).get_random_number(gen), {});
 
-    if (dram_location + 1 < num_dram_locations) {
+//    if (dram_location + 1 < num_dram_locations) {
       // wait a bit and do some random accesses before checking reproducibility of the pattern
-      if (random_rows.empty()) random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
-      do_random_accesses(random_rows, 64000); // 64ms (retention time)
-    }
+//      if (random_rows.empty()) random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
+//      do_random_accesses(random_rows, 64000); // 64ms (retention time)
+//    }
   }
 
   // store info about this bit flip (pattern ID, mapping ID, no. of bit flips)
