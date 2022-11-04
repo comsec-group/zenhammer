@@ -155,7 +155,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but need to (manually) exclude 1 because an amplitude>1 does
   // not make sense for a single aggressor
-  amplitude = Range<int>(1, num_activations_per_tREFI/2);
+  amplitude = Range<int>(1, num_activations_per_tREFI*4);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -167,13 +167,13 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   sync_each_ref = Range<int>(0, 0);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
-  wait_until_start_hammering_refs = Range<int>(10, 128);
+  wait_until_start_hammering_refs = Range<int>(0, 1);
 
   // [CANNOT be derived from anywhere else - but does not fit anywhere: will print to stdout only, not include in json]
   num_aggressors_for_sync = Range<int>(2, 2);
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  start_row = Range<int>(0, 2048);
+  start_row = Range<int>(0, 1);
 
   // █████████ STATIC FUZZING PARAMETERS ████████████████████████████████████████████████████
   // fix values/formulas that must be configured before running this program
@@ -198,20 +198,21 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // hammering_total_num_activations is derived as follow:
   //    REF interval: 7.8 μs (tREFI), retention time: 64 ms   => about 8k REFs per refresh window
   //    num_activations_per_tREFI ≈100                       => 8k * 100 ≈ 8M activations and we hammer for 5M acts.
-  hammering_total_num_activations = 5000000;
+  hammering_total_num_activations = 1300000;
 
-  max_row_no = 8192;
+//  max_row_no = 8192;
+  max_row_no = 64;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
   // are only randomized once when calling this function
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range<int>(8, 96).get_random_number(gen);
+  num_aggressors = Range<int>(16, 96).get_random_number(gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(0, 4).get_random_number(gen)));
+  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(0, 5).get_random_number(gen)));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
@@ -290,6 +291,7 @@ int FuzzingParameterSet::get_random_amplitude(int max) {
 }
 
 int FuzzingParameterSet::get_random_wait_until_start_hammering_us() {
+      return 0;
   // each REF interval has a length of 7.8 us
   return static_cast<int>(static_cast<double>(wait_until_start_hammering_refs.get_random_number(gen)) * 7.8);
 }
