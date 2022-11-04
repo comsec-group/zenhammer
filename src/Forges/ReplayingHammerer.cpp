@@ -788,10 +788,10 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
       FuzzingParameterSet::print_dynamic_parameters2(sync_each_ref, wait_until_hammering_us, aggressors_for_sync);
     }
 
-    if (wait_before_hammering && wait_until_hammering_us > 0) {
-      std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(fuzz_params.get_max_row_no());
-      FuzzyHammerer::do_random_accesses(random_rows, wait_until_hammering_us);
-    }
+//    if (wait_before_hammering && wait_until_hammering_us > 0) {
+//      std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(fuzz_params.get_max_row_no());
+//      FuzzyHammerer::do_random_accesses(random_rows, wait_until_hammering_us);
+//    }
 
     // do hammering
     code_jitter.hammer_pattern(fuzz_params, verbose_sync);
