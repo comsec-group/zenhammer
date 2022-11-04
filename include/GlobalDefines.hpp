@@ -38,34 +38,35 @@ uint64_t static inline GB(uint64_t value) {
 // ########################################################
 
 // number of rounds to measure cache hit/miss latency
-#define DRAMA_ROUNDS 1000
+#define DRAMA_RNDS (1000)
 
 // size in bytes of a cacheline
-#define CACHELINE_SIZE 64
+#define CACHELINE_SIZE_B (64)
 
 // number of rounds to hammer
-#define HAMMER_ROUNDS 1000000
+#define HAMMER_RNDS (1000000)
 
 // threshold to distinguish between cache miss (t > THRESH) and cache hit (t < THRESH)
-#define THRESH 495  // worked best on DIMM 6
-//#define THRESH 430  // worked best on DIMM 18
+//#define CACHE_THRESH (495)  // worked best on DIMM 6
+#define CACHE_THRESH 430  // worked best on DIMM 18
 
 // number of conflicting addresses to be determined for each bank
-#define NUM_TARGETS 10
-
-// maximum number of aggressor rows
-#define MAX_ROWS 30
-
-// number of banks in the system
-#define NUM_BANKS 16
-
-// number of active DIMMs in the system
-#define DIMM 1
-
-// number of active channels in the system
-#define CHANNEL 1
+#define NUM_TARGETS (10)
 
 // number of bytes to be allocated
 #define MEM_SIZE (GB(1))
+
+#define NUM_DIMMS (1)
+
+#define NUM_CHANNELS (1)
+
+#define NUM_SUBCHANNELS (2)
+
+#define NUM_BANKGROUPS (8)
+
+#define NUM_BANKS_PER_BG (4)
+
+// number of total banks in the system, calculated as #bankgroups x #banks
+#define NUM_BANKS (NUM_BANKGROUPS*NUM_BANKS_PER_BG)
 
 #endif /* GLOBAL_DEFINES */
