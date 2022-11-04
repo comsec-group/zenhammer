@@ -3,6 +3,8 @@
 #include <iostream>
 #include <GlobalDefines.hpp>
 
+#define DEBUG (0)
+
 // initialize the singleton instance
 Logger Logger::instance; /* NOLINT */
 
@@ -26,7 +28,12 @@ void Logger::close() {
 void Logger::log_info(const std::string &message, bool newline) {
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+    << std::endl;
+#else
+    << "\n";
+#endif
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
@@ -38,12 +45,22 @@ void Logger::log_highlight(const std::string &message, bool newline) {
 void Logger::log_error(const std::string &message, bool newline) {
   instance.logfile << FC_RED "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_data(const std::string &message, bool newline) {
   instance.logfile << message;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_analysis_stage(const std::string &message, bool newline) {
@@ -54,14 +71,20 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
   while (remaining_chars--) ss << "█";
   instance.logfile << ss.str();
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_debug(const std::string &message, bool newline) {
-#ifdef DEBUG
+#if (DEBU==1)
   instance.logfile << FC_YELLOW "[DEBUG] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << std::endl;
+  if (newline) instance.logfile
+  << std::endl;
 #else
   // this is just to ignore complaints of the compiler about unused params
   std::ignore = message;
@@ -98,19 +121,34 @@ void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsign
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
                    << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
   instance.logfile << FC_GREEN << "[!] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_failure(const std::string &message, bool newline) {
   instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {
@@ -132,15 +170,17 @@ void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_
 void Logger::log_global_defines() {
   Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
   std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << "\n"
-     << "CACHELINE_SIZE: " << CACHELINE_SIZE << "\n"
-     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << "\n"
-     << "THRESH: " << THRESH << "\n"
+  ss << "DRAMA_ROUNDS: " << DRAMA_RNDS << "\n"
+     << "CACHELINE_SIZE: " << CACHELINE_SIZE_B << "\n"
+     << "HAMMER_ROUNDS: " << HAMMER_RNDS << "\n"
+     << "THRESH: " << CACHE_THRESH << "\n"
      << "NUM_TARGETS: " << NUM_TARGETS << "\n"
-     << "MAX_ROWS: " << MAX_ROWS << "\n"
      << "NUM_BANKS: " << NUM_BANKS << "\n"
-     << "DIMM: " << DIMM << "\n"
-     << "CHANNEL: " << CHANNEL << "\n"
+     << "NUM_DIMMS: " << NUM_DIMMS << "\n"
+     << "NUM_CHANNELS: " << NUM_CHANNELS << "\n"
+     << "NUM_BANKGROUPS: " << NUM_BANKGROUPS << "\n"
+     << "NUM_BANKS_PER_BG: " << NUM_BANKS_PER_BG << "\n"
+     << "NUM_BANKS: " << NUM_BANKS << "\n"
      << "MEM_SIZE: " << MEM_SIZE << "\n"
      << "PAGE_SIZE: " << getpagesize() << std::endl;
   Logger::log_data(ss.str());
