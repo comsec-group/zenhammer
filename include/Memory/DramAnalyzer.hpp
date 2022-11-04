@@ -11,9 +11,9 @@ class DramAnalyzer {
  private:
   std::vector<std::vector<volatile char *>> banks;
 
-  std::vector<uint64_t> bank_rank_functions;
+//  std::vector<uint64_t> bank_rank_functions;
 
-  uint64_t row_function;
+//  uint64_t row_function;
 
   volatile char *start_address;
 
@@ -34,7 +34,7 @@ class DramAnalyzer {
     uint64_t before, after;
     before = rdtscp();
     lfence();
-    for (size_t i = 0; i < DRAMA_ROUNDS; i++) {
+    for (size_t i = 0; i < DRAMA_RNDS; i++) {
       (void)*a1;
       (void)*a2;
       clflushopt(a1);
@@ -42,12 +42,10 @@ class DramAnalyzer {
       mfence();
     }
     after = rdtscp();
-    return (int) ((after - before)/DRAMA_ROUNDS);
+    return (int) ((after - before)/DRAMA_RNDS);
   }
 
-  std::vector<uint64_t> get_bank_rank_functions();
-
-  void load_known_functions(int num_ranks);
+//  void load_known_functions(int num_ranks);
 
   /// Determine the number of possible activations within a refresh interval.
   size_t count_acts_per_ref();

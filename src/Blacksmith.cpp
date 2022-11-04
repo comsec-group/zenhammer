@@ -35,16 +35,16 @@ int main(int argc, char **argv) {
   memory.allocate_memory(MEM_SIZE);
 
   // find address sets that create bank conflicts
+  DRAMAddr::initialize(memory.get_starting_address());
   DramAnalyzer dram_analyzer(memory.get_starting_address());
-  dram_analyzer.find_bank_conflicts();
-  if (program_args.num_ranks != 0) {
-    dram_analyzer.load_known_functions(program_args.num_ranks);
-  } else {
-    Logger::log_error("Program argument '--ranks <integer>' was probably not passed. Cannot continue.");
-    exit(EXIT_FAILURE);
-  }
+//  dram_analyzer.find_bank_conflicts();
+//  if (program_args.num_ranks != 0) {
+//    dram_analyzer.load_known_functions(program_args.num_ranks);
+//  } else {
+//    Logger::log_error("Program argument '--ranks <integer>' was probably not passed. Cannot continue.");
+//    exit(EXIT_FAILURE);
+//  }
   // initialize the DRAMAddr class to load the proper memory configuration
-  DRAMAddr::initialize(dram_analyzer.get_bank_rank_functions().size(), memory.get_starting_address());
 
   // count the number of possible activations per refresh interval, if not given as program argument
   if (program_args.acts_per_ref==0)
