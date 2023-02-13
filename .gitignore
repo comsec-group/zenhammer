@@ -16,9 +16,17 @@ scripts/run_as_sudo.sh
 .idea
 
 # build files
-CMakeFiles/*
+*.a
+*.log
+.cmake/*
+CMakeCache.txt
+**/CMakeFiles/*
+Makefile
+_deps/*
+blacksmith
 build/*
 cmake-build-*
+cmake_install.cmake
 
 # OSX-related files
 .DS_Store
@@ -26,5 +34,13 @@ cmake-build-*
 # visualization scripts
 visualize/venv/
 visualize/data/*
+
+# cmake's Ninja generator files
+.ninja_deps
+.ninja_log
+build.ninja
+
+# dependencies
+test_data.hpp
 
 scripts/portability_experiment/*
