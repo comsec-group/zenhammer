@@ -28,6 +28,7 @@ struct ProgramArguments {
   // these two parameters define the default program mode: do fuzzing and synchronize with REFRESH
   bool do_fuzzing = true;
   bool use_synchronization = true;
+  std::string filepath_rowlist;
 };
 
 extern ProgramArguments program_args;

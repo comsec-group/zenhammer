@@ -85,6 +85,7 @@ add_library(
         src/Memory/DRAMAddr.cpp
         src/Memory/DramAnalyzer.cpp
         src/Memory/Memory.cpp
+        src/Memory/ConflictCluster.cpp
         src/Utilities/Enums.cpp
         src/Utilities/Logger.cpp
         src/Utilities/Pagemap.cpp

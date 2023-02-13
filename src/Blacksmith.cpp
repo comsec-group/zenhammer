@@ -4,6 +4,8 @@
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
+#include "Memory/ConflictCluster.hpp"
+#include "sys/stat.h"
 
 #include <argagg/argagg.hpp>
 #include <argagg/convert/csv.hpp>
@@ -22,6 +24,7 @@ int main(int argc, char **argv) {
 #endif
 
   handle_args(argc, argv);
+  std::cout << "returning from handle_args" << std::endl;
 
   // prints the current git commit and some program metadata
   Logger::log_metadata(GIT_COMMIT_HASH, program_args.runtime_limit);
@@ -33,6 +36,12 @@ int main(int argc, char **argv) {
   // allocate a large bulk of contiguous memory
   Memory memory(true);
   memory.allocate_memory(MEM_SIZE);
+
+  std::cout << "caring about conflict clusters" << std::endl;
+  ConflictCluster cc;
+  cc.load_conflict_cluster(program_args.filepath_rowlist);
+
+  exit(0);
 
   // find address sets that create bank conflicts
   DRAMAddr::initialize(memory.get_starting_address());
@@ -111,6 +120,8 @@ void handle_args(int argc, char **argv) {
       {"runtime-limit", {"-t", "--runtime-limit"}, "number of seconds to run the fuzzer before sweeping/terminating (default: 120)", 1},
       {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
+
+      {"rowlist", {"-l", "--rowlist"}, "", 1},
     }};
 
   argagg::parser_results parsed_args;
@@ -124,6 +135,20 @@ void handle_args(int argc, char **argv) {
   if (parsed_args["help"]) {
     std::cerr << argparser;
     exit(EXIT_SUCCESS);
+  }
+
+  if (parsed_args["rowlist"]) {
+      auto filepath = parsed_args["rowlist"].as<std::string>();
+      struct stat buffer{};
+      if (stat(filepath.c_str(),  &buffer) == 0) {
+          Logger::log_info("rowlist found!");
+          std::cout << "rowlist file: " << filepath << "\n";
+          std::cout << "rowlist size: " << buffer.st_size << "\n";
+        program_args.filepath_rowlist = filepath;;
+      } else {
+          std::cerr << "[-] rowlist file could not be found: " << filepath << '\n';
+          exit(EXIT_FAILURE);
+      }
   }
 
   /**
