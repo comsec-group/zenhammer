@@ -137,20 +137,6 @@ void handle_args(int argc, char **argv) {
     exit(EXIT_SUCCESS);
   }
 
-  if (parsed_args["rowlist"]) {
-      auto filepath = parsed_args["rowlist"].as<std::string>();
-      struct stat buffer{};
-      if (stat(filepath.c_str(),  &buffer) == 0) {
-          Logger::log_info("rowlist found!");
-          std::cout << "rowlist file: " << filepath << "\n";
-          std::cout << "rowlist size: " << buffer.st_size << "\n";
-        program_args.filepath_rowlist = filepath;;
-      } else {
-          std::cerr << "[-] rowlist file could not be found: " << filepath << '\n';
-          exit(EXIT_FAILURE);
-      }
-  }
-
   /**
    * mandatory parameters
    */
@@ -170,9 +156,26 @@ void handle_args(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  /**
-  * optional parameters
-  */
+  if (parsed_args["rowlist"]) {
+    auto filepath = parsed_args["rowlist"].as<std::string>();
+    struct stat buffer{};
+    if (stat(filepath.c_str(),  &buffer) == 0) {
+        Logger::log_info("Rowlist found!");
+        Logger::log_debug("rowlist file: " + filepath);
+        Logger::log_debug("rowlist size: " + std::to_string(buffer.st_size));
+        program_args.filepath_rowlist = filepath;;
+    } else {
+        std::cerr << "[-] Given rowlist could not be found: " << filepath << '\n';
+        exit(EXIT_FAILURE);
+    }
+  } else {
+    Logger::log_error("Program argument '--rowlist <filepath>' is mandatory! Cannot continue.");
+    exit(EXIT_FAILURE);
+  }
+
+    /**
+    * optional parameters
+    */
   program_args.sweeping = parsed_args.has_option("sweeping") || program_args.sweeping;
   Logger::log_debug(format_string("Set --sweeping=%s", (program_args.sweeping ? "true" : "false")));
 
