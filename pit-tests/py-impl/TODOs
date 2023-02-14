@@ -1,7 +1,0 @@
-- column function may be overlapping with lower addressing functions
-	in that case the column function should be masked with the higher
-	order bit of that function to have sequential columns
-
-- change DRAMAddr functions so that you can easily import new memory configurations
-	at the moment the C implementation only has the two matrices but we can make
-	it scale better if we create a MemConfig struct. 
