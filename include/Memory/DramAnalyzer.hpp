@@ -6,6 +6,7 @@
 #include <random>
 
 #include "Utilities/AsmPrimitives.hpp"
+#include "ConflictCluster.hpp"
 
 class DramAnalyzer {
  private:
@@ -17,6 +18,8 @@ class DramAnalyzer {
 
   volatile char *start_address;
 
+  ConflictCluster &cc;
+
   void find_targets(std::vector<volatile char *> &target_bank);
 
   std::mt19937 gen;
@@ -24,7 +27,7 @@ class DramAnalyzer {
   std::uniform_int_distribution<int> dist;
 
  public:
-  explicit DramAnalyzer(volatile char *target);
+  explicit DramAnalyzer(volatile char *target, ConflictCluster &cc);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
   void find_bank_conflicts();

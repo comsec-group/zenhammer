@@ -24,7 +24,6 @@ int main(int argc, char **argv) {
 #endif
 
   handle_args(argc, argv);
-  std::cout << "returning from handle_args" << std::endl;
 
   // prints the current git commit and some program metadata
   Logger::log_metadata(GIT_COMMIT_HASH, program_args.runtime_limit);
@@ -34,18 +33,12 @@ int main(int argc, char **argv) {
   if (ret!=0) Logger::log_error("Instruction setpriority failed.");
 
   // allocate a large bulk of contiguous memory
-  Memory memory(true);
+  Memory memory(true, program_args.filepath_rowlist, program_args.filepath_rowlist_bgbk);
   memory.allocate_memory(MEM_SIZE);
 
-  std::cout << "caring about conflict clusters" << std::endl;
-  ConflictCluster cc;
-  cc.load_conflict_cluster(program_args.filepath_rowlist);
-
-  exit(0);
-
   // find address sets that create bank conflicts
-  DRAMAddr::initialize(memory.get_starting_address());
-  DramAnalyzer dram_analyzer(memory.get_starting_address());
+//  DRAMAddr::initialize(memory.get_starting_address());
+  DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
 //  dram_analyzer.find_bank_conflicts();
 //  if (program_args.num_ranks != 0) {
 //    dram_analyzer.load_known_functions(program_args.num_ranks);
@@ -56,44 +49,31 @@ int main(int argc, char **argv) {
   // initialize the DRAMAddr class to load the proper memory configuration
 
   // count the number of possible activations per refresh interval, if not given as program argument
-  if (program_args.acts_per_ref==0)
-    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
-
-  if (!program_args.load_json_filename.empty()) {
-    ReplayingHammerer replayer(memory);
-    if (program_args.sweeping) {
-      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids,
-          MB(256), false);
-    } else {
-      replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
-    }
-  } else if (program_args.do_fuzzing && program_args.use_synchronization) {
+//  if (program_args.acts_per_ref==0)
+//    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
+//
+//  if (!program_args.load_json_filename.empty()) {
+//    ReplayingHammerer replayer(memory);
+//    if (program_args.sweeping) {
+//      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids,
+//          MB(256), false);
+//    } else {
+//      replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
+//    }
+//  } else if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer::n_sided_frequency_based_hammering(dram_analyzer, memory, static_cast<int>(program_args.acts_per_ref), program_args.runtime_limit,
         program_args.num_address_mappings_per_pattern, program_args.sweeping);
-  } else if (!program_args.do_fuzzing) {
-//    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
-//    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
-    TraditionalHammerer::n_sided_hammer_experiment_frequencies(memory);
-  } else {
-    Logger::log_error("Invalid combination of program control-flow arguments given. "
-                      "Note: Fuzzing is only supported with synchronized hammering.");
-  }
+//  } else if (!program_args.do_fuzzing) {
+////    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
+////    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
+//    TraditionalHammerer::n_sided_hammer_experiment_frequencies(memory);
+//  } else {
+//    Logger::log_error("Invalid combination of program control-flow arguments given. "
+//                      "Note: Fuzzing is only supported with synchronized hammering.");
+//  }
 
   Logger::close();
   return EXIT_SUCCESS;
-}
-
-void handle_arg_generate_patterns(int num_activations, const size_t probes_per_pattern) {
-  // this parameter is defined in FuzzingParameterSet
-  const size_t MAX_NUM_REFRESH_INTERVALS = 32;
-  const size_t MAX_ACCESSES = num_activations*MAX_NUM_REFRESH_INTERVALS;
-  void *rows_to_access = calloc(MAX_ACCESSES, sizeof(int));
-  if (rows_to_access==nullptr) {
-    Logger::log_error("Allocation of rows_to_access failed!");
-    exit(EXIT_FAILURE);
-  }
-  FuzzyHammerer::generate_pattern_for_ARM(num_activations, static_cast<int *>(rows_to_access), static_cast<int>(MAX_ACCESSES), probes_per_pattern);
-  exit(EXIT_SUCCESS);
 }
 
 void handle_args(int argc, char **argv) {
@@ -108,7 +88,6 @@ void handle_args(int argc, char **argv) {
       {"ranks", {"-r", "--ranks"}, "number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)", 1},
 
       {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 0},
-      {"generate-patterns", {"-g", "--generate-patterns"}, "generates N patterns, but does not perform hammering; used by ARM port", 1},
       {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
 
       {"load-json", {"-j", "--load-json"}, "loads the specified JSON file generated in a previous fuzzer run, loads patterns given by --replay-patterns or determines the best ones", 1},
@@ -122,6 +101,7 @@ void handle_args(int argc, char **argv) {
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
 
       {"rowlist", {"-l", "--rowlist"}, "", 1},
+      {"rowlist-bgbk", {"--rowlist-bgbk"}, "", 1},
     }};
 
   argagg::parser_results parsed_args;
@@ -156,20 +136,25 @@ void handle_args(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  if (parsed_args["rowlist"]) {
-    auto filepath = parsed_args["rowlist"].as<std::string>();
+  if (parsed_args.has_option("rowlist") && parsed_args.has_option("rowlist-bgbk")) {
+    program_args.filepath_rowlist =  parsed_args["rowlist"].as<std::string>();
+    program_args.filepath_rowlist_bgbk = parsed_args["rowlist-bgbk"].as<std::string>();
+
     struct stat buffer{};
-    if (stat(filepath.c_str(),  &buffer) == 0) {
-        Logger::log_info("Rowlist found!");
-        Logger::log_debug("rowlist file: " + filepath);
-        Logger::log_debug("rowlist size: " + std::to_string(buffer.st_size));
-        program_args.filepath_rowlist = filepath;;
+    if (stat(program_args.filepath_rowlist.c_str(), &buffer) != 0) {
+      std::cerr << "[-] Given rowlist could not be found: " << program_args.filepath_rowlist << '\n';
+      exit(EXIT_FAILURE);
     } else {
-        std::cerr << "[-] Given rowlist could not be found: " << filepath << '\n';
-        exit(EXIT_FAILURE);
+      Logger::log_info("Rowlist found!");
+      Logger::log_debug("rowlist file: " + program_args.filepath_rowlist);
+      Logger::log_debug("rowlist size: " + std::to_string(buffer.st_size));
+    }
+    if (stat(program_args.filepath_rowlist_bgbk.c_str(),  &buffer) != 0) {
+      std::cerr << "[-] Given rowlist_bgbk could not be found: " << program_args.filepath_rowlist_bgbk << '\n';
+      exit(EXIT_FAILURE);
     }
   } else {
-    Logger::log_error("Program argument '--rowlist <filepath>' is mandatory! Cannot continue.");
+    Logger::log_error("Program arguments '--rowlist <filepath>' and '--rowlist-bgbk <filepath>' are mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
   }
 
@@ -191,12 +176,7 @@ void handle_args(int argc, char **argv) {
   /**
    * program modes
    */
-  if (parsed_args.has_option("generate-patterns")) {
-    auto num_activations = parsed_args["generate-patterns"].as<int>(84);
-    // this must happen AFTER probes-per-pattern has been parsed
-    // note: the following method call does not return anymore
-    handle_arg_generate_patterns(num_activations, program_args.num_address_mappings_per_pattern);
-  } else if (parsed_args.has_option("load-json")) {
+  if (parsed_args.has_option("load-json")) {
     program_args.load_json_filename = parsed_args["load-json"].as<std::string>("");
     if (parsed_args.has_option("replay-patterns")) {
       auto vec_pattern_ids = parsed_args["replay-patterns"].as<argagg::csv<std::string>>();

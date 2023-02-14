@@ -29,6 +29,7 @@ struct ProgramArguments {
   bool do_fuzzing = true;
   bool use_synchronization = true;
   std::string filepath_rowlist;
+  std::string filepath_rowlist_bgbk;
 };
 
 extern ProgramArguments program_args;
@@ -36,7 +37,5 @@ extern ProgramArguments program_args;
 int main(int argc, char **argv);
 
 void handle_args(int argc, char **argv);
-
-[[ noreturn ]] void handle_arg_generate_patterns(int num_activations, size_t probes_per_pattern);
 
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_

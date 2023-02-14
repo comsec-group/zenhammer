@@ -80,7 +80,7 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
 }
 
 void Logger::log_debug(const std::string &message, bool newline) {
-#if (DEBU==1)
+#if (DEBUG==1)
   instance.logfile << FC_YELLOW "[DEBUG] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile

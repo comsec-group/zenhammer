@@ -48,9 +48,21 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
       // that actually works when replaying it
       Logger::log_info("Hammering pattern with mapping to see how effective it is.");
       CodeJitter &jitter = it->get_code_jitter();
-      triggered_bitflips = hammer_pattern(params, jitter, patt, *it, jitter.flushing_strategy,
-          jitter.fencing_strategy, cur_reps, jitter.num_aggs_for_sync,
-          jitter.total_activations, false, jitter.pattern_sync_each_ref, false, false, false, true, true);
+      triggered_bitflips = hammer_pattern(params,
+                                          jitter,
+                                          patt,
+                                          *it,
+                                          jitter.flushing_strategy,
+                                          jitter.fencing_strategy,
+                                          cur_reps,
+                                          jitter.num_aggs_for_sync,
+                                          jitter.total_activations,
+                                          false,
+                                          jitter.pattern_sync_each_ref,
+                                          false,
+                                          false,
+                                          false,
+                                          true);
     } else {
       Logger::log_info("Using bit_flip data in JSON to determine effectiveness of mapping.");
       triggered_bitflips = it->count_bitflips();
@@ -171,10 +183,21 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
       while (cur_try++ < MAX_RETRIES && !success) {
         // hammer the pattern
         CodeJitter &jitter = mapper.get_code_jitter();
-        auto num_bitflips = hammer_pattern(params,jitter,patt,mapper, jitter.flushing_strategy,
-            jitter.fencing_strategy, 1, jitter.num_aggs_for_sync, jitter.total_activations,
-            false, jitter.pattern_sync_each_ref, false, false, false,
-            false,true);
+        auto num_bitflips = hammer_pattern(params,
+                                           jitter,
+                                           patt,
+                                           mapper,
+                                           jitter.flushing_strategy,
+                                           jitter.fencing_strategy,
+                                           1,
+                                           jitter.num_aggs_for_sync,
+                                           jitter.total_activations,
+                                           false,
+                                           jitter.pattern_sync_each_ref,
+                                           false,
+                                           false,
+                                           false,
+                                           true);
 
         success = (num_bitflips > 0);
         Logger::log_data(format_string("%ld\t%ld\t%lu", rounds_with_bitflips, cur_try, num_bitflips));
@@ -207,7 +230,7 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     nlohmann::json meta;
     meta["start"] = start_ts;
     meta["end"] = get_timestamp_sec();
-    meta["memory_config"] = DRAMAddr::get_memcfg_json();
+//    meta["memory_config"] = DRAMAddr::get_memcfg_json();
     meta["dimm_id"] = program_args.dimm_id;
 
     nlohmann::json experiment;
@@ -721,45 +744,60 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
   return patterns;
 }
 
-size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter,
-                                         HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                         FLUSHING_STRATEGY flushing_strategy, FENCING_STRATEGY fencing_strategy,
-                                         unsigned long num_reps, int aggressors_for_sync,
-                                         int num_activations, bool early_stopping, bool sync_each_ref,
-                                         bool verbose_sync, bool verbose_memcheck, bool verbose_params,
-                                         bool wait_before_hammering, bool check_flips_after_each_rep) {
+size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
+                                         CodeJitter &code_jitter,
+                                         HammeringPattern &pattern,
+                                         PatternAddressMapper &mapper,
+                                         FLUSHING_STRATEGY flushing_strategy,
+                                         FENCING_STRATEGY fencing_strategy,
+                                         unsigned long num_reps,
+                                         int aggressors_for_sync,
+                                         int num_activations,
+                                         bool early_stopping,
+                                         bool sync_each_ref,
+                                         bool verbose_sync,
+                                         bool verbose_memcheck,
+                                         bool verbose_params,
+                                         bool check_flips_after_each_rep) {
 
   // transform pattern into vector of addresses
   std::vector<volatile char *> hammering_accesses_vec;
   mapper.export_pattern(pattern.aggressors, pattern.base_period, hammering_accesses_vec);
 
   return hammer_pattern(fuzz_params,
-      code_jitter,
-      pattern,
-      mapper,
-      flushing_strategy,
-      fencing_strategy,
-      num_reps,
-      aggressors_for_sync,
-      num_activations,
-      early_stopping,
-      sync_each_ref,
-      verbose_sync,
-      verbose_memcheck,
-      verbose_params,
-      wait_before_hammering,
-      check_flips_after_each_rep,
-      hammering_accesses_vec);
+                        code_jitter,
+                        pattern,
+                        mapper,
+                        flushing_strategy,
+                        fencing_strategy,
+                        num_reps,
+                        aggressors_for_sync,
+                        num_activations,
+                        early_stopping,
+                        sync_each_ref,
+                        verbose_sync,
+                        verbose_memcheck,
+                        verbose_params,
+                        check_flips_after_each_rep,
+                        hammering_accesses_vec);
 }
 
-size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter,
-                                         HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                         FLUSHING_STRATEGY flushing_strategy, FENCING_STRATEGY fencing_strategy,
-                                         unsigned long num_reps, int aggressors_for_sync,
-                                         int num_activations, bool early_stopping, bool sync_each_ref,
-                                         bool verbose_sync, bool verbose_memcheck, bool verbose_params,
-                                         bool wait_before_hammering, bool check_flips_after_each_rep,
-                                         std::vector<volatile char*> &hammering_accesses_vec) {
+size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
+                                         CodeJitter &code_jitter,
+                                         HammeringPattern &pattern,
+                                         PatternAddressMapper &mapper,
+                                         FLUSHING_STRATEGY flushing_strategy,
+                                         FENCING_STRATEGY fencing_strategy,
+                                         unsigned long num_reps,
+                                         int aggressors_for_sync,
+                                         int num_activations,
+                                         bool early_stopping,
+                                         bool sync_each_ref,
+                                         bool verbose_sync,
+                                         bool verbose_memcheck,
+                                         bool verbose_params,
+                                         bool check_flips_after_each_rep,
+                                         std::vector<volatile char *> &hammering_accesses_vec) {
 
   // early_stopping: stop after the first repetition in that we observe any bit flips
 
@@ -787,11 +825,6 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJ
     if (verbose_params) {
       FuzzingParameterSet::print_dynamic_parameters2(sync_each_ref, wait_until_hammering_us, aggressors_for_sync);
     }
-
-//    if (wait_before_hammering && wait_until_hammering_us > 0) {
-//      std::vector<volatile char *> random_rows = mapper.get_random_nonaccessed_rows(fuzz_params.get_max_row_no());
-//      FuzzyHammerer::do_random_accesses(random_rows, wait_until_hammering_us);
-//    }
 
     // do hammering
     code_jitter.hammer_pattern(fuzz_params, verbose_sync);
@@ -861,9 +894,21 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
     mapper.shift_mapping(1, effective_aggs);
 
     // call hammer_pattern
-    auto num_flips = hammer_pattern(params, jitter, pattern, mapper, jitter.flushing_strategy,
-        jitter.fencing_strategy, num_reps, jitter.num_aggs_for_sync, jitter.total_activations, true,
-        jitter.pattern_sync_each_ref, false, false, false, true, true);
+    auto num_flips = hammer_pattern(params,
+                                    jitter,
+                                    pattern,
+                                    mapper,
+                                    jitter.flushing_strategy,
+                                    jitter.fencing_strategy,
+                                    num_reps,
+                                    jitter.num_aggs_for_sync,
+                                    jitter.total_activations,
+                                    true,
+                                    jitter.pattern_sync_each_ref,
+                                    false,
+                                    false,
+                                    false,
+                                    true);
     // note the use of early_stopping in hammer_pattern: we repeat hammering at maximum hammering_num_reps times but do stop
     // after observing any bit flip - this is the number that we report
     total_bit_flips_sweeping += num_flips;
@@ -910,13 +955,39 @@ ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
   auto &patt = map_mapping_id_to_pattern.at(mapper.get_instance_id());
 
   Logger::log_info("Hammering pattern for 10x100M activations.");
-  size_t num_bit_flips = hammer_pattern(params, cj, patt, mapper, cj.flushing_strategy, cj.fencing_strategy, 10,
-      cj.num_aggs_for_sync, M(100), false, cj.pattern_sync_each_ref, false, false, false, false, true);
+  size_t num_bit_flips = hammer_pattern(params,
+                                        cj,
+                                        patt,
+                                        mapper,
+                                        cj.flushing_strategy,
+                                        cj.fencing_strategy,
+                                        10,
+                                        cj.num_aggs_for_sync,
+                                        M(100),
+                                        false,
+                                        cj.pattern_sync_each_ref,
+                                        false,
+                                        false,
+                                        false,
+                                        true);
   Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
 
   Logger::log_info("Hammering pattern for 10x10M activations.");
-  num_bit_flips = hammer_pattern(params, cj, patt, mapper, cj.flushing_strategy, cj.fencing_strategy, 10,
-      cj.num_aggs_for_sync, M(10), false, cj.pattern_sync_each_ref, false, false, false, false, true);
+  num_bit_flips = hammer_pattern(params,
+                                 cj,
+                                 patt,
+                                 mapper,
+                                 cj.flushing_strategy,
+                                 cj.fencing_strategy,
+                                 10,
+                                 cj.num_aggs_for_sync,
+                                 M(10),
+                                 false,
+                                 cj.pattern_sync_each_ref,
+                                 false,
+                                 false,
+                                 false,
+                                 true);
   Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
 }
 
@@ -934,26 +1005,62 @@ ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
 
   // - sync_each_ref
   for (auto &sync : {true, false}) {
-    auto num_bit_flips = hammer_pattern(params, cj, patt, mapper, cj.flushing_strategy, cj.fencing_strategy,
-        hammering_num_reps, cj.num_aggs_for_sync, cj.total_activations, false, sync, false, false, false,
-        true, true);
+    auto num_bit_flips = hammer_pattern(params,
+                                        cj,
+                                        patt,
+                                        mapper,
+                                        cj.flushing_strategy,
+                                        cj.fencing_strategy,
+                                        hammering_num_reps,
+                                        cj.num_aggs_for_sync,
+                                        cj.total_activations,
+                                        false,
+                                        sync,
+                                        false,
+                                        false,
+                                        false,
+                                        true);
     Logger::log_info(format_string("sync_each_ref = %-8s => %d bit flips",
         (sync ? "true" : "false"), num_bit_flips));
   }
 
   // - num_aggs_for_sync
   for (const auto &sync_aggs : {1, 2}) {
-    auto num_bit_flips = hammer_pattern(params, cj, patt, mapper, cj.flushing_strategy, cj.fencing_strategy,
-        hammering_num_reps, sync_aggs, cj.total_activations, false, cj.pattern_sync_each_ref, false, false,
-        false, true, true);
+    auto num_bit_flips = hammer_pattern(params,
+                                        cj,
+                                        patt,
+                                        mapper,
+                                        cj.flushing_strategy,
+                                        cj.fencing_strategy,
+                                        hammering_num_reps,
+                                        sync_aggs,
+                                        cj.total_activations,
+                                        false,
+                                        cj.pattern_sync_each_ref,
+                                        false,
+                                        false,
+                                        false,
+                                        true);
     Logger::log_info(format_string("num_aggs_for_sync = %-7d => %d bit flips", sync_aggs, num_bit_flips));
   }
 
   // - hammering_total_num_activations
   for (int a = M(10); a > M(1); a -= M(1)) {
-    auto num_bit_flips = hammer_pattern(params, cj, patt, mapper, cj.flushing_strategy, cj.fencing_strategy,
-        hammering_num_reps, cj.num_aggs_for_sync, a, false, cj.pattern_sync_each_ref, false, false, false,
-        true, true);
+    auto num_bit_flips = hammer_pattern(params,
+                                        cj,
+                                        patt,
+                                        mapper,
+                                        cj.flushing_strategy,
+                                        cj.fencing_strategy,
+                                        hammering_num_reps,
+                                        cj.num_aggs_for_sync,
+                                        a,
+                                        false,
+                                        cj.pattern_sync_each_ref,
+                                        false,
+                                        false,
+                                        false,
+                                        true);
     Logger::log_info(format_string("total_num_acts_hammering = %-12d => %d bit flips", a, num_bit_flips));
   }
 }
@@ -969,7 +1076,8 @@ void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
   // get all flipped rows
   std::set<int> flipped_rows;
   if (mapper.bit_flips.size() == 0) return;
-  for (const auto &bf : mapper.bit_flips.at(0)) flipped_rows.insert(static_cast<int>(bf.address.row));
+  for (const auto &bf : mapper.bit_flips.at(0))
+    flipped_rows.insert(static_cast<int>(bf.address.row_id));
 
   // map to keep track of best guess which AggressorAccessPattern caused a bit flip.
   // maps (aggressor ID) to (distance, AggressorAccessPattern)
@@ -1065,9 +1173,21 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
     }
 
     // do jitting + hammering
-    size_t num_triggered_bitflips = hammer_pattern(params, jitter, patt, mapper, jitter.flushing_strategy,
-        jitter.fencing_strategy, hammering_num_reps, jitter.num_aggs_for_sync, jitter.total_activations, false,
-        jitter.pattern_sync_each_ref, false, false, false, true, true);
+    size_t num_triggered_bitflips = hammer_pattern(params,
+                                                   jitter,
+                                                   patt,
+                                                   mapper,
+                                                   jitter.flushing_strategy,
+                                                   jitter.fencing_strategy,
+                                                   hammering_num_reps,
+                                                   jitter.num_aggs_for_sync,
+                                                   jitter.total_activations,
+                                                   false,
+                                                   jitter.pattern_sync_each_ref,
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   true);
 
     // check if pattern still triggers bit flip to see whether this AggressorAccessPattern matters
     if (num_triggered_bitflips > 0) {
@@ -1222,10 +1342,21 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
           //  AggressorAccessPatterntarget always a target known-to-be vulnerable row so we can be sure that if we
           //  don't see any bit flips, it's not because of a bad location
           mapper.randomize_addresses(params, patt.agg_access_patterns, false);
-          auto num_bitflips = ReplayingHammerer::hammer_pattern(params, jitter, patt, mapper,
-              jitter.flushing_strategy, jitter.fencing_strategy, fpa_probing_num_reps, jitter.num_aggs_for_sync,
-              jitter.total_activations, false,
-              jitter.pattern_sync_each_ref, false, false, false, true, true);
+          auto num_bitflips = ReplayingHammerer::hammer_pattern(params,
+                                                                jitter,
+                                                                patt,
+                                                                mapper,
+                                                                jitter.flushing_strategy,
+                                                                jitter.fencing_strategy,
+                                                                fpa_probing_num_reps,
+                                                                jitter.num_aggs_for_sync,
+                                                                jitter.total_activations,
+                                                                false,
+                                                                jitter.pattern_sync_each_ref,
+                                                                false,
+                                                                false,
+                                                                false,
+                                                                true);
           if (num_bitflips==0) {
             Logger::log_failure("No bit flips found.");
           } else {

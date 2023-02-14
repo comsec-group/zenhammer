@@ -42,11 +42,20 @@ class ReplayingHammerer {
   // to trigger bit flips
   int hammering_num_reps = initial_hammering_num_reps;
 
-  size_t hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter, HammeringPattern &pattern,
-                        PatternAddressMapper &mapper, FLUSHING_STRATEGY flushing_strategy,
-                        FENCING_STRATEGY fencing_strategy, unsigned long num_reps, int aggressors_for_sync,
-                        int num_activations, bool early_stopping, bool sync_each_ref, bool verbose_sync,
-                        bool verbose_memcheck, bool verbose_params, bool wait_before_hammering,
+  size_t hammer_pattern(FuzzingParameterSet &fuzz_params,
+                        CodeJitter &code_jitter,
+                        HammeringPattern &pattern,
+                        PatternAddressMapper &mapper,
+                        FLUSHING_STRATEGY flushing_strategy,
+                        FENCING_STRATEGY fencing_strategy,
+                        unsigned long num_reps,
+                        int aggressors_for_sync,
+                        int num_activations,
+                        bool early_stopping,
+                        bool sync_each_ref,
+                        bool verbose_sync,
+                        bool verbose_memcheck,
+                        bool verbose_params,
                         bool check_flips_after_each_rep);
 
 
@@ -101,12 +110,22 @@ class ReplayingHammerer {
 // the FuzzingParameterSet instance belonging to the
 FuzzingParameterSet params;
 
-  size_t hammer_pattern(FuzzingParameterSet &fuzz_params, CodeJitter &code_jitter, HammeringPattern &pattern,
-                        PatternAddressMapper &mapper, FLUSHING_STRATEGY flushing_strategy,
-                        FENCING_STRATEGY fencing_strategy, unsigned long num_reps, int aggressors_for_sync,
-                        int num_activations, bool early_stopping, bool sync_each_ref, bool verbose_sync,
-                        bool verbose_memcheck, bool verbose_params, bool wait_before_hammering,
-                        bool check_flips_after_each_rep, std::vector<volatile char *> &hammering_accesses_vec);
+  size_t hammer_pattern(FuzzingParameterSet &fuzz_params,
+                        CodeJitter &code_jitter,
+                        HammeringPattern &pattern,
+                        PatternAddressMapper &mapper,
+                        FLUSHING_STRATEGY flushing_strategy,
+                        FENCING_STRATEGY fencing_strategy,
+                        unsigned long num_reps,
+                        int aggressors_for_sync,
+                        int num_activations,
+                        bool early_stopping,
+                        bool sync_each_ref,
+                        bool verbose_sync,
+                        bool verbose_memcheck,
+                        bool verbose_params,
+                        bool check_flips_after_each_rep,
+                        std::vector<volatile char *> &hammering_accesses_vec);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_

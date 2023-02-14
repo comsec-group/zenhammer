@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 
+option (FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
+if (${FORCE_COLORED_OUTPUT})
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        add_compile_options (-fdiagnostics-color=always)
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        add_compile_options (-fcolor-diagnostics)
+    endif ()
+endif ()
+
 # === OPTIONS ==================================================================
 
 set(
@@ -72,8 +81,8 @@ add_library(
         include/GlobalDefines.hpp
         include/Utilities/TimeHelper.hpp
         src/Forges/FuzzyHammerer.cpp
-        src/Forges/ReplayingHammerer.cpp
-        src/Forges/TraditionalHammerer.cpp
+#        src/Forges/ReplayingHammerer.cpp
+#        src/Forges/TraditionalHammerer.cpp
         src/Fuzzer/Aggressor.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
         src/Fuzzer/BitFlip.cpp
@@ -82,7 +91,7 @@ add_library(
         src/Fuzzer/HammeringPattern.cpp
         src/Fuzzer/PatternAddressMapper.cpp
         src/Fuzzer/PatternBuilder.cpp
-        src/Memory/DRAMAddr.cpp
+#        src/Memory/DRAMAddr.cpp
         src/Memory/DramAnalyzer.cpp
         src/Memory/Memory.cpp
         src/Memory/ConflictCluster.cpp

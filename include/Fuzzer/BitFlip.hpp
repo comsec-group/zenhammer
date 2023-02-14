@@ -2,11 +2,12 @@
 #define BLACKSMITH_INCLUDE_FUZZER_BITFLIP_HPP_
 
 #include "Memory/DRAMAddr.hpp"
+#include "Memory/ConflictCluster.hpp"
 
 class BitFlip {
  public:
   // the address where the bit flip was observed
-  DRAMAddr address;
+  SimpleDramAddress address;
 
   // mask of the bits that flipped, i.e., positions where value == 1 -> flipped bit
   uint8_t bitmask = 0;
@@ -16,7 +17,7 @@ class BitFlip {
 
   BitFlip();
 
-  BitFlip(const DRAMAddr &address, uint8_t flips_bitmask, uint8_t corrupted_data);
+  BitFlip(const SimpleDramAddress &address, uint8_t flips_bitmask, uint8_t corrupted_data);
 
   [[nodiscard]] size_t count_z2o_corruptions() const;
 

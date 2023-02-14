@@ -23,7 +23,7 @@ class PatternAddressMapper {
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
-  std::unordered_set<volatile char *> victim_rows;
+  std::vector<SimpleDramAddress> victim_rows;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
@@ -46,17 +46,14 @@ class PatternAddressMapper {
   size_t min_row = 0;
   size_t max_row = 0;
   int bank_no = 0;
-  int subchannel_no = 0;
 
   // a global counter that makes sure that we test patterns on all banks equally often
   // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
   // this may happen after we tested more than one pattern)
   static int bank_counter;
 
-  static int subchannel_counter;
-
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
-  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
+  std::unordered_map<AGGRESSOR_ID_TYPE, SimpleDramAddress> aggressor_to_addr;
 
   // the bit flips that were detected while running the pattern with this mapping
   std::vector<std::vector<BitFlip>> bit_flips;
@@ -69,9 +66,10 @@ class PatternAddressMapper {
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            const std::vector<AggressorAccessPattern> &agg_access_patterns,
-                           bool verbose);
+                           bool verbose,
+                           Memory &mem);
 
-  void remap_aggressors(DRAMAddr &new_location);
+  void remap_aggressors(SimpleDramAddress &new_location);
 
   void export_pattern(std::vector<Aggressor> &aggressors, int base_period, std::vector<volatile char *> &addresses);
 
@@ -81,17 +79,16 @@ class PatternAddressMapper {
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
-  [[nodiscard]] const std::unordered_set<volatile char *> & get_victim_rows() const;
+  [[nodiscard]] const std::vector<SimpleDramAddress> & get_victim_rows() const;
 
-  std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
-
-  void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns);
+  void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns,
+                         Memory &mem);
 
   std::string get_mapping_text_repr();
 
   [[nodiscard]] CodeJitter & get_code_jitter() const;
 
-  void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
+  [[maybe_unused]] void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
                              int &agg_inter_distance, bool uses_seq_addresses);
 
   void shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move);

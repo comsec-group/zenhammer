@@ -31,19 +31,18 @@ class Memory {
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
  public:
+  ConflictCluster conflict_cluster;
 
   // the flipped bits detected during the last call to check_memory
   std::vector<BitFlip> flipped_bits;
 
-  explicit Memory(bool use_superpage);
+  explicit Memory(bool use_superpage, std::string &rowlist_filepath, std::string &rowlist_filepath_bgbk);
 
   ~Memory();
 
   void allocate_memory(size_t mem_size);
 
   void initialize(DATA_PATTERN data_pattern);
-
-  size_t check_memory(const volatile char *start, const volatile char *end);
 
   size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose);
 

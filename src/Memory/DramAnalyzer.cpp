@@ -80,9 +80,9 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
   }
 }
 
-DramAnalyzer::DramAnalyzer(volatile char *target) :
+DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
 //  row_function(0), start_address(target) {
-  start_address(target) {
+  start_address(target), cc(cc) {
   std::random_device rd;
   gen = std::mt19937(rd());
   dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
@@ -116,8 +116,10 @@ size_t DramAnalyzer::count_acts_per_ref() {
 //  volatile char *a = banks.at(0).at(0);
 //  volatile char *b = banks.at(0).at(1);
 
-  volatile char *a = (volatile char*)DRAMAddr(0, 2, 0).to_virt();
-  volatile char *b = (volatile char*)DRAMAddr(1, 2, 0).to_virt();
+//  volatile char *a = (volatile char*)DRAMAddr(0, 2, 0).to_virt();
+  volatile char *a = cc.get_simple_dram_address(0, 24).vaddr;
+//  volatile char *b = (volatile char*)DRAMAddr(1, 2, 0).to_virt();
+  volatile char *b = cc.get_simple_dram_address(0, 32).vaddr;
 
   Logger::log_debug(format_string("pointers used for count_acts_per_ref: %p\n%p", a, b));
 
