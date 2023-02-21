@@ -47,9 +47,9 @@ class HammeringPattern {
   // better because we need to foreign keys and can easily associate this HammeringPattern to N PatternAddressMappings
   std::vector<PatternAddressMapper> address_mappings;
 
-  HammeringPattern();
+  explicit HammeringPattern(std::mt19937 &gen);
 
-  explicit HammeringPattern(int base_period);
+  HammeringPattern(int base_period, std::mt19937 &gen);
 
   std::string get_pattern_text_repr();
 

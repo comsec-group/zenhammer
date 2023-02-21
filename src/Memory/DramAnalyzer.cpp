@@ -1,5 +1,6 @@
 #include "Memory/DramAnalyzer.hpp"
 #include "Memory/DRAMAddr.hpp"
+#include "Utilities/CustomRandom.hpp"
 
 #include <cassert>
 #include <unordered_set>
@@ -11,12 +12,12 @@ void DramAnalyzer::find_bank_conflicts() {
   while (nr_banks_cur < NUM_BANKS && remaining_tries > 0) {
     reset:
     remaining_tries--;
-    auto a1 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
-    auto a2 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
+    auto a1 = start_address + (dist(cr.gen)%(MEM_SIZE/64))*64;
+    auto a2 = start_address + (dist(cr.gen)%(MEM_SIZE/64))*64;
     auto ret1 = measure_time(a1, a2);
     auto ret2 = measure_time(a1, a2);
 
-    if ((ret1 > CACHE_THRESH) && (ret2 > CACHE_THRESH)) {
+    if ((ret1 > BK_CONF_THRESH) && (ret2 > BK_CONF_THRESH)) {
       bool all_banks_set = true;
       for (size_t i = 0; i < NUM_BANKS; i++) {
         if (banks.at(i).empty()) {
@@ -25,7 +26,7 @@ void DramAnalyzer::find_bank_conflicts() {
           auto bank = banks.at(i);
           ret1 = measure_time(a1, bank[0]);
           ret2 = measure_time(a2, bank[0]);
-          if ((ret1 > CACHE_THRESH) || (ret2 > CACHE_THRESH)) {
+          if ((ret1 > BK_CONF_THRESH) || (ret2 > BK_CONF_THRESH)) {
             // possibly noise if only exactly one is true,
             // i.e., (ret1 > THRESH) or (ret2 > THRESH)
             goto reset;
@@ -64,7 +65,7 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
   target_bank.clear();
   size_t num_repetitions = 5;
   while (tmp.size() < 10) {
-    auto a1 = start_address + (dist(gen)%(MEM_SIZE/64))*64;
+    auto a1 = start_address + (dist(cr.gen)%(MEM_SIZE/64))*64;
     if (tmp.count(a1) > 0) continue;
     uint64_t cumulative_times = 0;
     for (size_t i = 0; i < num_repetitions; i++) {
@@ -73,7 +74,7 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
       }
     }
     cumulative_times /= num_repetitions;
-    if ((cumulative_times/tmp.size()) > CACHE_THRESH) {
+    if ((cumulative_times/tmp.size()) > BK_CONF_THRESH) {
       tmp.insert(a1);
       target_bank.push_back(a1);
     }
@@ -83,8 +84,7 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
 DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
 //  row_function(0), start_address(target) {
   start_address(target), cc(cc) {
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  cr = CustomRandom();
   dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
 }

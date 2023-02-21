@@ -7,16 +7,12 @@
 #include "Utilities/Uuid.hpp"
 #include "Memory/Memory.hpp"
 
-// initialize the bank_counter (static var)
-int PatternAddressMapper::bank_counter = 0;
+// static variable initialization
+size_t PatternAddressMapper::cluster_ids_idx = 0;
 
-PatternAddressMapper::PatternAddressMapper()
-    : instance_id(uuid::gen_uuid()) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper(Memory &mem) : cr(CustomRandom()), instance_id(uuid::gen_uuid(cr.gen)) {
   code_jitter = std::make_unique<CodeJitter>();
-
-  // standard mersenne_twister_engine seeded with rd()
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  cluster_ids = mem.conflict_cluster.get_supported_cluster_ids();
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
@@ -27,9 +23,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   aggressor_to_addr.clear();
 
   // retrieve and then store randomized values as they should be the same for all added addresses
-  // (store bank_no as field for get_random_nonaccessed_rows)
-  bank_no = PatternAddressMapper::bank_counter;
-  PatternAddressMapper::bank_counter = (PatternAddressMapper::bank_counter + 1) % NUM_BANKS;
+  auto bank_no = cluster_ids[cluster_ids_idx];
+  PatternAddressMapper::cluster_ids_idx = (PatternAddressMapper::cluster_ids_idx + 1) % (cluster_ids.size()-1);
+
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
   const int start_row = fuzzing_params.get_random_start_row();
   if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
@@ -55,8 +51,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
   // probability to map aggressor to same row as another aggressor is already mapped to
   const int prob2 = 100 - (
-      static_cast<int>(
-          std::min(static_cast<double>(fuzzing_params.get_num_aggressors())/static_cast<double>(total_abstract_aggs),1.0)*100));
+      static_cast<int>(std::min(
+          static_cast<double>(fuzzing_params.get_num_aggressors())/
+          static_cast<double>(total_abstract_aggs),1.0)*100));
   Logger::log_debug(format_string("[PatternAddressMapper] Probability to map multiple AAPs to same DRAM row = %d", prob2));
 
   std::random_device device;
@@ -64,10 +61,9 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   std::vector<int> weights = std::vector<int>({100-prob2, prob2});
   std::discrete_distribution<> dist(weights.begin(), weights.end()); // Create the distribution
 
-  Logger::log_debug("[PatternAddressMapper] weights =");
-  for (const auto &w : weights) {
-    Logger::log_debug(format_string("%d", w));
-  }
+  std::stringstream ss_weights;
+  for (const auto &w : weights) ss_weights << w << " ";
+  Logger::log_debug(format_string("[PatternAddressMapper] weights = %s", ss_weights.str().c_str()));
 
 //  Logger::log_info("Generating 1k random numbers to see how well distribution works ");
 //  size_t cnt_0 = 0;
@@ -88,41 +84,45 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       // aggressor has existing row mapping OR
       if (aggressor_to_addr.count(current_agg.id) > 0) {
         row = aggressor_to_addr.at(current_agg.id).row_id;
-      } else if (i > 0) {  // aggressor is part of a n>1 aggressor tuple
-        // we need to add the appropriate distance and cannot choose randomly
-        auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
-        // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
-        cur_row = (last_addr.row_id + (size_t) fuzzing_params.get_agg_intra_distance())%fuzzing_params.get_max_row_no();
-        row = cur_row;
       } else {
-        // this is a new aggressor pair - we can choose where to place it
-        // if use_seq_addresses is true, we use the last address and add the agg_inter_distance on top -> this is the
-        //   row of the next aggressor
-        // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
-        cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())%fuzzing_params.get_max_row_no();
-
-        bool map_to_existing_agg = dist(engine);
-        if (map_to_existing_agg && !occupied_rows.empty()) {
-            auto idx = Range<size_t>(1, occupied_rows.size()).get_random_number(gen)-1;
-            auto it = occupied_rows.begin();
-            while (idx--) it++;
-            row = *it;
+        const size_t max_row_no = mem.conflict_cluster.get_min_num_rows();
+        if (i > 0) {  // aggressor is part of a n>1 aggressor tuple
+          // we need to add the appropriate distance and cannot choose randomly
+          auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
+          // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
+          cur_row = (last_addr.row_id + (size_t) fuzzing_params.get_agg_intra_distance())% max_row_no;
+          row = cur_row;
         } else {
-        retry:
-          row = use_seq_addresses ?
-                cur_row :
-                (Range<size_t>(cur_row, cur_row + fuzzing_params.get_max_row_no()).get_random_number(gen)
-                    %fuzzing_params.get_max_row_no());
+          // this is a new aggressor pair - we can choose where to place it
+          // if use_seq_addresses is true, we use the last address and add the agg_inter_distance on top -> this is the
+          //   row of the next aggressor
+          // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
+          cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())% max_row_no;
 
-          // check that we haven't assigned this address yet to another aggressor ID
-          // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
-          // around the address range once (because of the modulo operator) so that retrying doesn't make sense
-          if (!use_seq_addresses && occupied_rows.count(row) > 0) {
-            assignment_trial_cnt++;
-            if (assignment_trial_cnt < 7) goto retry;
-            Logger::log_info(format_string(
-                "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
-                current_agg.id));
+          bool map_to_existing_agg = false;  // FIXME: this is for debugging only
+//          bool map_to_existing_agg = dist(engine);
+          if (map_to_existing_agg && !occupied_rows.empty()) {
+              auto idx = Range<size_t>(1, occupied_rows.size()).get_random_number(cr.gen)-1;
+              auto it = occupied_rows.begin();
+              while (idx--) it++;
+              row = *it;
+          } else {
+          retry:
+            row = use_seq_addresses ?
+                  cur_row :
+                  (Range<size_t>(cur_row, cur_row + max_row_no).get_random_number(cr.gen)
+                      % max_row_no);
+
+            // check that we haven't assigned this address yet to another aggressor ID
+            // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
+            // around the address range once (because of the modulo operator) so that retrying doesn't make sense
+            if (!use_seq_addresses && occupied_rows.count(row) > 0) {
+              assignment_trial_cnt++;
+              if (assignment_trial_cnt < 7) goto retry;
+              Logger::log_info(format_string(
+                  "Assigning unique addresses for Aggressor ID %d didn't succeed. Giving up after 3 trials.",
+                  current_agg.id));
+            }
           }
         }
       }
@@ -193,7 +193,7 @@ void PatternAddressMapper::export_pattern_internal(
   for (size_t i = 0; i < aggressors.size(); ++i) {
     // for better visualization: add linebreak after each base period
     if (i!=0 && (i%base_period)==0) {
-      pattern_str << std::endl;
+      pattern_str << "\n";
     }
 
     // check whether this is a valid aggressor, i.e., the aggressor's ID != -1
@@ -282,7 +282,6 @@ void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
                      {"bit_flips", p.bit_flips},
                      {"min_row", p.min_row},
                      {"max_row", p.max_row},
-                     {"bank_no", p.bank_no},
                      {"reproducibility_score", p.reproducibility_score},
                      {"code_jitter", *p.code_jitter}
   };
@@ -294,7 +293,6 @@ void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("bit_flips").get_to(p.bit_flips);
   j.at("min_row").get_to(p.min_row);
   j.at("max_row").get_to(p.max_row);
-  j.at("bank_no").get_to(p.bank_no);
   j.at("reproducibility_score").get_to(p.reproducibility_score);
   p.code_jitter = std::make_unique<CodeJitter>();
   j.at("code_jitter").get_to(*p.code_jitter);
@@ -348,36 +346,27 @@ PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
       instance_id(other.instance_id),
       min_row(other.min_row),
       max_row(other.max_row),
-      bank_no(other.bank_no),
       aggressor_to_addr(other.aggressor_to_addr),
       bit_flips(other.bit_flips),
       reproducibility_score(other.reproducibility_score) {
   code_jitter = std::make_unique<CodeJitter>();
-  code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
   code_jitter->total_activations = other.get_code_jitter().total_activations;
   code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
   code_jitter->flushing_strategy = other.get_code_jitter().flushing_strategy;
-  code_jitter->pattern_sync_each_ref = other.get_code_jitter().pattern_sync_each_ref;
-  std::random_device rd;
-  gen = std::mt19937(rd());
 }
 
 PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper &other) {
   if (this==&other) return *this;
   victim_rows = other.victim_rows;
   instance_id = other.instance_id;
-  gen = other.gen;
 
   code_jitter = std::make_unique<CodeJitter>();
-  code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
   code_jitter->total_activations = other.get_code_jitter().total_activations;
   code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
   code_jitter->flushing_strategy = other.get_code_jitter().flushing_strategy;
-  code_jitter->pattern_sync_each_ref = other.get_code_jitter().pattern_sync_each_ref;
 
   min_row = other.min_row;
   max_row = other.max_row;
-  bank_no = other.bank_no;
 
   aggressor_to_addr = other.aggressor_to_addr;
   bit_flips = other.bit_flips;

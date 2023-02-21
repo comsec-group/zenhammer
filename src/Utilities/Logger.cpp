@@ -3,8 +3,6 @@
 #include <iostream>
 #include <GlobalDefines.hpp>
 
-#define DEBUG (0)
-
 // initialize the singleton instance
 Logger Logger::instance; /* NOLINT */
 
@@ -127,6 +125,8 @@ void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsign
 #else
   << "\n";
 #endif
+  Logger::log_info("Terminating process as this is a bit flip.");
+  exit(EXIT_SUCCESS);
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
@@ -171,17 +171,13 @@ void Logger::log_global_defines() {
   Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
   std::stringstream ss;
   ss << "DRAMA_ROUNDS: " << DRAMA_RNDS << "\n"
-     << "CACHELINE_SIZE: " << CACHELINE_SIZE_B << "\n"
-     << "HAMMER_ROUNDS: " << HAMMER_RNDS << "\n"
-     << "THRESH: " << CACHE_THRESH << "\n"
-     << "NUM_TARGETS: " << NUM_TARGETS << "\n"
+     << "HAMMER_ROUNDS: " << (1000000) << "\n"
+     << "THRESH: " << BK_CONF_THRESH << "\n"
      << "NUM_BANKS: " << NUM_BANKS << "\n"
-     << "NUM_DIMMS: " << NUM_DIMMS << "\n"
-     << "NUM_CHANNELS: " << NUM_CHANNELS << "\n"
      << "NUM_BANKGROUPS: " << NUM_BANKGROUPS << "\n"
      << "NUM_BANKS_PER_BG: " << NUM_BANKS_PER_BG << "\n"
      << "NUM_BANKS: " << NUM_BANKS << "\n"
      << "MEM_SIZE: " << MEM_SIZE << "\n"
-     << "PAGE_SIZE: " << getpagesize() << std::endl;
+     << "PAGE_SIZE: " << getpagesize() << "\n";
   Logger::log_data(ss.str());
 }

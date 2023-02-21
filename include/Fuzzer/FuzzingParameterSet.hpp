@@ -6,10 +6,11 @@
 
 #include "Utilities/Range.hpp"
 #include "Utilities/Enums.hpp"
+#include "Utilities/CustomRandom.hpp"
 
 class FuzzingParameterSet {
  private:
-  std::mt19937 gen;
+  CustomRandom cr;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals;
@@ -28,13 +29,9 @@ class FuzzingParameterSet {
 
   int base_period;
 
-  int max_row_no;
-
   int total_acts_pattern;
 
   Range<int> start_row;
-
-  Range<int> num_aggressors_for_sync;
 
   Range<int> bank_no;
 
@@ -43,10 +40,6 @@ class FuzzingParameterSet {
   Range<int> amplitude;
 
   Range<int> N_sided;
-
-  Range<int> sync_each_ref;
-
-  Range<int> wait_until_start_hammering_refs;
 
   std::discrete_distribution<int> N_sided_probabilities;
 
@@ -73,7 +66,7 @@ class FuzzingParameterSet {
 
   [[nodiscard]] int get_base_period() const;
 
-  [[nodiscard]] int get_agg_intra_distance();
+  [[nodiscard]] int get_agg_intra_distance() const;
 
   [[nodiscard]] int get_agg_inter_distance() const;
 
@@ -89,15 +82,7 @@ class FuzzingParameterSet {
 
   bool get_random_use_seq_addresses();
 
-  bool get_random_sync_each_ref();
-
   void randomize_parameters(bool print = true);
-
-  [[nodiscard]] int get_max_row_no() const;
-
-  int get_random_num_aggressors_for_sync();
-
-  int get_random_wait_until_start_hammering_us();
 
   [[nodiscard]] int get_num_refresh_intervals() const;
 
@@ -117,9 +102,9 @@ class FuzzingParameterSet {
 
   void print_static_parameters() const;
 
-  static void print_dynamic_parameters(int bank, bool seq_addresses, int start_row);
+  static void print_dynamic_parameters(const size_t bank, bool seq_addresses, int start_row);
 
-  static void print_dynamic_parameters2(bool sync_at_each_ref, int wait_until_hammering_us, int num_aggs_for_sync);
+  static void print_dynamic_parameters2(int num_aggs_for_sync);
 
   void set_num_activations_per_t_refi(int num_activations_per_t_refi);
 };

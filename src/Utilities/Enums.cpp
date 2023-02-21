@@ -7,7 +7,8 @@ std::string to_string(FLUSHING_STRATEGY strategy) {
   std::map<FLUSHING_STRATEGY, std::string> map =
       {
           {FLUSHING_STRATEGY::EARLIEST_POSSIBLE, "EARLIEST_POSSIBLE"},
-          {FLUSHING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"}
+          {FLUSHING_STRATEGY::LATEST_POSSIBLE, "LATEST_POSSIBLE"},
+          {FLUSHING_STRATEGY::BATCHED, "BATCHED"}
       };
   return map.at(strategy);
 }
@@ -16,7 +17,8 @@ void from_string(const std::string &strategy, FLUSHING_STRATEGY &dest) {
   std::map<std::string, FLUSHING_STRATEGY> map =
       {
           {"EARLIEST_POSSIBLE", FLUSHING_STRATEGY::EARLIEST_POSSIBLE},
-          {"LATEST_POSSIBLE", FLUSHING_STRATEGY::LATEST_POSSIBLE}
+          {"LATEST_POSSIBLE", FLUSHING_STRATEGY::LATEST_POSSIBLE},
+          {"BATCHED", FLUSHING_STRATEGY::BATCHED}
       };
   dest = map.at(strategy);
 }
@@ -41,12 +43,9 @@ void from_string(const std::string &strategy, FENCING_STRATEGY &dest) {
   dest = map.at(strategy);
 }
 
-[[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair() {
+[[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair(std::mt19937 &gen) {
   auto valid_strategies = get_valid_strategies();
-  auto num_strategies = valid_strategies.size();
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  auto strategy_idx = Range<size_t>(0, num_strategies - 1).get_random_number(gen);
+  auto strategy_idx = Range<size_t>(0, valid_strategies.size() - 1).get_random_number(gen);
   return valid_strategies.at(strategy_idx);
 }
 

@@ -30,6 +30,16 @@ class Memory {
   size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start,
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
+  DATA_PATTERN data_pattern;
+
+  int get_fill_value() const;
+
+  static void reseed_srand(uint64_t cur_page);
+
+  void initialize(DATA_PATTERN patt);
+
+  void* shadow_page;
+
  public:
   ConflictCluster conflict_cluster;
 
@@ -42,13 +52,15 @@ class Memory {
 
   void allocate_memory(size_t mem_size);
 
-  void initialize(DATA_PATTERN data_pattern);
-
   size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose);
 
   [[nodiscard]] volatile char *get_starting_address() const;
 
   std::string get_flipped_rows_text_repr();
+
+  void check_memory_full();
+
+  uint64_t round_down_to_next_page_boundary(uint64_t address);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

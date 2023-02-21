@@ -20,6 +20,8 @@ class PatternBuilder {
 
   int aggressor_id_counter;
 
+  CustomRandom cr;
+
   static int get_next_prefilled_slot(size_t cur_idx, std::vector<int> start_indices_prefilled_slots, int base_period,
                               int &cur_prefilled_slots_idx);
 

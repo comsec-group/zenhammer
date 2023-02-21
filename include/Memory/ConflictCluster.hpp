@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <string>
 #include <map>
+#include <vector>
+#include "Utilities/CustomRandom.hpp"
 
 class Memory;
 
@@ -12,20 +14,25 @@ class SimpleDramAddress {
 public:
   size_t cluster_id;
   size_t row_id;
+  size_t bk;
+  size_t bg;
   volatile char *vaddr;
   volatile char *paddr;
-
-  SimpleDramAddress(size_t bank_id, size_t row_id, volatile char *vaddr, volatile char *paddr)
-      : cluster_id(bank_id), row_id(row_id), vaddr(vaddr), paddr(paddr) {};
 
   SimpleDramAddress() = default;
 
   [[nodiscard]] std::string to_string_compact() const;
+
+  static std::string get_string_compact_desc();
 };
 
 class ConflictCluster {
 private:
+  CustomRandom cr;
+
   size_t typical_row_offset;
+
+  size_t min_num_rows;
 
   // cluster_id -> row_id -> SimpleDramAddress
   std::unordered_map<size_t, std::unordered_map<size_t, SimpleDramAddress>> clusters;
@@ -52,6 +59,17 @@ public:
   SimpleDramAddress get_simple_dram_address(size_t bank_id, size_t row_id);
 
   size_t get_typical_row_offset();
+
+  size_t get_min_num_rows();
+
+  std::vector<size_t> get_supported_cluster_ids();
+
+  std::vector<volatile char *> get_filtered_addresses(SimpleDramAddress &addr,
+                                                      size_t max_num_rows,
+                                                      bool verbose,
+                                                      bool (*func)(size_t, size_t, size_t, size_t));
+
+  std::vector<volatile char *> get_sync_rows(SimpleDramAddress &addr, size_t num_rows, bool verbose);
 };
 
 #endif //BLACKSMITH_CONFLICTCLUSTER_H

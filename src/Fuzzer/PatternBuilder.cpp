@@ -5,8 +5,7 @@
 
 PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
     : pattern(hammering_pattern), aggressor_id_counter(1) {
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  cr = CustomRandom();
 }
 
 size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
@@ -15,7 +14,7 @@ size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
   do {
     auto mean = static_cast<double>((list.size()%2==0) ? list.size()/2 - 1 : (list.size() - 1)/2);
     std::normal_distribution<> d(mean, 1);
-    result = (size_t) d(gen);
+    result = (size_t) d(cr.gen);
   } while (result >= list.size());
   return result;
 }

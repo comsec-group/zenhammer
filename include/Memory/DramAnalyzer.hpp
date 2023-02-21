@@ -7,6 +7,7 @@
 
 #include "Utilities/AsmPrimitives.hpp"
 #include "ConflictCluster.hpp"
+#include "Utilities/CustomRandom.hpp"
 
 class DramAnalyzer {
  private:
@@ -22,9 +23,9 @@ class DramAnalyzer {
 
   void find_targets(std::vector<volatile char *> &target_bank);
 
-  std::mt19937 gen;
-
   std::uniform_int_distribution<int> dist;
+
+  CustomRandom cr;
 
  public:
   explicit DramAnalyzer(volatile char *target, ConflictCluster &cc);

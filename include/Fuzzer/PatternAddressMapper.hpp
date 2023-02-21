@@ -25,16 +25,20 @@ class PatternAddressMapper {
 
   std::vector<SimpleDramAddress> victim_rows;
 
+  CustomRandom cr;
+
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
-  // a randomization engine
-  std::mt19937 gen;
+  std::vector<size_t> cluster_ids;
 
- public:
+  static size_t cluster_ids_idx;
+
+
+public:
   std::unique_ptr<CodeJitter> code_jitter;
 
-  PatternAddressMapper();
+  PatternAddressMapper(Memory &mem);
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);
@@ -45,12 +49,6 @@ class PatternAddressMapper {
   // information about the mapping (required for determining rows not belonging to this mapping)
   size_t min_row = 0;
   size_t max_row = 0;
-  int bank_no = 0;
-
-  // a global counter that makes sure that we test patterns on all banks equally often
-  // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
-  // this may happen after we tested more than one pattern)
-  static int bank_counter;
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, SimpleDramAddress> aggressor_to_addr;

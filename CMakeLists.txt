@@ -98,6 +98,7 @@ add_library(
         src/Utilities/Enums.cpp
         src/Utilities/Logger.cpp
         src/Utilities/Pagemap.cpp
+        src/Utilities/CustomRandom.cpp
 )
 
 target_include_directories(
@@ -174,6 +175,17 @@ if (BLACKSMITH_USE_SAMSUNG_PARAMS)
     )
 endif ()
 
+if (BLACKSMITH_ENABLE_DEBUG)
+    message(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+    message(">>>    DEBUG MODE ENABLED    <<<")
+    message(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+    target_compile_definitions(
+            bs
+            PUBLIC
+            DEBUG
+    )
+endif()
+
 if (BLACKSMITH_USE_DIMM_10_PARAMS)
     message("\n${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m")
     message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_DIMM_10_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
@@ -186,6 +198,9 @@ if (BLACKSMITH_USE_DIMM_10_PARAMS)
 endif ()
 
 # === BLACKSMITH ===============================================================
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb")
 
 add_executable(
         blacksmith

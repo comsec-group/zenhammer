@@ -5,6 +5,18 @@
 #include <fstream>
 #include <memory>
 
+// font colors
+#define FC_RED "\033[0;31m"         // error
+#define FC_RED_BRIGHT "\033[0;91m"  // generic failure message
+#define FC_GREEN "\033[0;32m"       // bit flip, generic success message
+#define FC_YELLOW "\033[0;33m"      // debugging
+#define FC_MAGENTA "\033[0;35m"     // new (pattern,address_mapping) round
+#define FC_CYAN "\033[0;36m"        // status message
+#define FC_CYAN_BRIGHT "\033[0;96m" // stages in pattern analysis
+// font faces
+#define FF_BOLD "\033[1m"
+#define F_RESET "\033[0m" // reset to default font face/color
+
 template<typename ... Args>
 std::string format_string(const std::string &format, Args ... args) {
   int size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'

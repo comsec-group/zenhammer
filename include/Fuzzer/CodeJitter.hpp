@@ -25,11 +25,13 @@ class CodeJitter {
   asmjit::StringLogger *logger = nullptr;
 #endif
 
+  const uint64_t REFRESH_THRESHOLD_CYCLES_LOW  = 500;
+  const uint64_t REFRESH_THRESHOLD_CYCLES_HIGH = 900;
+
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;
 
  public:
-  bool pattern_sync_each_ref;
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -37,7 +39,9 @@ class CodeJitter {
 
   int total_activations;
 
-  int num_aggs_for_sync;
+  size_t sync_rows_idx = 0;
+
+  size_t sync_rows_size;
 
   /// constructor
   CodeJitter();
@@ -46,24 +50,37 @@ class CodeJitter {
   ~CodeJitter();
 
   /// generates the jitted function and assigns the function pointer fn to it
-  void jit_strict(int num_acts_per_trefi,
-                  FLUSHING_STRATEGY flushing,
+  void jit_strict(FLUSHING_STRATEGY flushing,
                   FENCING_STRATEGY fencing,
+                  int total_num_activations,
                   const std::vector<volatile char *> &aggressor_pairs,
-                  bool sync_each_ref,
-                  int num_aggressors_for_sync,
-                  int total_num_activations);
+                  const std::vector<volatile char *> &sync_rows);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
-  int hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose);
+  size_t hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose);
 
   /// cleans this instance associated function pointer that points to the function that was jitted at runtime;
   /// cleaning up is required to release memory before jit_strict can be called again
   void cleanup();
 
+  size_t get_next_sync_rows_idx();
+
 #ifdef ENABLE_JITTING
-  static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
+  void sync_ref(const std::vector<volatile char *> &sync_rows,
+                asmjit::x86::Assembler &assembler,
+                size_t num_timed_accesses);
 #endif
+  void hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters,
+                               bool verbose,
+                               FLUSHING_STRATEGY flushing,
+                               FENCING_STRATEGY fencing,
+                               int total_num_activations,
+                               const std::vector<volatile char *> &aggressor_pairs,
+                               const std::vector<volatile char *> &sync_rows);
+
+  void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
+                         int num_acts_per_trefi,
+                         const std::vector<volatile char *> &aggressor_pairs);
 };
 
 #ifdef ENABLE_JSON
