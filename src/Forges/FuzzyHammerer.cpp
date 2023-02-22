@@ -41,6 +41,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   const auto execution_time_limit = static_cast<int64_t>(start_ts + runtime_limit);
 
   for (; get_timestamp_sec() < execution_time_limit; ++cnt_generated_patterns) {
+
     Logger::log_timestamp();
     Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cnt_generated_patterns));
     fuzzing_params.randomize_parameters(true);
@@ -103,18 +104,17 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     // beginning and then get stuck with that value
     // if the user provided a fixed num acts per tREF value via the program arguments, then we will not change it
 //    if (cnt_generated_patterns%100==0 && program_args.acts_per_ref != 0) {
-    if (cnt_generated_patterns%3==0) {
 //      auto old_nacts = fuzzing_params.get_num_activations_per_t_refi();
 //      // repeat measuring the number of possible activations per tREF as it might be that the current value is not optimal
 
 //      fuzzing_params.set_num_activations_per_t_refi(static_cast<int>(program_args.acts_per_ref*dist(cr.gen)));
-      fuzzing_params.set_num_activations_per_t_refi(static_cast<int>(program_args.acts_per_ref));
+//      fuzzing_params.set_num_activations_per_t_refi(static_cast<int>(program_args.acts_per_ref));
 //      fuzzing_params.set_num_activations_per_t_refi(static_cast<int>(dramAnalyzer.count_acts_per_ref()));
-      Logger::log_info(
-          format_string("Recomputed number of ACTs per tREF (old: %d, new: %d).",
-              program_args.acts_per_ref,
-              fuzzing_params.get_num_activations_per_t_refi()));
-    }
+//      Logger::log_info(
+//          format_string("Recomputed number of ACTs per tREF (old: %d, new: %d).",
+//              program_args.acts_per_ref,
+//              fuzzing_params.get_num_activations_per_t_refi()));
+//    }
 
     // this is just to make sure we do not miss any bit flip..
     if (cnt_generated_patterns%50==0) {

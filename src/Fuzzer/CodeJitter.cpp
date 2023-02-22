@@ -4,7 +4,7 @@
 #include "Fuzzer/CodeJitter.hpp"
 #include "Utilities/AsmPrimitives.hpp"
 
-#define MEASURE_NOPS 0
+#define MEASURE_TIME (1)
 
 CodeJitter::CodeJitter()
     : flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
@@ -251,170 +251,49 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 #endif
 }
 
+void CodeJitter::wait_for_user_input() {
+  // TODO: move this into a helper class
+  // make sure scope is ready to acquire data before proceeding
+  do {
+    std::cout << '\n' << "Are you sure you want to hammer innocent rows? "
+                         "Press any key to continue..." << std::endl;
+  } while (std::cin.get() != '\n');
+}
+
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
-                                   int num_acts_per_trefi,
-                                   const std::vector<volatile char *> &aggressor_pairs) {
+size_t CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
+                                     int num_acts_per_trefi) const {
+  const size_t sync_rows_max = sync_rows.size();
+  const size_t sync_cnt_max = num_acts_per_trefi;
 
-  Logger::log_info(format_string("num_acts_per_trefi=%d\n", num_acts_per_trefi));
+  size_t sync_cnt = 0;
+  size_t sync_idx = 0;
 
-  for (size_t i = 0; i < aggressor_pairs.size(); ++i) {
-//    *(volatile uint64_t*)aggressor_pairs[i] = (uint64_t)aggressor_pairs[(i+2)%aggressor_pairs.size()];
-//    printf("%3zu, %p, 0x%lx, 0x%lx\n",
-//           i, &aggressor_pairs[i], (uint64_t)aggressor_pairs[i], *((uint64_t*)aggressor_pairs[i]));
-    // flush all aggressor accesses but keep array itself cached
-    *aggressor_pairs[i];
-    clflushopt(aggressor_pairs[i]);
-    if (i < aggressor_pairs.size() - 1)
-      assert(aggressor_pairs[i]!= aggressor_pairs[i+1] && "aggressor_pairs[i] == aggressor_pairs[i+1]");
-  }
-
-  FILE *f = fopen("timing.csv", "w");
-
-  // flush all sync rows but keep array itself cached
-  for (size_t i = 0; i < sync_rows.size(); ++i) {
-    *sync_rows[i];
-    clflushopt(sync_rows[i]);
-  }
-
-//  volatile uint64_t* next_addr = (volatile uint64_t*)aggressor_pairs[0];
-//  volatile uint64_t* next_addr_new = nullptr;
-
-//  volatile auto* next_addr_even = (volatile uint64_t*)aggressor_pairs[0];
-//  volatile uint64_t* next_addr_even_new;
-//  volatile auto* next_addr_odd = (volatile uint64_t*)aggressor_pairs[1];
-//  volatile uint64_t* next_addr_odd_new;
-
-  uint64_t after;
   uint64_t before;
   uint64_t ts_diff;
 
-#if (MEASURE_NOPS==1)
-  uint64_t ts_start_hammering;
-  uint64_t ts_end_hammering;
-  uint64_t res;
-  uint64_t time_hammering_all;
-  uint64_t smallest = std::numeric_limits<uint64_t>::max();
-#endif
+  uint64_t after = rdtscp();
+  // make sure rdtscp finished before we start with the loop
+  lfence();
+  do {
+    // the last 'after' value becomes the new 'before' value
+    before = after;
+    // one address is from (same bg, diff bk) and the other is from (diff bg, same bk)
+    // relative to the addresses that we are hammering
+    *sync_rows[sync_idx];
+    *sync_rows[sync_idx + 1];
+    lfence();
+    after = rdtscp();
+    ts_diff = after - before;
+    clflushopt(sync_rows[sync_idx]);
+    clflushopt(sync_rows[sync_idx + 1]);
+    // no need to (m|s)fence as there's enough time until we access the same sync_idx again
+    sync_idx = (sync_idx + 2) % sync_rows_max;
+  } while (++sync_cnt < sync_cnt_max
+      && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
 
-  const size_t sync_rows_max = sync_rows.size();
-  const size_t sync_cnt_max = num_acts_per_trefi*2;
-
-  size_t sync_cnt;
-  size_t sync_idx = 0;
-
-
-//  struct timespec ts{.tv_sec = 0, .tv_nsec = 100};
-//  struct timespec ts_res{};
-
-#if (MEASURE_NOPS==1)
-//  size_t k = 20;
-  size_t k = 100;
-#else
-  size_t k = 5'000'000;
-#endif
-  std::vector<uint64_t> result;
-//  result.resize(k, 0);
-
-  // make sure flushing finished
-  mfence();
-
-  sched_yield();
-
-  do
-  {
-    std::cout << '\n' << "Press any key to continue..." << std::endl;
-  } while (std::cin.get() != '\n');
-
-#if (MEASURE_NOPS==1)
-  for (size_t n_nops = 0; n_nops < 1000; n_nops += 5) {
-    auto NUM_NOPS = n_nops * num_acts_per_trefi;
-    printf("%4zu;", n_nops);
-    time_hammering_all = 0;
-#else
-    const size_t NUM_NOPS = static_cast<int>(num_acts_per_trefi*125);
-#endif
-
-    for (size_t iteration = 0; iteration < k; ++iteration) {
-      uint64_t time_hammering_cur_iteration = 0;
-      sync_cnt = 0;
-      sync_idx = 0;
-      after = rdtscp();
-      lfence();
-      do {
-        before = after;
-        // one address is from (same bg, diff bk) and the other is from (diff bg, same bk)
-        // relative to the addresses that we are hammering
-        *sync_rows[sync_idx];
-        *sync_rows[sync_idx + 1];
-        lfence();
-        after = rdtscp();
-        ts_diff = after - before;
-
-        clflushopt(sync_rows[sync_idx]);
-        clflushopt(sync_rows[sync_idx + 1]);
-
-//      result[sync_cnt] = after-before;
-//      printf("ts_diff = %lu\n", ts_diff);
-
-        // no need to mfence as there's enough time until we access the same sync_idx again
-        sync_idx = (sync_idx + 2) % sync_rows_max;
-      } while (++sync_cnt < sync_cnt_max
-          && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
-
-#if (MEASURE_NOPS==1)
-      ts_start_hammering = rdtscp();
-      lfence();
-#endif
-      for (size_t agg_idx = 0; agg_idx < aggressor_pairs.size(); agg_idx += 2) {
-        // NOPs
-        if (agg_idx % num_acts_per_trefi == 0 && agg_idx > 0) {
-          lfence();
-          break;
-#if (MEASURE_NOPS==1)
-          time_hammering_cur_iteration += (rdtscp() - ts_start_hammering);
-#endif
-#if (MEASURE_NOPS==1)
-          ts_start_hammering = rdtscp();
-          lfence();
-#endif
-        }
-//      printf("%p\n%p\n", aggressor_pairs[agg_idx], aggressor_pairs[agg_idx+1]);
-        // HAMMER
-        *aggressor_pairs[agg_idx];
-        *aggressor_pairs[agg_idx + 1];
-        // FLUSH
-        clflushopt(aggressor_pairs[agg_idx]);
-        clflushopt(aggressor_pairs[agg_idx + 1]);
-        // FENCE
-//        mfence();
-        sfence();
-      }
-#if (MEASURE_NOPS==1)
-      auto sz = aggressor_pairs.size();
-      time_hammering_all += (time_hammering_cur_iteration/sz);
-//      printf("%7ld%s", (time_hammering_cur_iteration/sz), (iteration == k-1) ? ";" : ",");
-#endif
-    }
-#if (MEASURE_NOPS==1)
-      auto val = time_hammering_all/k;
-      printf("%7ld\n", val);
-      smallest = val < smallest ? val : smallest;
-  }
-#endif
-
-  // write timing results into file
-//  for (size_t i = 0; i < result.size(); ++i) {
-//    fprintf(f,"%4zu,%lu\n", i, result[i]);
-//  }
-
-#if (MEASURE_NOPS==1)
-  std::cout << "smallest: " << smallest << std::endl;
-#endif
-
-  fclose(f);
-  exit(0);
+  return sync_cnt;
 }
 
 void CodeJitter::hammer_pattern_unjitted(
@@ -428,27 +307,58 @@ void CodeJitter::hammer_pattern_unjitted(
 
   Logger::log_debug(format_string("#aggressor pairs: %lu", aggressor_pairs.size()));
   Logger::log_debug(format_string("#sync rows: %lu", sync_rows.size()));
+  Logger::log_debug(format_string("num_acts_per_trefi: %d\n",
+                                  fuzzing_parameters.get_num_activations_per_t_refi()));
 
   if (flushing != FLUSHING_STRATEGY::BATCHED)
     throw std::runtime_error("[-] FLUSHING_STRATEGY must be BATCHED");
-
   if (fencing!= FENCING_STRATEGY::LATEST_POSSIBLE)
     throw std::runtime_error(" [-] FENCING_STRATEGY must be LATEST_POSSIBLE");
 
+  // flush all sync rows but keep array holding addresses cached
+  for (size_t i = 0; i < sync_rows.size(); ++i) {
+    *sync_rows[i];
+    clflushopt(sync_rows[i]);
+  }
 
+  // flush all aggressor rows but keep array holding addresses cached
+  for (size_t i = 0; i < aggressor_pairs.size(); ++i) {
+    *aggressor_pairs[i];
+    clflushopt(aggressor_pairs[i]);
+    // validate pattern as we clflush only after every second aggressor, i.e.,
+    // hammering consecutively the same aggressor is useless as it's causing a cache hit ayway
+    if (aggressor_pairs[i] == aggressor_pairs[i + 1]) {
+      Logger::log_error(format_string("unexpected: aggressor_pairs[i] == aggressor_pairs[i+1], skipping pattern..."));
+      return;
+    }
+  }
 
-  do {
-    sync_ref_unjitted(sync_rows, fuzzing_parameters.get_num_activations_per_t_refi(), aggressor_pairs);
-    exit(0);
-//    for (size_t agg_idx = 0; agg_idx < aggressor_pairs.size(); ++agg_idx, --total_num_activations) {
-//      // hammer
-//      *((volatile char *) aggressor_pairs[agg_idx]);
-//    }
-//    for (size_t i = 0; i < aggressor_pairs.size(); i++) {
-//      clflushopt(aggressor_pairs[i]);
-//    }
-  } while (total_num_activations > 0);
+  // make sure flushing finished before we start
+  mfence();
+
+  const int num_acts_per_trefi = fuzzing_parameters.get_num_activations_per_t_refi();
+  const size_t NUM_AGG_PAIRS = aggressor_pairs.size();
+
+  size_t agg_idx = 0;
+  for (; total_num_activations > 0; agg_idx = (agg_idx+2)%NUM_AGG_PAIRS, total_num_activations -= 2) {
+    // sync with every REF
+    if (agg_idx % num_acts_per_trefi == 0) {
+      // make sure that no hammering accesses overload with sync accesses
+      lfence();
+      // SYNC
+      sync_ref_unjitted(sync_rows, num_acts_per_trefi);
+    }
+    // HAMMER
+    *aggressor_pairs[agg_idx];
+    *aggressor_pairs[agg_idx + 1];
+    // FLUSH
+    clflushopt(aggressor_pairs[agg_idx]);
+    clflushopt(aggressor_pairs[agg_idx + 1]);
+    // FENCE
+    sfence();
+  }
 }
+
 #pragma GCC pop_options
 #ifdef ENABLE_JITTING
 void CodeJitter::sync_ref(const std::vector<volatile char *> &sync_rows,

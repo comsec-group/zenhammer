@@ -78,9 +78,8 @@ class CodeJitter {
                                const std::vector<volatile char *> &aggressor_pairs,
                                const std::vector<volatile char *> &sync_rows);
 
-  void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
-                         int num_acts_per_trefi,
-                         const std::vector<volatile char *> &aggressor_pairs);
+  size_t sync_ref_unjitted(const std::vector<volatile char *> &sync_rows, int num_acts_per_trefi) const;
+  void wait_for_user_input();
 };
 
 #ifdef ENABLE_JSON
