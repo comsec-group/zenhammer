@@ -251,9 +251,8 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 #endif
 }
 
-void CodeJitter::wait_for_user_input() {
+[[maybe_unused]] void CodeJitter::wait_for_user_input() {
   // TODO: move this into a helper class
-  // make sure scope is ready to acquire data before proceeding
   do {
     std::cout << '\n' << "Are you sure you want to hammer innocent rows? "
                          "Press any key to continue..." << std::endl;
@@ -262,8 +261,9 @@ void CodeJitter::wait_for_user_input() {
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-size_t CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
-                                     int num_acts_per_trefi) const {
+void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
+                                   int num_acts_per_trefi,
+                                   synchronization_stats &sync_stats) const {
   const size_t sync_rows_max = sync_rows.size();
   const size_t sync_cnt_max = num_acts_per_trefi;
 
@@ -293,9 +293,13 @@ size_t CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_ro
   } while (++sync_cnt < sync_cnt_max
       && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
 
-  return sync_cnt;
+  // take sync_cnt times 2 because we do two accesses each time
+  sync_stats.num_sync_acts += sync_cnt*2;
 }
+#pragma GCC pop_options
 
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 void CodeJitter::hammer_pattern_unjitted(
     FuzzingParameterSet &fuzzing_parameters,
     bool verbose,
@@ -305,10 +309,12 @@ void CodeJitter::hammer_pattern_unjitted(
     const std::vector<volatile char *> &aggressor_pairs,
     const std::vector<volatile char *> &sync_rows) {
 
-  Logger::log_debug(format_string("#aggressor pairs: %lu", aggressor_pairs.size()));
-  Logger::log_debug(format_string("#sync rows: %lu", sync_rows.size()));
-  Logger::log_debug(format_string("num_acts_per_trefi: %d\n",
-                                  fuzzing_parameters.get_num_activations_per_t_refi()));
+  if (verbose) {
+    Logger::log_debug("CodeJitter::hammer_pattern_unjitted stats:");
+    Logger::log_data(format_string("#aggressor pairs: %lu", aggressor_pairs.size()));
+    Logger::log_data(format_string("#sync rows: %lu", sync_rows.size()));
+    Logger::log_data(format_string("num_acts_per_trefi: %d\n", fuzzing_parameters.get_num_activations_per_t_refi()));
+  }
 
   if (flushing != FLUSHING_STRATEGY::BATCHED)
     throw std::runtime_error("[-] FLUSHING_STRATEGY must be BATCHED");
@@ -339,6 +345,9 @@ void CodeJitter::hammer_pattern_unjitted(
   const int num_acts_per_trefi = fuzzing_parameters.get_num_activations_per_t_refi();
   const size_t NUM_AGG_PAIRS = aggressor_pairs.size();
 
+  FILE* logfile = fopen("logfile", "a");
+  synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
+
   size_t agg_idx = 0;
   for (; total_num_activations > 0; agg_idx = (agg_idx+2)%NUM_AGG_PAIRS, total_num_activations -= 2) {
     // sync with every REF
@@ -346,7 +355,8 @@ void CodeJitter::hammer_pattern_unjitted(
       // make sure that no hammering accesses overload with sync accesses
       lfence();
       // SYNC
-      sync_ref_unjitted(sync_rows, num_acts_per_trefi);
+      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats);
+      sync_stats.num_sync_rounds = (sync_stats.num_sync_rounds+1);
     }
     // HAMMER
     *aggressor_pairs[agg_idx];
@@ -356,10 +366,15 @@ void CodeJitter::hammer_pattern_unjitted(
     clflushopt(aggressor_pairs[agg_idx + 1]);
     // FENCE
     sfence();
-  }
-}
 
+    lfence();
+  }
+
+  fprintf(logfile, "%2d,%zu\n", num_acts_per_trefi, sync_stats.num_sync_acts/sync_stats.num_sync_rounds);
+  fclose(logfile);
+}
 #pragma GCC pop_options
+
 #ifdef ENABLE_JITTING
 void CodeJitter::sync_ref(const std::vector<volatile char *> &sync_rows,
                           asmjit::x86::Assembler &assembler,
@@ -401,18 +416,18 @@ void CodeJitter::sync_ref(const std::vector<volatile char *> &sync_rows,
 #endif
 
 #ifdef ENABLE_JSON
-
 void to_json(nlohmann::json &j, const CodeJitter &p) {
   j = {{"flushing_strategy", to_string(p.flushing_strategy)},
        {"fencing_strategy", to_string(p.fencing_strategy)},
        {"total_activations", p.total_activations},
   };
 }
+#endif
 
+#ifdef ENABLE_JSON
 void from_json(const nlohmann::json &j, CodeJitter &p) {
   from_string(j.at("flushing_strategy"), p.flushing_strategy);
   from_string(j.at("fencing_strategy"), p.fencing_strategy);
   j.at("total_activations").get_to(p.total_activations);
 }
-
 #endif

@@ -15,6 +15,13 @@
 #include <nlohmann/json.hpp>
 #endif
 
+struct synchronization_stats {
+  // how often we accessed sync dummies
+  size_t num_sync_acts;
+  // how often we started the synchronization procedure
+  size_t num_sync_rounds;
+};
+
 class CodeJitter {
  private:
 #ifdef ENABLE_JITTING
@@ -78,8 +85,11 @@ class CodeJitter {
                                const std::vector<volatile char *> &aggressor_pairs,
                                const std::vector<volatile char *> &sync_rows);
 
-  size_t sync_ref_unjitted(const std::vector<volatile char *> &sync_rows, int num_acts_per_trefi) const;
-  void wait_for_user_input();
+  void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
+                         int num_acts_per_trefi,
+                         synchronization_stats &sync_stats) const;
+
+  [[maybe_unused]] static void wait_for_user_input();
 };
 
 #ifdef ENABLE_JSON

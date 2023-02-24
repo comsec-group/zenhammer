@@ -139,8 +139,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   set_distribution(N_sided, {{1,0}, {2, 100}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
-//  hammering_total_num_activations = 2'000'000;
-  hammering_total_num_activations = 70'000'000;
+  hammering_total_num_activations = 3'000'000;
+//  hammering_total_num_activations = 70'000'000;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
   // are only randomized once when calling this function
@@ -157,8 +157,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;
 
   // [included in HammeringPattern]
-//  base_period = get_random_even_divisior(total_acts_pattern, 4);
-  base_period = num_activations_per_tREFI;
+  base_period = get_random_even_divisior(total_acts_pattern, 4);
+//  base_period = num_activations_per_tREFI;
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
   agg_inter_distance = Range<int>(2, 2).get_random_number(cr.gen);

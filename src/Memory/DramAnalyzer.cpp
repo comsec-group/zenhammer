@@ -89,92 +89,111 @@ DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
 }
 
-//void DramAnalyzer::load_known_functions(int num_ranks) {
-//  if (num_ranks==1) {
-//    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x24000, 0x48000, 0x90000});
-//    row_function = 0x3ffe0000;
-//  } else if (num_ranks==2) {
-//    bank_rank_functions = std::vector<uint64_t>({0x2040, 0x44000, 0x88000, 0x110000, 0x220000});
-//    row_function = 0x3ffc0000;
-//  } else {
-//    Logger::log_error("Cannot load bank/rank and row function if num_ranks is not 1 or 2.");
-//    exit(1);
-//  }
-//
-//  Logger::log_info("Loaded bank/rank and row function:");
-//  Logger::log_data(format_string("Row function 0x%" PRIx64, row_function));
-//  std::stringstream ss;
-//  ss << "Bank/rank functions (" << bank_rank_functions.size() << "): ";
-//  for (auto bank_rank_function : bank_rank_functions) {
-//    ss << "0x" << std::hex << bank_rank_function << " ";
-//  }
-//  Logger::log_data(ss.str());
-//}
-
+// TODO: do multiple rounds with different (random) address pairs
+// TODO: do analysis of timing results above threshold to determine REF threshold range
+// TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to get REFsb only
 size_t DramAnalyzer::count_acts_per_ref() {
-  size_t skip_first_N = 50;
-//  volatile char *a = banks.at(0).at(0);
-//  volatile char *b = banks.at(0).at(1);
+  Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
 
-//  volatile char *a = (volatile char*)DRAMAddr(0, 2, 0).to_virt();
-  volatile char *a = cc.get_simple_dram_address(0, 24).vaddr;
-//  volatile char *b = (volatile char*)DRAMAddr(1, 2, 0).to_virt();
-  volatile char *b = cc.get_simple_dram_address(0, 32).vaddr;
-
-  Logger::log_debug(format_string("pointers used for count_acts_per_ref: %p\n%p", a, b));
+  uint64_t t_start;
+  uint64_t t_end;
+  
+  const size_t NUM_ADDR_PAIRS = 2;
+  const size_t NUM_ROUNDS = 500'000;
 
   std::vector<uint64_t> acts;
-  uint64_t running_sum = 0;
-  uint64_t before, after, count = 0, count_old = 0;
-  (void)*a;
-  (void)*b;
+  acts.reserve(NUM_ROUNDS*NUM_ADDR_PAIRS);
 
-  auto compute_std = [](std::vector<uint64_t> &values, uint64_t running_sum, size_t num_numbers) {
-    double mean = static_cast<double>(running_sum)/static_cast<double>(num_numbers);
-    double var = 0;
-    for (const auto &num : values) {
-      if (static_cast<double>(num) < mean) continue;
-      var += std::pow(static_cast<double>(num) - mean, 2);
-    }
-    auto val = std::sqrt(var/static_cast<double>(num_numbers));
-    return val;
-  };
+  std::unordered_map<size_t, size_t> numacts_count;
 
-  size_t cnt200s = 0;
-  for (size_t i = 0;; i++) {
-    clflushopt(a);
-    clflushopt(b);
-    mfence();
-    before = rdtscp();
-    lfence();
-    (void)*a;
-    (void)*b;
-    after = rdtscp();
-    count++;
-    if ((after - before) > 700) {
-      if (i > skip_first_N && count_old!=0) {
-        uint64_t value = (count - count_old)*2;
-        acts.push_back(value);
-//        std::cout << value << "\n";
-        running_sum += value;
-        // check after each 200 data points if our standard deviation reached 1 -> then stop collecting measurements
-        if ((acts.size()%200)==0) {
-          cnt200s++;
-          if (cnt200s == 5)
-            break;
-//          std::cout << std::endl;
-          if (compute_std(acts, running_sum, acts.size())<3.0) {
-            break;
-          }
-        }
+  for (size_t it_addr_pair = 1; it_addr_pair <= NUM_ADDR_PAIRS; ++it_addr_pair) {
+    auto addr_pair = cc.get_simple_dram_address_same_bgbk(2);
+    auto sa_a = addr_pair.at(0);
+    auto sa_b = addr_pair.at(1);
+    volatile char *a = sa_a.vaddr;
+    volatile char *b = sa_b.vaddr;
+
+    Logger::log_debug(format_string("Pointers used for count_acts_per_ref: %p,%p", a, b));
+    Logger::log_debug_data(format_string("%p (bg=%d, bk=%d, row=%d)", sa_a.vaddr, sa_a.bg, sa_a.bk, sa_a.row_id));
+    Logger::log_debug_data(format_string("%p (bg=%d, bk=%d, row=%d)", sa_b.vaddr, sa_b.bg, sa_b.bk, sa_b.row_id));
+
+    auto compute_std = [](std::vector<uint64_t> &values, double mean, size_t num_numbers) {
+      double var = 0;
+      for (const auto &num : values) {
+        if (static_cast<double>(num) < mean)
+          continue;
+        var += std::pow(static_cast<double>(num) - mean, 2);
       }
-      count_old = count;
+      auto val = std::sqrt(var / static_cast<double>(num_numbers));
+      return val;
+    };
+
+    // we keep this loop very short and tight to not negatively affect performance
+    t_end = rdtscp();
+    lfence();
+    for (size_t i = 0; i < NUM_ROUNDS; i++) {
+      t_start = t_end;
+
+      sfence();
+      *a;
+      clflushopt(a);
+
+      *b;
+      clflushopt(b);
+
+      lfence();
+      t_end = rdtscp();
+
+      acts.push_back(t_end - t_start);
     }
+
+    // compute the threshold that tells us whether a REF happened
+    size_t min = *std::min_element(acts.begin(), acts.end());
+    size_t max = *std::max_element(acts.begin(), acts.end());
+    size_t sum = std::accumulate(acts.begin(), acts.end(), 0UL);
+    size_t avg = sum / acts.size();
+    auto std = compute_std(acts, static_cast<double>(avg), acts.size());
+    auto threshold = static_cast<size_t>(static_cast<double>(avg) * 1.15);
+    Logger::log_debug_data(format_string("sum=%d, min=%d, max=%d, avg=%d, std=%d => threshold=%d",
+                                         sum, min, max, avg, std, threshold));
+
+    // go through all timing results and check after how many accesses we could observe a peak
+    size_t num_acts_cnt = 0;
+    for (size_t i = 0; i < NUM_ROUNDS; i++) {
+//      std::cout << acts[i] << "\n";
+      if (acts[i] > threshold) {
+        numacts_count[num_acts_cnt]++;
+//        std::cout << num_acts_cnt << "," << acts[i] << "\n";
+        num_acts_cnt = 0;
+      } else {
+        // +2 because we do 2 accesses between measurements
+        num_acts_cnt += 2;
+      }
+    }
+
   }
 
-  auto activations = (running_sum/acts.size());
-  Logger::log_info("Determined the number of possible ACTs per refresh interval.");
-  Logger::log_data(format_string("num_acts_per_tREFI: %lu", activations));
+  // we need to place values with their counts as pairs in a new vector before we can determine the value with the
+  // highest count
+  std::vector<std::pair<size_t, size_t>> pairs;
+  pairs.reserve(numacts_count.size());
+  for (auto & itr : numacts_count) {
+    // we ignore single-digit counts as we are assuming we can do more accesses between two consecutive REFs
+    if (itr.first < 10)
+      continue;
+    pairs.emplace_back(itr.first, itr.second);
+  }
 
-  return activations;
+  // sort the pairs by their value in descending order
+  sort(pairs.begin(), pairs.end(), [=](auto& a, auto& b) { return a.second > b.second;});
+  size_t cnt = 0;
+  for (const auto &p : pairs) {
+//    std::cout << p.first << ": " << p.second << std::endl;
+    cnt++;
+    if (cnt > 10) break;
+  }
+
+  auto num_acts_per_ref = pairs.at(0).first;
+  Logger::log_data(format_string("num_acts_per_ref=%lu", num_acts_per_ref));
+  return num_acts_per_ref;
 }

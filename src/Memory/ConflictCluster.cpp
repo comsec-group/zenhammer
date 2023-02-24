@@ -37,7 +37,7 @@ size_t ConflictCluster::get_min_num_rows() {
 }
 
 void ConflictCluster::load_conflict_cluster(const std::string &filename) {
-  Logger::log_debug("Loading conflict cluster from '%s'", filename.c_str());
+  Logger::log_debug(format_string("Loading conflict cluster from '%s'", filename.c_str()));
 
   std::unordered_map<uint64_t, size_t> offset_cnt;
   size_t total = 0;
@@ -80,8 +80,8 @@ void ConflictCluster::load_conflict_cluster(const std::string &filename) {
         addr.bg = bgbk.first;
         addr.bk = bgbk.second;
       } else {
-        Logger::log_debug(format_string("skipping vaddr=%p as cluster_id=%d not in clusterid2bgbk",
-                                        addr.vaddr, addr.cluster_id));
+//        Logger::log_debug(format_string("skipping vaddr=%p as cluster_id=%d not in clusterid2bgbk",
+//                                        addr.vaddr, addr.cluster_id));
         continue;
       }
     }
@@ -97,15 +97,15 @@ void ConflictCluster::load_conflict_cluster(const std::string &filename) {
       offset_cnt[offt]++;
     }
 
-#if (DEBUG==1)
-    std::stringstream out;
-    out << addr.cluster_id << " "
-        << addr.row_id << " "
-        << std::hex << "0x" << (uint64_t) addr.vaddr << " "
-        << std::hex << "0x" << (uint64_t) addr.paddr
-        << std::endl;
-    Logger::log_debug(out.str());
-#endif
+//#if (DEBUG==1)
+//    std::stringstream out;
+//    out << addr.cluster_id << " "
+//        << addr.row_id << " "
+//        << std::hex << "0x" << (uint64_t) addr.vaddr << " "
+//        << std::hex << "0x" << (uint64_t) addr.paddr
+//        << std::endl;
+//    Logger::log_debug(out.str());
+//#endif
 
     row_id_cnt++;
     last_bank_id = cur_bank_id;
@@ -163,7 +163,7 @@ SimpleDramAddress ConflictCluster::get_simple_dram_address(volatile char *vaddr)
 void ConflictCluster::load_bgbk_mapping(const std::string &filepath) {
   std::unordered_set<std::string> all_bg_bk;
 
-  Logger::log_debug("Loading cluster->(bg,bk) mapping from '%s'", filepath.c_str());
+  Logger::log_debug(format_string("Loading cluster->(bg,bk) mapping from '%s'", filepath.c_str()));
 
   std::ifstream file(filepath);
   if (!file.is_open())
@@ -201,9 +201,32 @@ void ConflictCluster::load_bgbk_mapping(const std::string &filepath) {
   file.close();
 }
 
+std::vector<SimpleDramAddress> ConflictCluster::get_simple_dram_address_same_bgbk(size_t num_addresses) {
+  auto supported_cluster_ids = get_supported_cluster_ids();
+  std::vector<size_t> selected_cluster_ids;
+  std::sample(supported_cluster_ids.begin(),
+              supported_cluster_ids.end(),
+              std::back_inserter(selected_cluster_ids),
+              1,
+              cr.gen);
+  size_t cluster_id = selected_cluster_ids.back();
+
+  std::vector<SimpleDramAddress> result;
+  std::uniform_int_distribution<size_t> dist(0, min_num_rows-1);
+  for (size_t i = 0; i < num_addresses; ++i) {
+    result.push_back(clusters[cluster_id][dist(cr.gen)]);
+  }
+  return result;
+}
+
 SimpleDramAddress ConflictCluster::get_simple_dram_address(size_t bank_id, size_t row_id) {
-  if (clusters.find(bank_id) == clusters.end())
-    throw std::runtime_error("[-] invalid bank_id given!");
+  if (clusters.find(bank_id) == clusters.end()) {
+    Logger::log_error("Invalid bank_id given! Valid bank_ids are:");
+    for (const auto &bk_id : get_supported_cluster_ids()) {
+      Logger::log_data(format_string("%d", bk_id));
+    }
+    exit(EXIT_FAILURE);
+  }
   return clusters[bank_id][row_id % clusters[bank_id].size()];
 }
 

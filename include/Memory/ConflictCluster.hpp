@@ -70,6 +70,7 @@ public:
                                                       bool (*func)(size_t, size_t, size_t, size_t));
 
   std::vector<volatile char *> get_sync_rows(SimpleDramAddress &addr, size_t num_rows, bool verbose);
+  std::vector<SimpleDramAddress> get_simple_dram_address_same_bgbk(size_t num_addresses);
 };
 
 #endif //BLACKSMITH_CONFLICTCLUSTER_H

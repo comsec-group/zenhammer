@@ -40,7 +40,20 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   const auto start_ts = get_timestamp_sec();
   const auto execution_time_limit = static_cast<int64_t>(start_ts + runtime_limit);
 
+//  size_t num_acts_per_tref_idx = 0;
+//  std::vector<int> num_acts_per_tref = {
+//      14,16,18, 20, 22, 24, 26, 28, 30, 32, 34, 36
+//  };
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "LoopDoesntUseConditionVariableInspection"
   for (; get_timestamp_sec() < execution_time_limit; ++cnt_generated_patterns) {
+#pragma clang diagnostic pop
+
+//    fuzzing_params.set_num_activations_per_t_refi(
+//        static_cast<int>(num_acts_per_tref[num_acts_per_tref_idx]));
+//    printf("num_acts_per_tref_idx: %d\n", num_acts_per_tref[num_acts_per_tref_idx]);
+//    num_acts_per_tref_idx = (num_acts_per_tref_idx + 1) % num_acts_per_tref.size();
 
     Logger::log_timestamp();
     Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cnt_generated_patterns));
@@ -133,8 +146,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
       effective_patterns.size());
 
   // start the post-analysis stage ============================
-
-
 
 #ifdef ENABLE_JSON
   // export everything to JSON, this includes the HammeringPattern, AggressorAccessPattern, and BitFlips

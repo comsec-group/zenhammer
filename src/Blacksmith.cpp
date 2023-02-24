@@ -30,56 +30,38 @@ int main(int argc, char **argv) {
 
   // give this process the highest CPU priority so it can hammer with less interruptions
   int ret = setpriority(PRIO_PROCESS, 0, -20);
-  if (ret!=0) Logger::log_error("Instruction setpriority failed.");
+  if (ret != 0) {
+    Logger::log_error("Instruction setpriority failed.");
+  }
 
   // allocate a large bulk of contiguous memory
   Memory memory(true, program_args.filepath_rowlist, program_args.filepath_rowlist_bgbk);
   memory.allocate_memory(MEM_SIZE);
 
   // find address sets that create bank conflicts
-//  DRAMAddr::initialize(memory.get_starting_address());
   DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
-//  dram_analyzer.find_bank_conflicts();
-//  if (program_args.num_ranks != 0) {
-//    dram_analyzer.load_known_functions(program_args.num_ranks);
-//  } else {
-//    Logger::log_error("Program argument '--ranks <integer>' was probably not passed. Cannot continue.");
-//    exit(EXIT_FAILURE);
-//  }
-  // initialize the DRAMAddr class to load the proper memory configuration
 
   // count the number of possible activations per refresh interval, if not given as program argument
-//  if (program_args.acts_per_ref==0)
-//    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
-//
-//  if (!program_args.load_json_filename.empty()) {
-//    ReplayingHammerer replayer(memory);
-//    if (program_args.sweeping) {
-//      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids,
-//          MB(256), false);
-//    } else {
-//      replayer.replay_patterns(program_args.load_json_filename, program_args.pattern_ids);
-//    }
-//  } else if (program_args.do_fuzzing && program_args.use_synchronization) {
-  FuzzyHammerer fuzzyHammerer;
-  fuzzyHammerer.n_sided_frequency_based_hammering(
+  if (program_args.acts_per_ref == 0) {
+    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
+  }
+
+  exit(0);
+
+  if (program_args.do_fuzzing && program_args.use_synchronization) {
+    FuzzyHammerer fuzzyHammerer;
+    fuzzyHammerer.n_sided_frequency_based_hammering(
         dram_analyzer,
         memory,
         static_cast<int>(program_args.acts_per_ref),
         program_args.runtime_limit,
         program_args.num_address_mappings_per_pattern,
         program_args.sweeping);
-    //  } else if (!program_args.do_fuzzing) {
-////    TraditionalHammerer::n_sided_hammer(memory, program_args.acts_per_ref, program_args.runtime_limit);
-////    TraditionalHammerer::n_sided_hammer_experiment(memory, program_args.acts_per_ref);
-//    TraditionalHammerer::n_sided_hammer_experiment_frequencies(memory);
-//  } else {
-//    Logger::log_error("Invalid combination of program control-flow arguments given. "
-//                      "Note: Fuzzing is only supported with synchronized hammering.");
-//  }
 
-  Logger::close();
-  return EXIT_SUCCESS;
+    Logger::close();
+    return EXIT_SUCCESS;
+  }
+
 }
 
 void handle_args(int argc, char **argv) {
