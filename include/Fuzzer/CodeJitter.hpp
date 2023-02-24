@@ -83,11 +83,13 @@ class CodeJitter {
                                FENCING_STRATEGY fencing,
                                int total_num_activations,
                                const std::vector<volatile char *> &aggressor_pairs,
-                               const std::vector<volatile char *> &sync_rows);
+                               const std::vector<volatile char *> &sync_rows,
+                               size_t ref_threshold);
 
   void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
                          int num_acts_per_trefi,
-                         synchronization_stats &sync_stats) const;
+                         synchronization_stats &sync_stats,
+                         size_t ref_threshold) const;
 
   [[maybe_unused]] static void wait_for_user_input();
 };

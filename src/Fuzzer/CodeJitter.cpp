@@ -263,7 +263,8 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 #pragma GCC optimize ("unroll-loops")
 void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
                                    int num_acts_per_trefi,
-                                   synchronization_stats &sync_stats) const {
+                                   synchronization_stats &sync_stats,
+                                   size_t ref_threshold) const {
   const size_t sync_rows_max = sync_rows.size();
   const size_t sync_cnt_max = num_acts_per_trefi;
 
@@ -290,8 +291,8 @@ void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows
     clflushopt(sync_rows[sync_idx + 1]);
     // no need to (m|s)fence as there's enough time until we access the same sync_idx again
     sync_idx = (sync_idx + 2) % sync_rows_max;
-  } while (++sync_cnt < sync_cnt_max
-      && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
+  } while (++sync_cnt < sync_cnt_max && ts_diff < ref_threshold);
+//      && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
 
   // take sync_cnt times 2 because we do two accesses each time
   sync_stats.num_sync_acts += sync_cnt*2;
@@ -300,14 +301,14 @@ void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void CodeJitter::hammer_pattern_unjitted(
-    FuzzingParameterSet &fuzzing_parameters,
-    bool verbose,
-    FLUSHING_STRATEGY flushing,
-    FENCING_STRATEGY fencing,
-    int total_num_activations,
-    const std::vector<volatile char *> &aggressor_pairs,
-    const std::vector<volatile char *> &sync_rows) {
+void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters,
+                                         bool verbose,
+                                         FLUSHING_STRATEGY flushing,
+                                         FENCING_STRATEGY fencing,
+                                         int total_num_activations,
+                                         const std::vector<volatile char *> &aggressor_pairs,
+                                         const std::vector<volatile char *> &sync_rows,
+                                         size_t ref_threshold) {
 
   if (verbose) {
     Logger::log_debug("CodeJitter::hammer_pattern_unjitted stats:");
@@ -355,7 +356,7 @@ void CodeJitter::hammer_pattern_unjitted(
       // make sure that no hammering accesses overload with sync accesses
       lfence();
       // SYNC
-      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats);
+      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
       sync_stats.num_sync_rounds = (sync_stats.num_sync_rounds+1);
     }
     // HAMMER

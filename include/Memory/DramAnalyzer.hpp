@@ -27,8 +27,10 @@ class DramAnalyzer {
 
   CustomRandom cr;
 
+  uint64_t th_low;
+
  public:
-  explicit DramAnalyzer(volatile char *target, ConflictCluster &cc);
+  explicit  DramAnalyzer(volatile char *target, ConflictCluster &cc);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
   void find_bank_conflicts();
@@ -53,6 +55,9 @@ class DramAnalyzer {
 
   /// Determine the number of possible activations within a refresh interval.
   size_t count_acts_per_ref();
+
+  unsigned long get_ref_threshold();
+
 };
 
 #endif /* DRAMANALYZER */

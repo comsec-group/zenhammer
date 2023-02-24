@@ -79,7 +79,7 @@ add_subdirectory(external)
 add_library(
         bs
         include/GlobalDefines.hpp
-        include/Utilities/TimeHelper.hpp
+        include/Utilities/Helper.hpp
         src/Forges/FuzzyHammerer.cpp
 #        src/Forges/ReplayingHammerer.cpp
 #        src/Forges/TraditionalHammerer.cpp

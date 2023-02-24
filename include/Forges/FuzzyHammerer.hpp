@@ -32,8 +32,11 @@ class FuzzyHammerer {
 
 //  static void test_location_dependence(ReplayingHammerer &rh, HammeringPattern &pattern);
 
-  void probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,
-                                     FuzzingParameterSet &fuzzing_params, size_t num_dram_locations);
+  void probe_mapping_and_scan(PatternAddressMapper &mapper,
+                              Memory &memory,
+                              FuzzingParameterSet &fuzzing_params,
+                              size_t num_dram_locations,
+                              size_t ref_threshold);
 
   static void log_overall_statistics(size_t cur_round, const std::string &best_mapping_id,
                                      size_t best_mapping_num_bitflips, size_t num_effective_patterns);

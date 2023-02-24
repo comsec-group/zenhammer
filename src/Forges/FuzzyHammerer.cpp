@@ -2,7 +2,7 @@
 
 #include <Blacksmith.hpp>
 
-#include "Utilities/TimeHelper.hpp"
+#include "Utilities/Helper.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
 //#include "Forges/ReplayingHammerer.hpp"
 
@@ -38,7 +38,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   size_t best_hammering_pattern_bitflips = 0;
 
   const auto start_ts = get_timestamp_sec();
-  const auto execution_time_limit = static_cast<int64_t>(start_ts + runtime_limit);
+  const auto execution_time_limit = static_cast<uint64_t>(start_ts + runtime_limit);
 
 //  size_t num_acts_per_tref_idx = 0;
 //  std::vector<int> num_acts_per_tref = {
@@ -81,7 +81,8 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 //          current_round, hammering_pattern.instance_id.c_str(), cnt_pattern_probes, mapper.get_instance_id().c_str()));
 //
       // we test this combination of (pattern, mapping) at three different DRAM locations
-      probe_mapping_and_scan(mapper, memory, fuzzing_params, program_args.num_dram_locations_per_mapping);
+      probe_mapping_and_scan(mapper, memory, fuzzing_params, program_args.num_dram_locations_per_mapping,
+                             dramAnalyzer.get_ref_threshold());
       sum_flips_one_pattern_all_mappings += mapper.count_bitflips();
 
       if (sum_flips_one_pattern_all_mappings > 0) {
@@ -306,8 +307,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 //  pattern.is_location_dependent = is_location_dependent;
 //}
 
-void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory &memory,
-                                           FuzzingParameterSet &fuzzing_params, size_t num_dram_locations) {
+void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
+                                           Memory &memory,
+                                           FuzzingParameterSet &fuzzing_params,
+                                           size_t num_dram_locations,
+                                           size_t ref_threshold) {
 
   // ATTENTION: This method uses the global variable hammering_pattern to refer to the pattern that is to be hammered
 
@@ -342,14 +346,12 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
   size_t flipped_bits = 0;
   for (size_t dram_location = 0; dram_location < num_dram_locations; ++dram_location) {
     mapper.bit_flips.emplace_back();
-
     Logger::log_info(format_string("Running pattern #%lu (%s) for address set %d (%s) at DRAM location #%ld.",
         cnt_generated_patterns,
         hammering_pattern.instance_id.c_str(),
         cnt_pattern_probes,
         mapper.get_instance_id().c_str(),
         dram_location));
-
 //    std::vector<volatile char *> random_rows;
 //    if (wait_until_hammering_us > 0) {
 //      random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
@@ -359,13 +361,14 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper, Memory 
     // do hammering
 //    code_jitter.hammer_pattern(fuzzing_params, true);
 //    while (true) {
-      code_jitter.hammer_pattern_unjitted(fuzzing_params, true,
-                                          fuzzing_params.flushing_strategy,
-                                          fuzzing_params.fencing_strategy,
-                                          fuzzing_params.get_hammering_total_num_activations(),
-                                          hammering_accesses_vec,
-                                          sync_rows);
+    code_jitter.hammer_pattern_unjitted(fuzzing_params, true,
+                                        fuzzing_params.flushing_strategy,
+                                        fuzzing_params.fencing_strategy,
+                                        fuzzing_params.get_hammering_total_num_activations(),
+                                        hammering_accesses_vec,
+                                        sync_rows, ref_threshold);
 //    }
+
 
     // check if any bit flips happened
     flipped_bits += memory.check_memory(mapper, false, true);

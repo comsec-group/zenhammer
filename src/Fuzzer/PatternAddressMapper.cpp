@@ -10,7 +10,8 @@
 // static variable initialization
 size_t PatternAddressMapper::cluster_ids_idx = 0;
 
-PatternAddressMapper::PatternAddressMapper(Memory &mem) : cr(CustomRandom()), instance_id(uuid::gen_uuid(cr.gen)) {
+PatternAddressMapper::PatternAddressMapper(Memory &mem)
+    : cr(CustomRandom()), instance_id(uuid::gen_uuid(cr.gen)) {
   code_jitter = std::make_unique<CodeJitter>();
   cluster_ids = mem.conflict_cluster.get_supported_cluster_ids();
 }

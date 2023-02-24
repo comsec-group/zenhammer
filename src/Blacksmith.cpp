@@ -61,7 +61,6 @@ int main(int argc, char **argv) {
     Logger::close();
     return EXIT_SUCCESS;
   }
-
 }
 
 void handle_args(int argc, char **argv) {

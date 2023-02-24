@@ -1,6 +1,6 @@
 #include "Forges/TraditionalHammerer.hpp"
 
-#include "Utilities/TimeHelper.hpp"
+#include "Utilities/Helper.hpp"
 #include "Blacksmith.hpp"
 
 /// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
