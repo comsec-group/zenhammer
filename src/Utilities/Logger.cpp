@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <GlobalDefines.hpp>
+#include <filesystem>
 
 // initialize the singleton instance
 Logger Logger::instance; /* NOLINT */
@@ -77,12 +78,31 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
 #endif
 }
 
-void Logger::log_debug(const std::string &message, bool newline) {
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnusedParameter"
+void Logger::log_debug(const std::string &message, bool newline,
+                       const std::experimental::source_location location) {
 #if (DEBUG==1)
-  instance.logfile << FC_YELLOW "[DEBUG] " << message;
+  std::filesystem::path p(location.file_name());
+  instance.logfile << FC_YELLOW << "[DEBUG|"
+    << std::string(p.stem()) << std::string(p.extension()) << ":"
+    << location.line() << "#"
+    << location.function_name() << "] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile
-  << std::endl;
+  if (newline)
+    instance.logfile << std::endl;
+#else
+  // this is just to ignore complaints of the compiler about unused params
+  std::ignore = message;
+  std::ignore = newline;
+#endif
+}
+#pragma clang diagnostic pop
+
+void Logger::log_debug_data(const std::string &message, bool newline) {
+#if (DEBUG==1)
+  instance.logfile << FC_YELLOW << message << F_RESET;
+  if (newline) instance.logfile << std::endl;
 #else
   // this is just to ignore complaints of the compiler about unused params
   std::ignore = message;

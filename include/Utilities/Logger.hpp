@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <memory>
+#include <experimental/source_location>
 
 // font colors
 #define FC_RED "\033[0;31m"         // error
@@ -23,7 +24,7 @@ std::string format_string(const std::string &format, Args ... args) {
   if (size <= 0) { throw std::runtime_error("Error during formatting."); }
   std::unique_ptr<char[]> buf(new char[size]);
   snprintf(buf.get(), static_cast<size_t>(size), format.c_str(), args ...);
-  return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+  return {buf.get(), buf.get() + size - 1}; // We don't want the '\0' inside
 }
 
 class Logger {
@@ -57,7 +58,8 @@ class Logger {
   static void log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
                           unsigned char expected_value, unsigned long timestamp, bool newline);
 
-  static void log_debug(const std::string &message, bool newline = true);
+  static void log_debug(const std::string &message, bool newline = true,
+                        std::experimental::source_location location = std::experimental::source_location::current());
 
   static void log_timestamp();
 
@@ -70,6 +72,8 @@ class Logger {
   static void log_success(const std::string &message, bool newline = true);
 
   static void log_failure(const std::string &message, bool newline = true);
+
+  static void log_debug_data(const std::string &message, bool newline = true);
 };
 
 #endif //BLACKSMITH_INCLUDE_LOGGER_HPP_
