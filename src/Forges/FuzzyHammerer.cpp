@@ -1,12 +1,8 @@
 #include "Forges/FuzzyHammerer.hpp"
 
-#include <Blacksmith.hpp>
-
 #include "Utilities/Helper.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-//#include "Forges/ReplayingHammerer.hpp"
-
-
+#include "Blacksmith.hpp"
 
 void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
                                                       unsigned long runtime_limit, const size_t probes_per_pattern,
@@ -38,17 +34,14 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   size_t best_hammering_pattern_bitflips = 0;
 
   const auto start_ts = get_timestamp_sec();
-  const auto execution_time_limit = static_cast<uint64_t>(start_ts + runtime_limit);
+  const auto execution_time_limit = static_cast<int64_t>(start_ts + runtime_limit);
 
 //  size_t num_acts_per_tref_idx = 0;
 //  std::vector<int> num_acts_per_tref = {
 //      14,16,18, 20, 22, 24, 26, 28, 30, 32, 34, 36
 //  };
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "LoopDoesntUseConditionVariableInspection"
   for (; get_timestamp_sec() < execution_time_limit; ++cnt_generated_patterns) {
-#pragma clang diagnostic pop
 
 //    fuzzing_params.set_num_activations_per_t_refi(
 //        static_cast<int>(num_acts_per_tref[num_acts_per_tref_idx]));
@@ -131,8 +124,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 //    }
 
     // this is just to make sure we do not miss any bit flip..
-    if (cnt_generated_patterns%50==0) {
+    if ((cnt_generated_patterns % 50) == 0) {
       memory.check_memory_full();
+    }
+    if ((cnt_generated_patterns % 1000) == 0) {
+      program_args.acts_per_ref = dramAnalyzer.count_acts_per_ref();
     }
 
     // due to buffering it might take a while to see anything in stdout.log, so manually flush after each round to get

@@ -106,8 +106,8 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but need to (manually) exclude 1 because an amplitude>1 does
   // not make sense for a single aggressor
-//  amplitude = Range<int>(1, num_activations_per_tREFI*4);
-  amplitude = Range<int>(1, 16);
+  amplitude = Range<int>(1, num_activations_per_tREFI*4);
+//  amplitude = Range<int>(1, 16);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -136,7 +136,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
   // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
 //  set_distribution(N_sided, {{1, 10}, {2, 100}});
-  set_distribution(N_sided, {{1,0}, {2, 100}});
+  set_distribution(N_sided, {{1,10}, {2, 90}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   hammering_total_num_activations = 3'000'000;
@@ -151,7 +151,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(2, 3).get_random_number(cr.gen)));
+  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(2, 5).get_random_number(cr.gen)));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;

@@ -46,8 +46,6 @@ int main(int argc, char **argv) {
     program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
   }
 
-  exit(0);
-
   if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer fuzzyHammerer;
     fuzzyHammerer.n_sided_frequency_based_hammering(
@@ -57,10 +55,10 @@ int main(int argc, char **argv) {
         program_args.runtime_limit,
         program_args.num_address_mappings_per_pattern,
         program_args.sweeping);
-
-    Logger::close();
-    return EXIT_SUCCESS;
   }
+
+  Logger::close();
+  return EXIT_SUCCESS;
 }
 
 void handle_args(int argc, char **argv) {
@@ -72,7 +70,6 @@ void handle_args(int argc, char **argv) {
   argagg::parser argparser{{
       {"help", {"-h", "--help"}, "shows this help message", 0},
       {"dimm-id", {"-d", "--dimm-id"}, "internal identifier of the currently inserted DIMM (default: 0)", 1},
-      {"ranks", {"-r", "--ranks"}, "number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)", 1},
 
       {"fuzzing", {"-f", "--fuzzing"}, "perform a fuzzing run (default program mode)", 0},
       {"replay-patterns", {"-y", "--replay-patterns"}, "replays patterns given as comma-separated list of pattern IDs", 1},
@@ -112,14 +109,6 @@ void handle_args(int argc, char **argv) {
     Logger::log_debug(format_string("Set --dimm-id: %ld", program_args.dimm_id));
   } else {
     Logger::log_error("Program argument '--dimm-id <integer>' is mandatory! Cannot continue.");
-    exit(EXIT_FAILURE);
-  }
-
-  if (parsed_args.has_option("ranks")) {
-    program_args.num_ranks = parsed_args["ranks"].as<int>(0);
-    Logger::log_debug(format_string("Set --ranks=%d", program_args.num_ranks));
-  } else {
-    Logger::log_error("Program argument '--ranks <integer>' is mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
   }
 

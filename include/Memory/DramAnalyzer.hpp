@@ -51,13 +51,10 @@ class DramAnalyzer {
     return (int) ((after - before)/DRAMA_RNDS);
   }
 
-//  void load_known_functions(int num_ranks);
-
   /// Determine the number of possible activations within a refresh interval.
   size_t count_acts_per_ref();
 
   unsigned long get_ref_threshold();
-
 };
 
 #endif /* DRAMANALYZER */

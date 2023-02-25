@@ -54,8 +54,6 @@ Except for the parameters `--dimm-id` and `--ranks` all other parameters are opt
 
     -d, --dimm-id
         internal identifier of the currently inserted DIMM (default: 0)
-    -r, --ranks
-        number of ranks on the DIMM, used to determine bank/rank/row functions, assumes Intel Coffe Lake CPU (default: None)
     
 ==== Execution Modes ==============================================
 

@@ -334,10 +334,11 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
     clflushopt(aggressor_pairs[i]);
     // validate pattern as we clflush only after every second aggressor, i.e.,
     // hammering consecutively the same aggressor is useless as it's causing a cache hit ayway
-    if (aggressor_pairs[i] == aggressor_pairs[i + 1]) {
-      Logger::log_error(format_string("unexpected: aggressor_pairs[i] == aggressor_pairs[i+1], skipping pattern..."));
-      return;
-    }
+    // FIXME: this happens but why? maybe at the end of the pattern?
+//    if (aggressor_pairs[i] == aggressor_pairs[i + 1]) {
+//      Logger::log_error(format_string("unexpected: aggressor_pairs[i] == aggressor_pairs[i+1], skipping pattern..."));
+//      return;
+//    }
   }
 
   // make sure flushing finished before we start
