@@ -127,7 +127,9 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     if ((cnt_generated_patterns % 50) == 0) {
       memory.check_memory_full();
     }
-    if ((cnt_generated_patterns % 1000) == 0) {
+
+    // only recompute ACTs per REF once every 1k patterns and only if no fixed parameter was passed as program arg
+    if ((cnt_generated_patterns % 1000) == 0 && program_args.acts_per_ref == 0) {
       program_args.acts_per_ref = dramAnalyzer.count_acts_per_ref();
     }
 
