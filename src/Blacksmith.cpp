@@ -42,16 +42,16 @@ int main(int argc, char **argv) {
   DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
 
   // count the number of possible activations per refresh interval, if not given as program argument
-  if (program_args.acts_per_ref == 0) {
-    program_args.acts_per_ref = dram_analyzer.count_acts_per_ref();
-  }
+  size_t acts_per_ref = (program_args.acts_per_ref == 0)
+      ? dram_analyzer.count_acts_per_ref()
+      : program_args.acts_per_ref;
 
   if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer fuzzyHammerer;
     fuzzyHammerer.n_sided_frequency_based_hammering(
         dram_analyzer,
         memory,
-        static_cast<int>(program_args.acts_per_ref),
+        static_cast<int>(acts_per_ref),
         program_args.runtime_limit,
         program_args.num_address_mappings_per_pattern,
         program_args.sweeping);
