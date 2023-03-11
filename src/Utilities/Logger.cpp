@@ -78,8 +78,6 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
 #endif
 }
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "UnusedParameter"
 void Logger::log_debug(const std::string &message, bool newline,
                        const std::experimental::source_location location) {
 #if (DEBUG==1)
@@ -93,11 +91,11 @@ void Logger::log_debug(const std::string &message, bool newline,
     instance.logfile << std::endl;
 #else
   // this is just to ignore complaints of the compiler about unused params
+  std::ignore = location;
   std::ignore = message;
   std::ignore = newline;
 #endif
 }
-#pragma clang diagnostic pop
 
 void Logger::log_debug_data(const std::string &message, bool newline) {
 #if (DEBUG==1)
@@ -190,8 +188,7 @@ void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_
 void Logger::log_global_defines() {
   Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
   std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_RNDS << "\n"
-     << "HAMMER_ROUNDS: " << (1000000) << "\n"
+  ss << "HAMMER_ROUNDS: " << (1000000) << "\n"
      << "THRESH: " << BK_CONF_THRESH << "\n"
      << "NUM_BANKS: " << NUM_BANKS << "\n"
      << "NUM_BANKGROUPS: " << NUM_BANKGROUPS << "\n"
