@@ -1,0 +1,9 @@
+experiment_configs:
+- config_id: 0
+  execution_mode: ALTERNATING
+  num_measurement_rounds: 1000000
+  num_sync_rows: 2
+  row_distance: 2
+  row_origin:
+    same_bg: true
+    same_bk: true

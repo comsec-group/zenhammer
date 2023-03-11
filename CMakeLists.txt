@@ -99,6 +99,7 @@ add_library(
         src/Utilities/Logger.cpp
         src/Utilities/Pagemap.cpp
         src/Utilities/CustomRandom.cpp
+        src/Utilities/ExperimentConfig.cpp
 )
 
 target_include_directories(
