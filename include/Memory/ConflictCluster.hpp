@@ -56,7 +56,7 @@ public:
 
   SimpleDramAddress get_simple_dram_address(volatile char *vaddr);
 
-  SimpleDramAddress get_simple_dram_address(size_t bank_id, size_t row_id);
+  SimpleDramAddress get_simple_dram_address(size_t cluster_id, size_t row_id);
 
   size_t get_typical_row_offset();
 
@@ -70,7 +70,14 @@ public:
                                                       bool (*func)(size_t, size_t, size_t, size_t));
 
   std::vector<volatile char *> get_sync_rows(SimpleDramAddress &addr, size_t num_rows, bool verbose);
-  std::vector<SimpleDramAddress> get_simple_dram_address_same_bgbk(size_t num_addresses);
+
+  std::vector<SimpleDramAddress> get_simple_dram_address_same_bgbk(size_t num_addresses,
+                                                                   size_t row_distance);
+
+  std::vector<SimpleDramAddress> get_simple_dram_addresses(size_t num_addresses,
+                                                           size_t row_distance,
+                                                           bool same_bg,
+                                                           bool same_bk);
 };
 
 #endif //BLACKSMITH_CONFLICTCLUSTER_H
