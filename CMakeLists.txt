@@ -125,6 +125,14 @@ target_compile_options(
         -Wno-format-security
 )
 
+target_link_libraries(
+        bs
+        PUBLIC
+        yaml-cpp
+)
+
+target_include_directories(bs PUBLIC ${YAML_CPP_SOURCE_DIR}/src)
+
 if (BLACKSMITH_ENABLE_JSON)
     target_link_libraries(
             bs

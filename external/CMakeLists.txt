@@ -80,3 +80,30 @@ if (BLACKSMITH_ENABLE_JSON)
     set(MESSAGE_QUIET OFF)
     message(STATUS "Fetching external dependency nlohmann/json -- done!")
 endif()
+
+# === YAML-CPP ============================================================
+
+message(STATUS "Fetching external dependency jbeder/yaml-cpp")
+set(MESSAGE_QUIET ON)
+
+set(YAML_CPP_BUILD_TESTS OFF)
+FetchContent_Declare(
+        yaml-cpp
+        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+        GIT_TAG yaml-cpp-0.6.3
+)
+set(YAML_BUILD_SHARED_LIBS ON)
+set(YAML_CPP_BUILD_TESTS OFF)
+option(YAML_CPP_BUILD_TESTS "Enable testing" OFF)
+
+FetchContent_MakeAvailable(yaml-cpp)
+FetchContent_GetProperties(yaml-cpp)
+if (NOT yaml-cpp_POPULATED)
+    set(YAML_CPP_BUILD_TESTS OFF)
+    FetchContent_Populate(yaml-cpp)
+    add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+set(YAML_CPP_BUILD_TESTS OFF)
+
+set(MESSAGE_QUIET OFF)
+message(STATUS "Fetching external dependency jbeder/yaml-cpp -- done!")
