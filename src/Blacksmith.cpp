@@ -4,8 +4,8 @@
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
-#include "Memory/ConflictCluster.hpp"
 #include "sys/stat.h"
+#include "Utilities/ExperimentConfig.hpp"
 
 #include <argagg/argagg.hpp>
 #include <argagg/convert/csv.hpp>
@@ -42,9 +42,15 @@ int main(int argc, char **argv) {
   DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
 
   // count the number of possible activations per refresh interval, if not given as program argument
-  size_t acts_per_ref = (program_args.acts_per_ref == 0)
-      ? dram_analyzer.count_acts_per_ref()
-      : program_args.acts_per_ref;
+  size_t acts_per_ref;
+  if (program_args.acts_per_ref == 0) {
+      if (program_args.filepath_exp_cfg.empty()) {
+          acts_per_ref = dram_analyzer.count_acts_per_ref();
+      } else {
+          ExperimentConfig exp_cfg(program_args.filepath_exp_cfg, program_args.exp_cfg_id);
+          acts_per_ref = dram_analyzer.count_acts_per_ref(exp_cfg);
+      }
+  }
 
   if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer fuzzyHammerer;
@@ -86,6 +92,10 @@ void handle_args(int argc, char **argv) {
 
       {"rowlist", {"-l", "--rowlist"}, "", 1},
       {"rowlist-bgbk", {"--rowlist-bgbk"}, "", 1},
+
+      {"yaml-exp-cfg", {"-e", "--exp-cfg"}, "", 1},
+      {"yaml-exp-cfg-id", {"-x", "--exp-cfg-id"}, "", 1},
+
     }};
 
   argagg::parser_results parsed_args;
@@ -111,6 +121,16 @@ void handle_args(int argc, char **argv) {
     Logger::log_error("Program argument '--dimm-id <integer>' is mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
   }
+
+  if (parsed_args.has_option("yaml-exp-cfg") || parsed_args.has_option("yaml-exp-cfg-id")) {
+    if (!parsed_args.has_option("yaml-exp-cfg") || !parsed_args.has_option("yaml-exp-cfg-id")) {
+      Logger::log_error("Program argument '--exp-cfg <filename_yaml>' requires '--exp-cfg-id <int>' and vice versa.");
+      exit(EXIT_FAILURE);
+    }
+    program_args.filepath_exp_cfg = parsed_args["yaml-exp-cfg"].as<std::string>();
+    program_args.exp_cfg_id = parsed_args["yaml-exp-cfg-id"].as<int>();
+  }
+
 
   if (parsed_args.has_option("rowlist") && parsed_args.has_option("rowlist-bgbk")) {
     program_args.filepath_rowlist =  parsed_args["rowlist"].as<std::string>();

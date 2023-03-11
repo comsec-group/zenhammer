@@ -8,14 +8,11 @@
 #include "Utilities/AsmPrimitives.hpp"
 #include "ConflictCluster.hpp"
 #include "Utilities/CustomRandom.hpp"
+#include "Utilities/ExperimentConfig.hpp"
 
 class DramAnalyzer {
  private:
   std::vector<std::vector<volatile char *>> banks;
-
-//  std::vector<uint64_t> bank_rank_functions;
-
-//  uint64_t row_function;
 
   volatile char *start_address;
 
@@ -27,7 +24,7 @@ class DramAnalyzer {
 
   CustomRandom cr;
 
-  uint64_t th_low;
+  uint64_t ref_threshold_low;
 
  public:
   explicit  DramAnalyzer(volatile char *target, ConflictCluster &cc);
@@ -36,25 +33,14 @@ class DramAnalyzer {
   void find_bank_conflicts();
 
   /// Measures the time between accessing two addresses.
-  static int inline measure_time(volatile char *a1, volatile char *a2) {
-    uint64_t before, after;
-    before = rdtscp();
-    lfence();
-    for (size_t i = 0; i < DRAMA_RNDS; i++) {
-      (void)*a1;
-      (void)*a2;
-      clflushopt(a1);
-      clflushopt(a2);
-      mfence();
-    }
-    after = rdtscp();
-    return (int) ((after - before)/DRAMA_RNDS);
-  }
+  static int inline measure_time(volatile char *a1, volatile char *a2);
 
   /// Determine the number of possible activations within a refresh interval.
+  size_t count_acts_per_ref(ExperimentConfig &exp_cfg);
+
   size_t count_acts_per_ref();
 
-  unsigned long get_ref_threshold();
+  [[nodiscard]] unsigned long get_ref_threshold() const;
 };
 
 #endif /* DRAMANALYZER */

@@ -1,5 +1,6 @@
 #include "Memory/DramAnalyzer.hpp"
 #include "Memory/DRAMAddr.hpp"
+#include "Memory/ConflictCluster.hpp"
 #include "Utilities/CustomRandom.hpp"
 #include "Utilities/Helper.hpp"
 
@@ -90,133 +91,129 @@ DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
 }
 
+size_t DramAnalyzer::count_acts_per_ref() {
+  ExperimentConfig exp_cfg(execution_mode::ALTERNATING, 5'000'000, 2, 8, true, true);
+  return count_acts_per_ref(exp_cfg);
+}
 
 // TODO: do analysis of timing results above threshold to determine REF threshold range
 // TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to get REFsb only
-size_t DramAnalyzer::count_acts_per_ref() {
+size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
   Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
 
   uint64_t t_start;
   uint64_t t_end;
 
-  const size_t NUM_ADDR_PER_PAIR = 2;
-  const size_t NUM_ADDR_PAIRS = 5;
-  const size_t NUM_ROUNDS = 500'000;
+  const size_t NUM_ADDR_PAIRS_TO_BE_TESTED = 4;
+  const size_t NUM_ACCESSES_PER_MEASUREMENT_RND = 2;
 
-  std::unordered_map<size_t, size_t> numacts_count;
-  std::unordered_map<size_t, std::vector<uint64_t>> actcnt2timingth;
-  std::vector<uint64_t> timing_all;
+  uint64_t total_ref_timing = 0;
+  uint64_t total_num_over_th = 0;
+  uint64_t total_cnt_acts = 0;
 
-  for (size_t it_addr_pair = 1; it_addr_pair <= NUM_ADDR_PAIRS; ++it_addr_pair) {
+  for (size_t it_addr_pair = 1; it_addr_pair <= NUM_ADDR_PAIRS_TO_BE_TESTED; ++it_addr_pair) {
     std::vector<uint64_t> timing;
-    timing.resize(NUM_ROUNDS,0);
+    timing.resize(exp_cfg.num_measurement_rounds, 0);
 
-    auto addr_pair = cc.get_simple_dram_address_same_bgbk(NUM_ADDR_PER_PAIR);
-    std::vector<volatile char*> addresses;
-    // bring array into cache
+    auto addr_pair = cc. get_simple_dram_addresses(exp_cfg.num_sync_rows, exp_cfg.row_distance,
+        exp_cfg.row_origin_same_bg, exp_cfg.row_origin_same_bk);
+
+    std::vector<volatile char *> addresses;
+    addresses.reserve(addr_pair.size());
+
+    // get vaddr, then bring array into cache
     for (size_t k = 0; k < addr_pair.size(); ++k) {
       addresses.push_back(addr_pair[k].vaddr);
       *addresses[k];
       clflushopt(addresses[k]);
+      std::cout << "# addr[" << k << "]: "
+                << addr_pair[k].bg << ","
+                << addr_pair[k].bk << ","
+                << addr_pair[k].row_id
+                << std::endl;
     }
     sfence();
-    // -1 because we always access two in each round
-    const size_t addresses_sz = addresses.size()-1;
 
-    // we keep this loop very short and tight to not negatively affect performance
-    t_end = rdtscp();
-    lfence();
-    size_t addr_pair_idx = 0;
-    for (size_t i = 0; i < NUM_ROUNDS; i++) {
-      t_start = t_end;
-
-      if (NUM_ADDR_PER_PAIR==2)
-          sfence();
-
-      *addresses[addr_pair_idx];
-      clflushopt(addresses[addr_pair_idx]);
-
-      *addresses[addr_pair_idx+1];
-      clflushopt(addresses[addr_pair_idx+1]);
-
-      lfence();
+    uint64_t total_cnt_timing = 0;
+    uint64_t cur_timing;
+    if (exp_cfg.exec_mode == execution_mode::ALTERNATING) {
+      // initial value for continuous timing measurement
+      size_t i_last = 0;
       t_end = rdtscp();
-      timing[i] = t_end - t_start;
-
-      addr_pair_idx = (addr_pair_idx + 2) % addresses_sz;
-    }
-
-    // compute the threshold that tells us whether a REF happened
-    statistics stats_iteration{};
-    calculate_statistics(timing, stats_iteration);
-    uint64_t threshold = static_cast<uint64_t>(static_cast<double>(stats_iteration.avg) * 1.15);
-    Logger::log_debug_data(format_string("pair #%d: %s, threshold=%ld",
-                                         it_addr_pair, stats_iteration.to_string().c_str(), threshold));
-
-    // go through all timing results and check after how many accesses we could observe a peak
-    size_t num_acts_cnt = 0;
-    for (size_t i = 0; i < NUM_ROUNDS; i++) {
-//      std::cout << acts[i] << "\n";
-      if (timing[i] > threshold && timing[i] < threshold+static_cast<uint64_t>(stats_iteration.std)) {
-        // do not consider outlier
-        actcnt2timingth[num_acts_cnt].push_back(timing[i]);
-        numacts_count[num_acts_cnt]++;
-//        std::cout << num_acts_cnt << "," << timing[i] << "\n";
-        num_acts_cnt = 0;
-      } else {
-//        std::cout << "0," << timing[i] << "\n";
-        // +2 because we do 2 accesses between measurements
-        num_acts_cnt += 2;
+      lfence();
+      // we keep this loop very short and tight to not negatively affect performance
+      size_t addr_idx = 0;
+      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
+        sfence();
+        for (size_t j = addr_idx; j < (addr_idx + NUM_ACCESSES_PER_MEASUREMENT_RND); j++) {
+          *addresses[j];
+          clflushopt(addresses[j]);
+        }
+        t_start = t_end;
+        lfence();
+        t_end = rdtscp();
+        cur_timing = (t_end - t_start);
+        timing[i] = cur_timing;
+        total_cnt_timing += cur_timing;
+        if (cur_timing > MIN_REF_THRESH && (i-i_last) > 10) {
+          total_ref_timing += cur_timing;
+          total_num_over_th++;
+          total_cnt_acts += i-i_last;
+          i_last = i;
+          lfence();
+          t_end = rdtscp();
+        }
+        lfence();
+        addr_idx = (addr_idx + NUM_ACCESSES_PER_MEASUREMENT_RND) % exp_cfg.num_sync_rows;
+      }
+    } else if (exp_cfg.exec_mode == execution_mode::BATCHED) {
+      t_end = rdtscp();
+      lfence();
+      assert(exp_cfg.num_sync_rows == 4 && NUM_ACCESSES_PER_MEASUREMENT_RND == 2 && "BATCHED mode failed!");
+      const size_t half = exp_cfg.num_measurement_rounds/2;
+      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
+        sfence();
+        for (size_t j = 0; j < NUM_ACCESSES_PER_MEASUREMENT_RND; j++) {
+          auto addr_idx = (((i > half)<<1)+j)%exp_cfg.num_sync_rows;
+          *addresses[addr_idx];
+          clflushopt(addresses[addr_idx]);
+        }
+        t_start = t_end;
+        lfence();
+        t_end = rdtscp();
+        timing[i] = t_end - t_start;
+        lfence();
       }
     }
 
-    // accumulate timing results from all tested address pairs
-    timing_all.insert(timing_all.end(), timing.begin(), timing.end());
+    std::cout << "AVG_timing: " << total_cnt_timing/exp_cfg.num_measurement_rounds << std::endl;
+    auto total_cnt2 = std::accumulate(timing.begin(), timing.end(), 0ULL);
+    std::cout << "AVG_timing2: " << total_cnt2/exp_cfg.num_measurement_rounds << std::endl;
   }
 
-  // we need to place values with their counts as pairs in a new vector before we can determine the value with the
-  // highest count
-  std::vector<std::pair<size_t, size_t>> pairs;
-  pairs.reserve(numacts_count.size());
-  for (auto & itr : numacts_count) {
-    // we ignore single-digit counts as we are assuming we can do more accesses between two consecutive REFs
-    if (itr.first < 10)
-      continue;
-    pairs.emplace_back(itr.first, itr.second);
-  }
+  std::cout << "AVG_acts: " << total_cnt_acts/total_num_over_th << std::endl;
+  ref_threshold_low = (MIN_REF_THRESH+(total_ref_timing/total_num_over_th))/2;
+  std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
 
-  // sort the pairs by their value in descending order
-  sort(pairs.begin(), pairs.end(), [=](auto& a, auto& b) { return a.second > b.second;});
-//  size_t cnt = 0;
-//  for (const auto &p : pairs) {
-//    std::cout << p.first << ": " << p.second << std::endl;
-//    if (cnt++ > 10) break;
-//  }
-  // this is the most frequent ACT cnt value
-  auto num_acts_per_ref = pairs.at(0).first;
-  Logger::log_data(format_string("num_acts_per_ref=%lu", num_acts_per_ref));
-
-  // compute statistics for the most frequent ACT cnt value
-  statistics stats_mf{};
-  calculate_statistics(actcnt2timingth[num_acts_per_ref], stats_mf);
-  Logger::log_debug_data(stats_mf.to_string());
-
-  // compute statistics for all timing values below the threshold
-  decltype(timing_all) timing_all_below;
-  for (auto it = timing_all.begin(); it != timing_all.end(); ++it) {
-    if (*it < stats_mf.median)
-      timing_all_below.push_back(*it);
-  }
-  statistics stats_all_below_th;
-  calculate_statistics(timing_all_below, stats_all_below_th);
-//  Logger::log_debug_data(stats_all_below_th.to_string());
-
-  th_low = static_cast<uint64_t>((stats_all_below_th.median + stats_mf.min)/2);
-  Logger::log_data(format_string("ref_th_low=%d", th_low));
-
-  return num_acts_per_ref;
+  return total_cnt_acts/total_num_over_th;
 }
 
-size_t DramAnalyzer::get_ref_threshold() {
-  return th_low;
+size_t DramAnalyzer::get_ref_threshold() const {
+  return ref_threshold_low;
+}
+
+int inline DramAnalyzer::measure_time(volatile char *a1, volatile char *a2) {
+    const size_t NUM_DRAMA_ROUNDS = 1000;
+    uint64_t before, after;
+    before = rdtscp();
+    lfence();
+    for (size_t i = 0; i < NUM_DRAMA_ROUNDS; i++) {
+        (void)*a1;
+        (void)*a2;
+        clflushopt(a1);
+        clflushopt(a2);
+        mfence();
+    }
+    after = rdtscp();
+    return (int) ((after - before)/NUM_DRAMA_ROUNDS);
 }
