@@ -85,19 +85,30 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
 
 DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
 //  row_function(0), start_address(target) {
-  start_address(target), cc(cc) {
+  start_address(target),
+  cc(cc),
+  has_exp_cfg(false),
+  exp_cfg(ExperimentConfig())
+  {
   cr = CustomRandom();
   dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
 }
 
 size_t DramAnalyzer::count_acts_per_ref() {
-  ExperimentConfig exp_cfg(execution_mode::ALTERNATING, 5000, 2, 8, true, true);
+  if (!has_exp_cfg) {
+      exp_cfg = ExperimentConfig(execution_mode::ALTERNATING, 5000, 2, 8, true, true);
+      has_exp_cfg = true;
+  }
   return count_acts_per_ref(exp_cfg);
 }
 
 // TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to get REFsb only
-size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
+size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &experiment_cfg) {
+  if (!has_exp_cfg) {
+      this->exp_cfg = experiment_cfg;
+      has_exp_cfg = true;
+  }
   Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
 
   uint64_t t_start;

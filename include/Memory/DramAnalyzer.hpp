@@ -18,6 +18,10 @@ class DramAnalyzer {
 
   ConflictCluster &cc;
 
+  bool has_exp_cfg = false;
+
+  ExperimentConfig exp_cfg;
+
   void find_targets(std::vector<volatile char *> &target_bank);
 
   std::uniform_int_distribution<int> dist;

@@ -31,6 +31,8 @@ private:
   std::string filepath;
 
 public:
+  ExperimentConfig() = default;
+
   ExperimentConfig(const std::string &filepath, size_t config_id);
 
   ExperimentConfig(execution_mode ExecMode,
@@ -40,19 +42,19 @@ public:
                    bool RowOriginSameBg,
                    bool RowOriginSameBk);
 
-  size_t config_id;
+  size_t config_id{};
 
   execution_mode exec_mode;
 
-  size_t num_measurement_rounds;
+  size_t num_measurement_rounds{};
 
-  size_t num_sync_rows;
+  size_t num_sync_rows{};
 
-  size_t row_distance;
+  size_t row_distance{};
 
-  bool row_origin_same_bg;
+  bool row_origin_same_bg{};
 
-  bool row_origin_same_bk;
+  bool row_origin_same_bk{};
 };
 
 #endif //BLACKSMITH_SRC_UTILITIES_EXPERIMENTCONFIG_HPP
