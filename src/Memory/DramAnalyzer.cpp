@@ -92,11 +92,10 @@ DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
 }
 
 size_t DramAnalyzer::count_acts_per_ref() {
-  ExperimentConfig exp_cfg(execution_mode::ALTERNATING, 5'000'000, 2, 8, true, true);
+  ExperimentConfig exp_cfg(execution_mode::ALTERNATING, 5000, 2, 8, true, true);
   return count_acts_per_ref(exp_cfg);
 }
 
-// TODO: do analysis of timing results above threshold to determine REF threshold range
 // TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to get REFsb only
 size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
   Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
@@ -134,7 +133,7 @@ size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
     }
     sfence();
 
-    uint64_t total_cnt_timing = 0;
+//    uint64_t total_cnt_timing = 0;
     uint64_t cur_timing;
     if (exp_cfg.exec_mode == execution_mode::ALTERNATING) {
       // initial value for continuous timing measurement
@@ -153,8 +152,8 @@ size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
         lfence();
         t_end = rdtscp();
         cur_timing = (t_end - t_start);
-        timing[i] = cur_timing;
-        total_cnt_timing += cur_timing;
+//        timing[i] = cur_timing;
+//        total_cnt_timing += cur_timing;
         if (cur_timing > MIN_REF_THRESH && (i-i_last) > 10) {
           total_ref_timing += cur_timing;
           total_num_over_th++;
@@ -167,35 +166,38 @@ size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &exp_cfg) {
         addr_idx = (addr_idx + NUM_ACCESSES_PER_MEASUREMENT_RND) % exp_cfg.num_sync_rows;
       }
     } else if (exp_cfg.exec_mode == execution_mode::BATCHED) {
-      t_end = rdtscp();
-      lfence();
-      assert(exp_cfg.num_sync_rows == 4 && NUM_ACCESSES_PER_MEASUREMENT_RND == 2 && "BATCHED mode failed!");
-      const size_t half = exp_cfg.num_measurement_rounds/2;
-      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
-        sfence();
-        for (size_t j = 0; j < NUM_ACCESSES_PER_MEASUREMENT_RND; j++) {
-          auto addr_idx = (((i > half)<<1)+j)%exp_cfg.num_sync_rows;
-          *addresses[addr_idx];
-          clflushopt(addresses[addr_idx]);
-        }
-        t_start = t_end;
-        lfence();
-        t_end = rdtscp();
-        timing[i] = t_end - t_start;
-        lfence();
-      }
+        Logger::log_error("execution_mode::BATCHED is unsupported!");
+        exit(EXIT_FAILURE);
+//      t_end = rdtscp();
+//      lfence();
+//      assert(exp_cfg.num_sync_rows == 4 && NUM_ACCESSES_PER_MEASUREMENT_RND == 2 && "BATCHED mode failed!");
+//      const size_t half = exp_cfg.num_measurement_rounds/2;
+//      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
+//        sfence();
+//        for (size_t j = 0; j < NUM_ACCESSES_PER_MEASUREMENT_RND; j++) {
+//          auto addr_idx = (((i > half)<<1)+j)%exp_cfg.num_sync_rows;
+//          *addresses[addr_idx];
+//          clflushopt(addresses[addr_idx]);
+//        }
+//        t_start = t_end;
+//        lfence();
+//        t_end = rdtscp();
+////        timing[i] = t_end - t_start;
+//        lfence();
+//      }
     }
 
-    std::cout << "AVG_timing: " << total_cnt_timing/exp_cfg.num_measurement_rounds << std::endl;
-    auto total_cnt2 = std::accumulate(timing.begin(), timing.end(), 0ULL);
-    std::cout << "AVG_timing2: " << total_cnt2/exp_cfg.num_measurement_rounds << std::endl;
+//    std::cout << "AVG_timing: " << total_cnt_timing/exp_cfg.num_measurement_rounds << std::endl;
+//    auto total_cnt2 = std::accumulate(timing.begin(), timing.end(), 0ULL);
+//    std::cout << "AVG_timing2: " << total_cnt2/exp_cfg.num_measurement_rounds << std::endl;
   }
 
-  std::cout << "AVG_acts: " << total_cnt_acts/total_num_over_th << std::endl;
+  auto avg_acts = ((total_cnt_acts/total_num_over_th)>>1)<<1;
+//  std::cout << "AVG_acts: " << avg_acts << std::endl;
   ref_threshold_low = (MIN_REF_THRESH+(total_ref_timing/total_num_over_th))/2;
-  std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
+//  std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
 
-  return total_cnt_acts/total_num_over_th;
+  return avg_acts;
 }
 
 size_t DramAnalyzer::get_ref_threshold() const {
