@@ -292,12 +292,24 @@ std::vector<volatile char*> ConflictCluster::get_sync_rows(SimpleDramAddress &ad
   auto f_samebg_diffbk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
     return (bg_target == bg_candidate) && (bk_target != bk_candidate);
   };
-  auto samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_samebg_diffbk);
-
   auto f_diffbg_samebk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
     return (bg_target != bg_candidate) && (bk_target == bk_candidate);
   };
-  auto diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_diffbg_samebk);
+
+  std::vector<volatile char*> samebg_diffbk;
+  std::vector<volatile char*> diffbg_samebk;
+
+  size_t max_tries = 5;
+
+  do {
+      samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_samebg_diffbk);
+      diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_diffbg_samebk);
+  } while (!samebg_diffbk.empty() && !diffbg_samebk.empty() && --max_tries > 0);
+
+  if (max_tries <= 0) {
+      Logger::log_error("Giving up finding suitable sync rows after 5 tries..");
+      exit(EXIT_FAILURE);
+  }
 
   std::vector<volatile char*> sync_rows;
   sync_rows.reserve(num_rows);
@@ -317,7 +329,6 @@ std::vector<volatile char *> ConflictCluster::get_filtered_addresses(
   for (const auto &cluster_id : clusterid2bgbk) {
 
     if (func(cluster_id.second.first, addr.bg, cluster_id.second.second, addr.bk)) {
-//    if (cluster_id.second.first == addr.bg && cluster_id.second.second != addr.bk) {
       std::vector<volatile char*> result_cluster;
       for (const auto &a : clusters[cluster_id.first]) {
         result_cluster.push_back(a.second.vaddr);
@@ -338,6 +349,5 @@ std::vector<volatile char *> ConflictCluster::get_filtered_addresses(
   }
 
   Logger::log_error("get_samebg_diffbk_addresses could not find any <other bg, same bk> addresses!");
-  exit(EXIT_FAILURE);
+  return {};
 }
-
