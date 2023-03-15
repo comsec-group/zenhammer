@@ -64,10 +64,8 @@ public:
 
   std::vector<size_t> get_supported_cluster_ids();
 
-  std::vector<volatile char *> get_filtered_addresses(SimpleDramAddress &addr,
-                                                      size_t max_num_rows,
-                                                      bool verbose,
-                                                      bool (*func)(size_t, size_t, size_t, size_t));
+  std::vector<SimpleDramAddress> get_filtered_addresses(SimpleDramAddress &addr, size_t max_num_rows,
+                                                        bool (*func)(size_t, size_t, size_t, size_t));
 
   std::vector<volatile char *> get_sync_rows(SimpleDramAddress &addr, size_t num_rows, bool verbose);
 

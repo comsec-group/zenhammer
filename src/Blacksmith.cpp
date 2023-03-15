@@ -102,6 +102,7 @@ void handle_args(int argc, char **argv) {
   try {
     parsed_args = argparser.parse(argc, argv);
   } catch (const std::exception &e) {
+    std::cout << "HELLO" << std::endl;
     std::cerr << e.what() << '\n';
     exit(EXIT_FAILURE);
   }

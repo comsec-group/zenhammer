@@ -296,56 +296,49 @@ std::vector<volatile char*> ConflictCluster::get_sync_rows(SimpleDramAddress &ad
     return (bg_target != bg_candidate) && (bk_target == bk_candidate);
   };
 
-  std::vector<volatile char*> samebg_diffbk;
-  std::vector<volatile char*> diffbg_samebk;
+  std::vector<SimpleDramAddress> samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, f_samebg_diffbk);
+  std::vector<SimpleDramAddress> diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, f_diffbg_samebk);
 
-  size_t max_tries = 5;
-
-  do {
-      samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_samebg_diffbk);
-      diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, verbose, f_diffbg_samebk);
-  } while (!samebg_diffbk.empty() && !diffbg_samebk.empty() && --max_tries > 0);
-
-  if (max_tries <= 0) {
-      Logger::log_error("Giving up finding suitable sync rows after 5 tries..");
-      exit(EXIT_FAILURE);
+  if ((samebg_diffbk.empty() || diffbg_samebk.empty())) {
+      Logger::log_error("Cannot find suitable sync rows.. using same-bg/diff-bk or diff-bg/same-bk only.");
   }
 
+  std::stringstream ss;
   std::vector<volatile char*> sync_rows;
   sync_rows.reserve(num_rows);
   for (size_t i = 0; i < num_rows_per_subset; i++) {
-    sync_rows.push_back(samebg_diffbk[i]);
-    sync_rows.push_back(diffbg_samebk[i]);
+    if (i < samebg_diffbk.size()) {
+      sync_rows.push_back(samebg_diffbk[i].vaddr);
+      ss << samebg_diffbk[i].to_string_compact() << "\n";
+    }
+    if (i < diffbg_samebk.size()) {
+      sync_rows.push_back(diffbg_samebk[i].vaddr);
+      ss << diffbg_samebk[i].to_string_compact() << "\n";
+    }
+  }
+
+  if (verbose) {
+    Logger::log_info("Sync rows " + SimpleDramAddress::get_string_compact_desc() + " :");
+    Logger::log_data(ss.str());
   }
 
   return sync_rows;
 }
 
 
-std::vector<volatile char *> ConflictCluster::get_filtered_addresses(
-    SimpleDramAddress &addr, size_t max_num_rows, bool verbose,
-    bool (*func)(size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate)) {
-  std::stringstream ss;
+std::vector<SimpleDramAddress> ConflictCluster::get_filtered_addresses(SimpleDramAddress &addr, size_t max_num_rows,
+                                                                       bool (*func)(size_t, size_t, size_t, size_t)) {
   for (const auto &cluster_id : clusterid2bgbk) {
-
     if (func(cluster_id.second.first, addr.bg, cluster_id.second.second, addr.bk)) {
-      std::vector<volatile char*> result_cluster;
+      std::vector<SimpleDramAddress> result_cluster;
       for (const auto &a : clusters[cluster_id.first]) {
-        result_cluster.push_back(a.second.vaddr);
-        ss << a.second.to_string_compact() << "\n";
+        result_cluster.push_back(a.second);
         if (result_cluster.size() == max_num_rows) {
           break;
         }
       }
-
-      if (verbose) {
-        Logger::log_info("Sync rows " + SimpleDramAddress::get_string_compact_desc() + " :");
-        Logger::log_data(ss.str());
-      }
-
       return result_cluster;
     }
-
   }
 
   Logger::log_error("get_samebg_diffbk_addresses could not find any <other bg, same bk> addresses!");
