@@ -34,6 +34,10 @@ private:
 
   size_t min_num_rows;
 
+  uint64_t min_paddr;
+
+  uint64_t max_paddr;
+
   // cluster_id -> row_id -> SimpleDramAddress
   std::unordered_map<size_t, std::unordered_map<size_t, SimpleDramAddress>> clusters;
 
@@ -76,6 +80,11 @@ public:
                                                            size_t row_distance,
                                                            bool same_bg,
                                                            bool same_bk);
+  [[nodiscard]] uint64_t get_min_paddr() const;
+
+  [[nodiscard]] uint64_t get_max_paddr() const;
+
+  void update_vaddr(uint64_t base_vaddr);
 };
 
 #endif //BLACKSMITH_CONFLICTCLUSTER_H

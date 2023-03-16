@@ -20,10 +20,11 @@ uint64_t static inline GB(uint64_t value) { return ((value) << 30ULL); }
 // and a regular access without any bank conflict (t < BK_CONF_THRESH)
 #define BK_CONF_THRESH (430)  // worked best on DIMM 18
 
-#define MIN_REF_THRESH (900)
+#define MIN_REF_THRESH (650)
 
 // number of bytes to be allocated
 #define MEM_SIZE (GB(1))
+#define HUGEPAGE_SZ (GB(1))
 
 // TODO: do not hard-code these values but pass them like in rowhammer-ref-impl
 // number of total banks in the system, calculated as #bankgroups x #banks

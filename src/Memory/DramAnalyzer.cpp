@@ -97,7 +97,7 @@ DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
 
 size_t DramAnalyzer::count_acts_per_ref() {
   if (!has_exp_cfg) {
-      exp_cfg = ExperimentConfig(execution_mode::ALTERNATING, 5000, 2, 8, true, true);
+      exp_cfg = ExperimentConfig(execution_mode::ALTERNATING, 8000, 2, 8, true, true);
       has_exp_cfg = true;
   }
   return count_acts_per_ref(exp_cfg);
@@ -122,10 +122,10 @@ size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &experiment_cfg) {
   uint64_t total_cnt_acts = 0;
 
   for (size_t it_addr_pair = 1; it_addr_pair <= NUM_ADDR_PAIRS_TO_BE_TESTED; ++it_addr_pair) {
-    std::vector<uint64_t> timing;
-    timing.resize(exp_cfg.num_measurement_rounds, 0);
+//    std::vector<uint64_t> timing;
+//    timing.resize(exp_cfg.num_measurement_rounds, 0);
 
-    auto addr_pair = cc. get_simple_dram_addresses(exp_cfg.num_sync_rows, exp_cfg.row_distance,
+    auto addr_pair = cc.get_simple_dram_addresses(exp_cfg.num_sync_rows, exp_cfg.row_distance,
         exp_cfg.row_origin_same_bg, exp_cfg.row_origin_same_bk);
 
     std::vector<volatile char *> addresses;
@@ -136,11 +136,11 @@ size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &experiment_cfg) {
       addresses.push_back(addr_pair[k].vaddr);
       *addresses[k];
       clflushopt(addresses[k]);
-      std::cout << "# addr[" << k << "]: "
-                << addr_pair[k].bg << ","
-                << addr_pair[k].bk << ","
-                << addr_pair[k].row_id
-                << std::endl;
+//      std::cout << "# addr[" << k << "]: "
+//                << addr_pair[k].bg << ","
+//                << addr_pair[k].bk << ","
+//                << addr_pair[k].row_id
+//                << std::endl;
     }
     sfence();
 

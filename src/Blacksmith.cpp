@@ -36,7 +36,8 @@ int main(int argc, char **argv) {
 
   // allocate a large bulk of contiguous memory
   Memory memory(true, program_args.filepath_rowlist, program_args.filepath_rowlist_bgbk);
-  memory.allocate_memory(MEM_SIZE);
+  auto num_superpages = Memory::get_max_superpages();
+  memory.find_allocate_hugepages(num_superpages);
 
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
@@ -102,7 +103,6 @@ void handle_args(int argc, char **argv) {
   try {
     parsed_args = argparser.parse(argc, argv);
   } catch (const std::exception &e) {
-    std::cout << "HELLO" << std::endl;
     std::cerr << e.what() << '\n';
     exit(EXIT_FAILURE);
   }

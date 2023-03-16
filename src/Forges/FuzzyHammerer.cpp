@@ -50,6 +50,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
 
     Logger::log_timestamp();
     Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cnt_generated_patterns));
+
+    // only recompute ACTs per REF once every 1k patterns and only if no fixed parameter was passed as program arg
+    if (cnt_generated_patterns > 0 && (cnt_generated_patterns % 200) == 0 && program_args.acts_per_ref == 0) {
+      program_args.acts_per_ref = dramAnalyzer.count_acts_per_ref();
+    }
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses
@@ -126,11 +131,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     // this is just to make sure we do not miss any bit flip..
     if ((cnt_generated_patterns % 50) == 0) {
       memory.check_memory_full();
-    }
-
-    // only recompute ACTs per REF once every 1k patterns and only if no fixed parameter was passed as program arg
-    if ((cnt_generated_patterns % 1000) == 0 && program_args.acts_per_ref == 0) {
-      program_args.acts_per_ref = dramAnalyzer.count_acts_per_ref();
     }
 
     // due to buffering it might take a while to see anything in stdout.log, so manually flush after each round to get

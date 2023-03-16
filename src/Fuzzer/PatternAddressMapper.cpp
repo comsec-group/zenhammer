@@ -178,7 +178,6 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
           victim_rows.push_back(vic_start);
           victim_vaddrs.insert((uint64_t)vic_start.vaddr);
         }
-
       }
     }
   }

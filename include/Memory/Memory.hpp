@@ -61,6 +61,10 @@ class Memory {
   void check_memory_full();
 
   uint64_t round_down_to_next_page_boundary(uint64_t address);
+
+  static size_t get_max_superpages();
+
+  void find_allocate_hugepages(size_t max_num_hugepages);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

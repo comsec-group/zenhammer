@@ -37,6 +37,9 @@ size_t ConflictCluster::get_min_num_rows() {
 }
 
 void ConflictCluster::load_conflict_cluster(const std::string &filename) {
+  min_paddr = std::numeric_limits<uint64_t>::max();
+  max_paddr = std::numeric_limits<uint64_t>::min();
+
   Logger::log_debug(format_string("Loading conflict cluster from '%s'", filename.c_str()));
 
   std::unordered_map<uint64_t, size_t> offset_cnt;
@@ -51,7 +54,6 @@ void ConflictCluster::load_conflict_cluster(const std::string &filename) {
 
   std::string bankid_vaddr_paddr;
   while (std::getline(file, bankid_vaddr_paddr, '\n')) {
-
     std::istringstream iss(bankid_vaddr_paddr);
     std::string item;
     std::vector<std::string> items;
@@ -72,6 +74,8 @@ void ConflictCluster::load_conflict_cluster(const std::string &filename) {
     addr.row_id = row_id_cnt;
     addr.vaddr = (volatile char *) strtoull((const char *) cur_vaddr.c_str(), nullptr, 16);
     addr.paddr = (volatile char *) strtoull((const char *) cur_paddr.c_str(), nullptr, 16);
+    min_paddr = (min_paddr < (uint64_t)addr.paddr) ? min_paddr : (uint64_t)addr.paddr;
+    max_paddr = (max_paddr > (uint64_t)addr.paddr) ? max_paddr : (uint64_t)addr.paddr;
 
     if (!clusterid2bgbk.empty()) {
       // skip addresses where we
@@ -80,8 +84,8 @@ void ConflictCluster::load_conflict_cluster(const std::string &filename) {
         addr.bg = bgbk.first;
         addr.bk = bgbk.second;
       } else {
-//        Logger::log_debug(format_string("skipping vaddr=%p as cluster_id=%d not in clusterid2bgbk",
-//                                        addr.vaddr, addr.cluster_id));
+//        Logger::log_debug(format_string("skipping vaddr=%p as cluster_id=%d not in clusterid2bgbk", addr.vaddr,
+//                                        addr.cluster_id));
         continue;
       }
     }
@@ -343,4 +347,23 @@ std::vector<SimpleDramAddress> ConflictCluster::get_filtered_addresses(SimpleDra
 
   Logger::log_error("get_samebg_diffbk_addresses could not find any <other bg, same bk> addresses!");
   return {};
+}
+
+uint64_t ConflictCluster::get_min_paddr() const {
+  return min_paddr;
+}
+
+uint64_t ConflictCluster::get_max_paddr() const {
+  return max_paddr;
+}
+
+void ConflictCluster::update_vaddr(uint64_t base_vaddr) {
+  vaddr_map.clear();
+  for (auto &clusterid_map : clusters) {
+    for (auto &rowid_simpledramaddr : clusterid_map.second) {
+      auto offt = (uint64_t)rowid_simpledramaddr.second.vaddr & ((1ULL << 31)-1);
+      rowid_simpledramaddr.second.vaddr = (volatile char*)(base_vaddr + offt);
+      vaddr_map[rowid_simpledramaddr.second.vaddr] = rowid_simpledramaddr.second;
+    }
+  }
 }

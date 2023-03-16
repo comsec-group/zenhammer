@@ -1,16 +1,105 @@
 #include "Memory/Memory.hpp"
 
 #include <sys/mman.h>
+#include <linux/mman.h>
 #include <iostream>
+
+#include "Utilities/Pagemap.hpp"
+
+#define MMAP_PROT (PROT_READ | PROT_WRITE)
+#define MMAP_FLAGS (MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE | MAP_HUGETLB | MAP_HUGE_1GB)
+
+size_t Memory::get_max_superpages() {
+  // try to allocate as many superpages as possible
+  system("sudo bash -c 'echo 32 > tee /proc/sys/vm/nr_hugepages'");
+
+  auto fp = popen("cat /proc/meminfo | grep HugePages_Total | tr -s ' ' | cut -d':' -f2 | xargs", "r");
+  if (fp == nullptr) {
+    Logger::log_error("Could not get the number of available superpages.");
+    exit(EXIT_FAILURE);
+  }
+
+  std::string sout;
+  if (fgets(sout.data(), 3, fp) != nullptr) {
+    auto n = static_cast<size_t>(strtoul(sout.c_str(), nullptr, 10));
+    Logger::log_info(format_string("Total #free superpages (HugePages_Total): %d", n));
+    if (pclose(fp) < 0) {
+      Logger::log_error("Closing popen file descriptor in get_max_superpages failed!");
+      exit(EXIT_FAILURE);
+    }
+    return n;
+  }
+
+  return 0;
+}
+
+void Memory::find_allocate_hugepages(size_t max_num_hugepages) {
+  if (not superpage) {
+    Logger::log_error("Cannot run find_allocate_superpage without superpages being enabled!");
+    exit(EXIT_FAILURE);
+  }
+
+  uint64_t min_paddr = conflict_cluster.get_min_paddr();
+  uint64_t max_paddr = conflict_cluster.get_max_paddr();
+
+  size_t num_total_allocated_pages = 0;
+
+  FILE *fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
+  if (fp == nullptr) {
+    Logger::log_error(format_string("Could not open hugetlbfs at %s", hugetlbfs_mountpoint.c_str()));
+    Logger::log_data(std::strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  // allocate as many hugepages as possible, save the fd and phy address range
+  std::vector<void *> unmappable_hugepapges;
+  for (size_t k = 0; k < max_num_hugepages; ++k) {
+    auto mem_vaddr = mmap(nullptr, HUGEPAGE_SZ, MMAP_PROT, MMAP_FLAGS, fileno(fp), 0);
+    auto mem_paddr = pagemap::vaddr2paddr((uint64_t)mem_vaddr);
+    Logger::log_info(format_string("Allocated memory (paddr): 0x%lx-0x%lx",
+                                   (uint64_t)mem_paddr, (uint64_t)(mem_paddr+HUGEPAGE_SZ)));
+    if (mem_vaddr == MAP_FAILED) {
+      Logger::log_error("Mounting hugepage failed!");
+      Logger::log_data(std::strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    num_total_allocated_pages++;
+    // check if the hugepage falls into physical address range; if not, then mark hugepage for unmapping later
+    if ((min_paddr < mem_paddr && max_paddr < mem_paddr) || (min_paddr > mem_paddr+HUGEPAGE_SZ && max_paddr > mem_paddr+HUGEPAGE_SZ)) {
+      unmappable_hugepapges.push_back(mem_vaddr);
+    } else {
+      start_address = (volatile char*) mem_vaddr;
+    }
+  }
+
+  // unmap obsolete hugepages
+  for (size_t k = 0; k < unmappable_hugepapges.size(); ++k) {
+    auto page = unmappable_hugepapges[k];
+    auto saddr_phy = pagemap::vaddr2paddr((uint64_t)page);
+    Logger::log_info(format_string("Deallocated memory (paddr): 0x%lx-0x%lx",
+                                   (uint64_t)saddr_phy, (uint64_t)(saddr_phy+HUGEPAGE_SZ)));
+    if (munmap(page, HUGEPAGE_SZ) != 0) {
+      Logger::log_error("munmap failed with error:");
+      Logger::log_data(std::strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    num_total_allocated_pages--;
+  }
+
+  if (num_total_allocated_pages > 1) {
+    Logger::log_error("Required more than one allocated superpage.. cannot handle this yet! Exiting.");
+    exit(EXIT_FAILURE);
+  }
+
+  // recompute virtual addresses based on virtual address of remaining superpage
+  conflict_cluster.update_vaddr((uint64_t)start_address);
+}
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {
   this->size = mem_size;
   volatile char *target = nullptr;
   FILE *fp;
-
-  // allocate memory for the shadow page we will use later for fast comparison
-  shadow_page = malloc(size);
 
   if (superpage) {
     // allocate memory using super pages
@@ -20,13 +109,16 @@ void Memory::allocate_memory(size_t mem_size) {
       Logger::log_data(std::strerror(errno));
       exit(EXIT_FAILURE);
     }
-    auto mapped_target = mmap((void *) start_address, mem_size, PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), fileno(fp), 0);
-    if (mapped_target==MAP_FAILED) {
+    auto offt = 0;
+    auto mapped_target = mmap((void *) start_address, HUGEPAGE_SZ, MMAP_PROT, MMAP_FLAGS, fileno(fp), 0);
+    if (mapped_target == MAP_FAILED) {
       perror("mmap");
       exit(EXIT_FAILURE);
     }
     target = (volatile char*) mapped_target;
+    auto saddr_phy = pagemap::vaddr2paddr((uint64_t)mapped_target);
+    Logger::log_info(format_string("Allocated memory (paddr): 0x%lx-0x%lx",
+                                   (uint64_t)saddr_phy, (uint64_t)(saddr_phy+HUGEPAGE_SZ)));
   } else {
     // allocate memory using huge pages
     assert(posix_memalign((void **) &target, mem_size, mem_size)==0);
@@ -66,12 +158,16 @@ void Memory::check_memory_full() {
 }
 
 void Memory::initialize(DATA_PATTERN patt) {
-  this->data_pattern = patt;
+  if (not superpage) {
+    Logger::log_error("The function Memory::initialize has not been adapted to work with regular pages! Exiting.");
+    exit(EXIT_FAILURE);
+  }
 
+  this->data_pattern = patt;
   Logger::log_info("Initializing memory with pseudorandom sequence.");
 
   // for each page in the address space [start, end]
-  for (uint64_t cur_page = 0; cur_page < size; cur_page += getpagesize()) {
+  for (uint64_t cur_page = 0; cur_page < HUGEPAGE_SZ; cur_page += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
     // those after hammering to see whether bit flips occurred
     reseed_srand(cur_page);
@@ -82,6 +178,10 @@ void Memory::initialize(DATA_PATTERN patt) {
       *((int *) (start_address + offset)) = val;
       *((int*)((uint64_t)shadow_page + offset)) = val;
     }
+  }
+
+  for (uint64_t factor = 1; factor < (size/HUGEPAGE_SZ); factor++) {
+    memcpy((void*)start_address, (void*)(start_address+(factor*HUGEPAGE_SZ)), HUGEPAGE_SZ);
   }
 }
 
@@ -98,8 +198,14 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
 
   size_t sum_found_bitflips = 0;
   for (const auto &vr : victim_rows) {
-    auto next_victim_row = conflict_cluster.get_next_row(vr);
-    sum_found_bitflips += check_memory_internal(mapping, vr.vaddr, next_victim_row.vaddr, reproducibility_mode, verbose);
+//    auto next_victim_row = conflict_cluster.get_next_row(vr);
+    auto next_victim_row = conflict_cluster.get_nth_next_row(vr, 3);
+    if (next_victim_row.vaddr < vr.vaddr) {
+      sum_found_bitflips += check_memory_internal(mapping, start_address, next_victim_row.vaddr, reproducibility_mode, verbose);
+      sum_found_bitflips += check_memory_internal(mapping, vr.vaddr, start_address+HUGEPAGE_SZ, reproducibility_mode, verbose);
+    } else {
+      sum_found_bitflips += check_memory_internal(mapping, vr.vaddr, next_victim_row.vaddr, reproducibility_mode, verbose);
+    }
   }
   return sum_found_bitflips;
 }
@@ -229,12 +335,16 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
 
 Memory::Memory(bool use_superpage, std::string &rowlist_filepath, std::string &rowlist_filepath_bgbk)
     : size(0), superpage(use_superpage), conflict_cluster(rowlist_filepath, rowlist_filepath_bgbk) {
+
+  // allocate memory for the shadow page we will use later for fast comparison
+  shadow_page = malloc(HUGEPAGE_SZ);
 }
 
 Memory::~Memory() {
   if (munmap((void *) start_address, size) != 0) {
     Logger::log_error("munmap failed with error:");
     Logger::log_data(std::strerror(errno));
+    exit(EXIT_FAILURE);
   }
   start_address = nullptr;
   size = 0;

@@ -1,8 +1,10 @@
 #include <iostream>
 #include <ctime>
+#include <iomanip>
 
 #include "Fuzzer/CodeJitter.hpp"
 #include "Utilities/AsmPrimitives.hpp"
+#include "Utilities/Pagemap.hpp"
 
 #define MEASURE_TIME (1)
 
@@ -327,53 +329,81 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
     *sync_rows[i];
     clflushopt(sync_rows[i]);
   }
-
   // flush all aggressor rows but keep array holding addresses cached
   for (size_t i = 0; i < aggressor_pairs.size(); ++i) {
     *aggressor_pairs[i];
     clflushopt(aggressor_pairs[i]);
-    // validate pattern as we clflush only after every second aggressor, i.e.,
-    // hammering consecutively the same aggressor is useless as it's causing a cache hit ayway
-    // FIXME: this happens but why? maybe at the end of the pattern?
-//    if (aggressor_pairs[i] == aggressor_pairs[i + 1]) {
-//      Logger::log_error(format_string("unexpected: aggressor_pairs[i] == aggressor_pairs[i+1], skipping pattern..."));
-//      return;
-//    }
+//    auto paddr = pagemap::vaddr2paddr((uint64_t)aggressor_pairs[i]);
+//    std::cout << std::setfill('0') << std::setw(4) << std::dec << i
+//              << std::hex << "  0x" << (uint64_t)aggressor_pairs[i]
+//              << std::hex << "  0x" << paddr
+//              << "\n";
   }
 
   // make sure flushing finished before we start
-  mfence();
+  sfence();
 
   const int num_acts_per_trefi = fuzzing_parameters.get_num_activations_per_t_refi();
+//  std::cout << "num_acts_per_trefi = " << std::dec << num_acts_per_trefi << std::endl;
   const size_t NUM_AGG_PAIRS = aggressor_pairs.size();
+//  std::cout << "NUM_AGG_PAIRS = " << std::dec << NUM_AGG_PAIRS << std::endl;
 
-  FILE* logfile = fopen("logfile", "a");
+  // FIXME: we use same-bank rows to compute ref_threshold but <diff bg, same bk> and <same bg, diff bk> addresses
+  //  for syncing, that's why the ref_threshold does not make sense..
+//  ref_threshold = 700;
+//  std::cout << "ref_threshold = " << ref_threshold << std::endl;
+
+//  FILE* logfile = fopen("logfile", "a");
   synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
 
+  lfence();
   size_t agg_idx = 0;
-  for (; total_num_activations > 0; agg_idx = (agg_idx+2)%NUM_AGG_PAIRS, total_num_activations -= 2) {
-    // sync with every REF
-    if (agg_idx % num_acts_per_trefi == 0) {
-      // make sure that no hammering accesses overload with sync accesses
-      lfence();
-      // SYNC
-      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
-      sync_stats.num_sync_rounds = (sync_stats.num_sync_rounds+1);
+  while (total_num_activations > 0) {
+    // sync
+    sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
+    // hammer next "num_acts_per_trefi" aggressors
+    auto absolute_end = (agg_idx + num_acts_per_trefi);
+    auto overflow = (absolute_end % NUM_AGG_PAIRS);
+    bool flips = (absolute_end > NUM_AGG_PAIRS);
+    auto relative_end = flips ? NUM_AGG_PAIRS : absolute_end;
+    size_t k = agg_idx;
+    for (; k < relative_end; ++k) {
+      sfence();
+      *aggressor_pairs[k];
+      clflushopt(aggressor_pairs[k]);
     }
-    // HAMMER
-    *aggressor_pairs[agg_idx];
-    *aggressor_pairs[agg_idx + 1];
-    // FLUSH
-    clflushopt(aggressor_pairs[agg_idx]);
-    clflushopt(aggressor_pairs[agg_idx + 1]);
-    // FENCE
-    sfence();
-
-    lfence();
+    for (k = flips ? 0 : k; flips && k < overflow; ++k) {
+      sfence();
+      *aggressor_pairs[k];
+      clflushopt(aggressor_pairs[k]);
+    }
+    agg_idx = k;
+    total_num_activations -= num_acts_per_trefi;
   }
 
-  fprintf(logfile, "%2d,%zu\n", num_acts_per_trefi, sync_stats.num_sync_acts/sync_stats.num_sync_rounds);
-  fclose(logfile);
+//  size_t agg_idx = 0;
+////    for (; total_num_activations > 0; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS, total_num_activations -= 2) {
+//  for (; ; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS) {
+//    // sync with every REF
+//    if (agg_idx % num_acts_per_trefi == 0) {
+//      // make sure that no hammering accesses overload with sync accesses
+//      lfence();
+//      // SYNC
+//      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
+//      sync_stats.num_sync_rounds = (sync_stats.num_sync_rounds + 1);
+//    }
+//    // HAMMER
+//    *aggressor_pairs[agg_idx];
+//    *aggressor_pairs[agg_idx + 1];
+//    // FLUSH
+//    clflushopt(aggressor_pairs[agg_idx]);
+//    clflushopt(aggressor_pairs[agg_idx + 1]);
+//    // FENCE
+//    sfence();
+//  }
+
+  //  fprintf(logfile, "%2d,%zu\n", num_acts_per_trefi, sync_stats.num_sync_acts/sync_stats.num_sync_rounds);
+//  fclose(logfile);
 }
 #pragma GCC pop_options
 
