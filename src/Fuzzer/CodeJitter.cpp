@@ -353,7 +353,7 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
 //  ref_threshold = 700;
 //  std::cout << "ref_threshold = " << ref_threshold << std::endl;
 
-//  FILE* logfile = fopen("logfile", "a");
+ FILE* logfile = fopen("llfile.txt", "a");
   synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
 
   lfence();
@@ -364,22 +364,29 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
     // hammer next "num_acts_per_trefi" aggressors
     auto absolute_end = (agg_idx + num_acts_per_trefi);
     auto overflow = (absolute_end % NUM_AGG_PAIRS);
-    bool flips = (absolute_end > NUM_AGG_PAIRS);
-    auto relative_end = flips ? NUM_AGG_PAIRS : absolute_end;
+    bool wraps_around = (absolute_end > NUM_AGG_PAIRS);
+    auto relative_end = wraps_around ? NUM_AGG_PAIRS : absolute_end;
     size_t k = agg_idx;
     for (; k < relative_end; ++k) {
-      sfence();
+      // sfence();
+      fprintf(logfile, "%7ld %p\n", k, aggressor_pairs[k]);
+      // HAMMER
       *aggressor_pairs[k];
+      // FLUSH
       clflushopt(aggressor_pairs[k]);
     }
-    for (k = flips ? 0 : k; flips && k < overflow; ++k) {
-      sfence();
+    for (k = wraps_around ? 0 : k; wraps_around && k < overflow; ++k) {
+      // sfence();
+      fprintf(logfile, "%7ld %p\n", k, aggressor_pairs[k]);
       *aggressor_pairs[k];
       clflushopt(aggressor_pairs[k]);
     }
     agg_idx = k;
     total_num_activations -= num_acts_per_trefi;
   }
+  fprintf(logfile, "\n---\n");
+
+ fclose(logfile);
 
 //  size_t agg_idx = 0;
 ////    for (; total_num_activations > 0; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS, total_num_activations -= 2) {
@@ -403,7 +410,6 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
 //  }
 
   //  fprintf(logfile, "%2d,%zu\n", num_acts_per_trefi, sync_stats.num_sync_acts/sync_stats.num_sync_rounds);
-//  fclose(logfile);
 }
 #pragma GCC pop_options
 

@@ -101,14 +101,15 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(1, 2);
+  N_sided = Range<int>(1, 4);
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but need to (manually) exclude 1 because an amplitude>1 does
   // not make sense for a single aggressor
-  amplitude = Range<int>(1, num_activations_per_tREFI*4);
-//  amplitude = Range<int>(1, 16);
+  // amplitude = Range<int>(1, num_activations_per_tREFI*4);
+  // amplitude = Range<int>(1, 1);
+ amplitude = Range<int>(1, 16);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -140,7 +141,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   set_distribution(N_sided, {{1,10}, {2, 90}});
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
-  hammering_total_num_activations = 3'000'000;
+  hammering_total_num_activations = 10'000'000;
 //  hammering_total_num_activations = 70'000'000;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
@@ -148,11 +149,11 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 
   // [derivable from aggressors in AggressorAccessPattern, also not very expressive because different agg IDs can be
   // mapped to the same DRAM address]
-  num_aggressors = Range<int>(16,32).get_random_number(cr.gen);
+  num_aggressors = Range<int>(4,64).get_random_number(cr.gen);
 
   // [included in HammeringPattern]
   // it is important that this is a power of two, otherwise the aggressors in the pattern will not respect frequencies
-  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(2, 5).get_random_number(cr.gen)));
+  num_refresh_intervals = static_cast<int>(std::pow(2, Range<int>(2, 6).get_random_number(cr.gen)));
 
   // [included in HammeringPattern]
   total_acts_pattern = num_activations_per_tREFI*num_refresh_intervals;

@@ -37,8 +37,11 @@ public:
 
   ExperimentConfig(execution_mode ExecMode,
                    size_t NumMeasurementRounds,
+                   size_t NumMeasurementReps,
+                   size_t NumAccessesPerRound,
                    size_t NumSyncRows,
                    size_t RowDistance,
+                   size_t MinRefThresh,
                    bool RowOriginSameBg,
                    bool RowOriginSameBk);
 
@@ -46,11 +49,17 @@ public:
 
   execution_mode exec_mode;
 
+  size_t num_measurement_reps{};
+
   size_t num_measurement_rounds{};
+
+  size_t num_accesses_per_round{};
 
   size_t num_sync_rows{};
 
   size_t row_distance{};
+
+  size_t min_ref_thresh{};
 
   bool row_origin_same_bg{};
 

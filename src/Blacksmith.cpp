@@ -48,8 +48,8 @@ int main(int argc, char **argv) {
       if (program_args.filepath_exp_cfg.empty()) {
           acts_per_ref = dram_analyzer.count_acts_per_ref();
       } else {
-          ExperimentConfig exp_cfg(program_args.filepath_exp_cfg, program_args.exp_cfg_id);
-          acts_per_ref = dram_analyzer.count_acts_per_ref(exp_cfg);
+          acts_per_ref = dram_analyzer.count_acts_per_ref(
+            ExperimentConfig(program_args.filepath_exp_cfg, program_args.exp_cfg_id));
       }
   }
 

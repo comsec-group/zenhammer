@@ -86,8 +86,13 @@ void Memory::find_allocate_hugepages(size_t max_num_hugepages) {
     num_total_allocated_pages--;
   }
 
-  if (num_total_allocated_pages > 1) {
+  if (num_total_allocated_pages < 1) {
+    Logger::log_error("Could not find superpage matching phy addresses in targets.txt! Exiting.");
+    Logger::log_data("Try 'echo 99>/proc/sys/vm/nr_hugepages' or check 'hugepages' in /etc/default/grub and reboot machine.");
+    exit(EXIT_FAILURE);
+  } else if (num_total_allocated_pages > 1) {
     Logger::log_error("Required more than one allocated superpage.. cannot handle this yet! Exiting.");
+    // todo: think about start_address and how to generalize in case we have more than just one superpage
     exit(EXIT_FAILURE);
   }
 
@@ -109,7 +114,6 @@ void Memory::allocate_memory(size_t mem_size) {
       Logger::log_data(std::strerror(errno));
       exit(EXIT_FAILURE);
     }
-    auto offt = 0;
     auto mapped_target = mmap((void *) start_address, HUGEPAGE_SZ, MMAP_PROT, MMAP_FLAGS, fileno(fp), 0);
     if (mapped_target == MAP_FAILED) {
       perror("mmap");

@@ -8,6 +8,9 @@
 #include <unordered_set>
 #include <iostream>
 
+// note that setting LOG_TIMING 1 affects the generated avg acts-per-ref value
+#define LOG_TIMING 0
+
 void DramAnalyzer::find_bank_conflicts() {
   size_t nr_banks_cur = 0;
   int remaining_tries = NUM_BANKS*256;  // experimentally determined, may be unprecise
@@ -83,130 +86,135 @@ void DramAnalyzer::find_targets(std::vector<volatile char *> &target_bank) {
   }
 }
 
-DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc) :
-//  row_function(0), start_address(target) {
-  start_address(target),
-  cc(cc),
-  has_exp_cfg(false),
-  exp_cfg(ExperimentConfig())
-  {
+DramAnalyzer::DramAnalyzer(volatile char *target, ConflictCluster &cc)
+    : start_address(target),
+      cc(cc) {
   cr = CustomRandom();
   dist = std::uniform_int_distribution<>(0, std::numeric_limits<int>::max());
   banks = std::vector<std::vector<volatile char *>>(NUM_BANKS, std::vector<volatile char *>());
 }
 
 size_t DramAnalyzer::count_acts_per_ref() {
-  if (!has_exp_cfg) {
-      exp_cfg = ExperimentConfig(execution_mode::ALTERNATING, 8000, 2, 8, true, true);
-      has_exp_cfg = true;
-  }
+  auto exp_cfg = ExperimentConfig();
+  exp_cfg.exec_mode = execution_mode::ALTERNATING;
+  exp_cfg.num_measurement_reps = 10'000;
+  exp_cfg.num_measurement_rounds = 10;
+  exp_cfg.num_accesses_per_round = 2;
+  exp_cfg.num_sync_rows = 2;
+  exp_cfg.row_distance = 4;
+  exp_cfg.min_ref_thresh = 750;
+  exp_cfg.row_origin_same_bg = true;
+  exp_cfg.row_origin_same_bk = true;
   return count_acts_per_ref(exp_cfg);
 }
 
-// TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to get REFsb only
-size_t DramAnalyzer::count_acts_per_ref(ExperimentConfig &experiment_cfg) {
-  if (!has_exp_cfg) {
-      this->exp_cfg = experiment_cfg;
-      has_exp_cfg = true;
-  }
+// TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to
+// get REFsb only
+size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
   Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
+
+  if (exp_cfg.exec_mode == execution_mode::BATCHED) {
+    // BATCHED means ACCESS all addresses, then FLUSH all addresses (2 loops)
+    Logger::log_error("execution_mode::BATCHED is unsupported!");
+    exit(EXIT_FAILURE);
+  }
 
   uint64_t t_start;
   uint64_t t_end;
-
-  const size_t NUM_ADDR_PAIRS_TO_BE_TESTED = 4;
-  const size_t NUM_ACCESSES_PER_MEASUREMENT_RND = 2;
-
   uint64_t total_ref_timing = 0;
   uint64_t total_num_over_th = 0;
-  uint64_t total_cnt_acts = 0;
+  uint64_t total_cnt_act_rnds = 0;
+  uint64_t cur_timing;
 
-  for (size_t it_addr_pair = 1; it_addr_pair <= NUM_ADDR_PAIRS_TO_BE_TESTED; ++it_addr_pair) {
-//    std::vector<uint64_t> timing;
-//    timing.resize(exp_cfg.num_measurement_rounds, 0);
+  size_t i_diff;
+  size_t addr_idx;
 
-    auto addr_pair = cc.get_simple_dram_addresses(exp_cfg.num_sync_rows, exp_cfg.row_distance,
-        exp_cfg.row_origin_same_bg, exp_cfg.row_origin_same_bk);
+#if LOG_TIMING
+  FILE *f = fopen("logfile_timing", "w");
+  if (f == nullptr) {
+    exit(EXIT_FAILURE);
+  }
+  auto BUFFERSIZE = 2*(1<<20);  // 2 KiB
+  char buf[BUFFERSIZE];
+  setvbuf(f, buf, _IOFBF, BUFFERSIZE);
+#endif
 
-    std::vector<volatile char *> addresses;
-    addresses.reserve(addr_pair.size());
+  std::vector<volatile char *> addresses;
+  addresses.reserve(exp_cfg.num_sync_rows);
 
-    // get vaddr, then bring array into cache
-    for (size_t k = 0; k < addr_pair.size(); ++k) {
-      addresses.push_back(addr_pair[k].vaddr);
-      *addresses[k];
-      clflushopt(addresses[k]);
-//      std::cout << "# addr[" << k << "]: "
-//                << addr_pair[k].bg << ","
-//                << addr_pair[k].bk << ","
-//                << addr_pair[k].row_id
-//                << std::endl;
-    }
-    sfence();
+  for (size_t it_addr_pair = 1; it_addr_pair <= exp_cfg.num_measurement_rounds; ++it_addr_pair) {
+      auto addr_pair = cc.get_simple_dram_addresses(
+        exp_cfg.num_sync_rows, 
+        exp_cfg.row_distance,
+        exp_cfg.row_origin_same_bg, 
+        exp_cfg.row_origin_same_bk);
 
-//    uint64_t total_cnt_timing = 0;
-    uint64_t cur_timing;
-    if (exp_cfg.exec_mode == execution_mode::ALTERNATING) {
-      // initial value for continuous timing measurement
-      size_t i_last = 0;
-      t_end = rdtscp();
-      lfence();
-      // we keep this loop very short and tight to not negatively affect performance
-      size_t addr_idx = 0;
-      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
-        sfence();
-        for (size_t j = addr_idx; j < (addr_idx + NUM_ACCESSES_PER_MEASUREMENT_RND); j++) {
-          *addresses[j];
-          clflushopt(addresses[j]);
-        }
-        t_start = t_end;
-        lfence();
+      // get vaddr, then bring array into cache (but not address array is pointing to)
+      addresses.clear();
+      printf("# addr_pair = %ld\n", it_addr_pair-1);
+      for (size_t k = 0; k < addr_pair.size(); ++k) {
+        addresses.push_back(addr_pair[k].vaddr);
+        *addresses[k];
+        clflushopt(addresses[k]);
+        printf("addr[%ld] = 0x%p, bg=%ld, bk=%ld, row=%ld\n", 
+          k, addr_pair[k].vaddr, addr_pair[k].bg, addr_pair[k].bk, addr_pair[k].row_id);
+      }
+      printf("---\n");
+
+      // make sure flushing finished before we start
+      sfence();
+
+      if (exp_cfg.exec_mode == execution_mode::ALTERNATING) {
+        i_diff = 0;
+        addr_idx = 0;
+        // initial value for continuous timing measurement
         t_end = rdtscp();
-        cur_timing = (t_end - t_start);
-//        timing[i] = cur_timing;
-//        total_cnt_timing += cur_timing;
-        if (cur_timing > MIN_REF_THRESH && (i-i_last) > 10) {
-          total_ref_timing += cur_timing;
-          total_num_over_th++;
-          total_cnt_acts += i-i_last;
-          i_last = i;
+        lfence();
+        // we keep this loop very short and tight to not negatively affect performance
+        for (size_t i = 0; i < exp_cfg.num_measurement_reps; i++, i_diff++) {
+          // make sure flushing finished before starting next round
+          sfence();
+          const size_t max = (addr_idx + exp_cfg.num_accesses_per_round);
+          for (; addr_idx < max; addr_idx++) {
+            // ACCESS, FLUSH
+            *addresses[addr_idx];
+            clflushopt(addresses[addr_idx]);
+          }         
+          // stop timing measurement and compare with last value
+          t_start = t_end;
           lfence();
           t_end = rdtscp();
+          cur_timing = (t_end - t_start);
+#if LOG_TIMING
+          fprintf(f, "%ld,\n", cur_timing);
+#endif
+          // check if a REF happened within the last 
+          // NUM_ACCESSES_PER_MEASUREMENT_RND accesses
+          if (cur_timing > exp_cfg.min_ref_thresh) {
+            total_ref_timing += cur_timing;
+            total_num_over_th++;
+            // total_cnt_act_rnds += (i - i_last);
+            total_cnt_act_rnds += i_diff;
+            i_diff = 0;
+            // this 'if' caused some delay, update t_end to take this into account
+            lfence();
+            t_end = rdtscp();
+          }
+          addr_idx = (addr_idx % exp_cfg.num_sync_rows);
         }
-        lfence();
-        addr_idx = (addr_idx + NUM_ACCESSES_PER_MEASUREMENT_RND) % exp_cfg.num_sync_rows;
       }
-    } else if (exp_cfg.exec_mode == execution_mode::BATCHED) {
-        Logger::log_error("execution_mode::BATCHED is unsupported!");
-        exit(EXIT_FAILURE);
-//      t_end = rdtscp();
-//      lfence();
-//      assert(exp_cfg.num_sync_rows == 4 && NUM_ACCESSES_PER_MEASUREMENT_RND == 2 && "BATCHED mode failed!");
-//      const size_t half = exp_cfg.num_measurement_rounds/2;
-//      for (size_t i = 0; i < exp_cfg.num_measurement_rounds; i++) {
-//        sfence();
-//        for (size_t j = 0; j < NUM_ACCESSES_PER_MEASUREMENT_RND; j++) {
-//          auto addr_idx = (((i > half)<<1)+j)%exp_cfg.num_sync_rows;
-//          *addresses[addr_idx];
-//          clflushopt(addresses[addr_idx]);
-//        }
-//        t_start = t_end;
-//        lfence();
-//        t_end = rdtscp();
-////        timing[i] = t_end - t_start;
-//        lfence();
-//      }
-    }
-
-//    std::cout << "AVG_timing: " << total_cnt_timing/exp_cfg.num_measurement_rounds << std::endl;
-//    auto total_cnt2 = std::accumulate(timing.begin(), timing.end(), 0ULL);
-//    std::cout << "AVG_timing2: " << total_cnt2/exp_cfg.num_measurement_rounds << std::endl;
   }
 
-  auto avg_acts = ((total_cnt_acts/total_num_over_th)>>1)<<1;
-//  std::cout << "AVG_acts: " << avg_acts << std::endl;
-  ref_threshold_low = (MIN_REF_THRESH+(total_ref_timing/total_num_over_th))/2;
-//  std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
+  // 
+  auto avg_acts = (((total_cnt_act_rnds*exp_cfg.num_accesses_per_round) / total_num_over_th) >> 1) << 1;
+  std::cout << "AVG(acts): " << avg_acts << std::endl;
+
+  ref_threshold_low = (exp_cfg.min_ref_thresh + (total_ref_timing / total_num_over_th)) / 2;
+  std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
+
+#if LOG_TIMING
+  fclose(f);
+#endif
 
   return avg_acts;
 }

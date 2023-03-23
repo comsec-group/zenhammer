@@ -208,43 +208,48 @@ void ConflictCluster::load_bgbk_mapping(const std::string &filepath) {
 std::vector<SimpleDramAddress> ConflictCluster::get_simple_dram_addresses(size_t num_addresses, size_t row_distance,
                                                                           bool same_bg, bool same_bk) {
   auto cluster_ids = get_supported_cluster_ids();
-  // shuffle order to make sure we not always pick the same
+  // shuffle order to make sure we not always pick the same when calling
+  // this function multiple times in row
   std::shuffle(cluster_ids.begin(), cluster_ids.end(), cr.gen);
 
   auto dist = std::uniform_int_distribution<size_t>(0, get_min_num_rows()/4);
   auto row_no = dist(cr.gen);
-  bool all_addr_found = false;
 
   std::vector<SimpleDramAddress> addr_pair;
-  while (addr_pair.size() < num_addresses) {
 
-    for (const auto &a : cluster_ids) {
-      auto a_bg = clusterid2bgbk[a].first;
-      auto a_bk = clusterid2bgbk[a].second;
+  for (const auto &a : cluster_ids) {
+    auto a_bg = clusterid2bgbk[a].first;
+    auto a_bk = clusterid2bgbk[a].second;
 
-      for (const auto &b : cluster_ids) {
-        auto b_bg = clusterid2bgbk[b].first;
-        auto b_bk = clusterid2bgbk[b].second;
-        if (((!same_bg && a_bg != b_bg) || (same_bg && a_bg == b_bg))
-            && ((!same_bk && a_bk != b_bk) || (same_bk && a_bk == b_bk))) {
+    for (const auto &b : cluster_ids) {
+      auto b_bg = clusterid2bgbk[b].first;
+      auto b_bk = clusterid2bgbk[b].second;
+
+      if (((!same_bg && a_bg != b_bg) || (same_bg && a_bg == b_bg))
+          && ((!same_bk && a_bk != b_bk) || (same_bk && a_bk == b_bk))) {  
+            
+        while (addr_pair.size() < num_addresses) {
           addr_pair.push_back(get_simple_dram_address(a, row_no));
           row_no += row_distance;
+          // handle the edge case of an uneven no. of requested rows (e.g., 1)
+          if (addr_pair.size() == num_addresses) break;
           addr_pair.push_back(get_simple_dram_address(b, row_no));
           row_no += row_distance;
         }
-        all_addr_found = (addr_pair.size() >= num_addresses);
+        goto get_simple_dram_addresses__end;
+
       }
 
-      if (all_addr_found)
-        break;
-    }
-
-    if (addr_pair.size() == 0) {
-      std::cerr << "[-] Could not find any valid <bg,bk> combination satisfying requirements!" << std::endl;
-      exit(EXIT_FAILURE);
     }
 
   }
+
+  get_simple_dram_addresses__end:
+  if (addr_pair.size() == 0) {
+    std::cerr << "[-] Could not find any valid <bg,bk> combination satisfying requirements!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  
   return addr_pair;
 }
 

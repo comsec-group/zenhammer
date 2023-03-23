@@ -20,8 +20,6 @@ class DramAnalyzer {
 
   bool has_exp_cfg = false;
 
-  ExperimentConfig exp_cfg;
-
   void find_targets(std::vector<volatile char *> &target_bank);
 
   std::uniform_int_distribution<int> dist;
@@ -40,7 +38,7 @@ class DramAnalyzer {
   static int inline measure_time(volatile char *a1, volatile char *a2);
 
   /// Determine the number of possible activations within a refresh interval.
-  size_t count_acts_per_ref(ExperimentConfig &exp_cfg);
+  size_t count_acts_per_ref(const ExperimentConfig &exp_cfg);
 
   size_t count_acts_per_ref();
 
