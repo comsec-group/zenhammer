@@ -353,7 +353,6 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
 //  ref_threshold = 700;
 //  std::cout << "ref_threshold = " << ref_threshold << std::endl;
 
- FILE* logfile = fopen("llfile.txt", "a");
   synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
 
   lfence();
@@ -369,7 +368,6 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
     size_t k = agg_idx;
     for (; k < relative_end; ++k) {
       // sfence();
-      fprintf(logfile, "%7ld %p\n", k, aggressor_pairs[k]);
       // HAMMER
       *aggressor_pairs[k];
       // FLUSH
@@ -377,16 +375,12 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
     }
     for (k = wraps_around ? 0 : k; wraps_around && k < overflow; ++k) {
       // sfence();
-      fprintf(logfile, "%7ld %p\n", k, aggressor_pairs[k]);
       *aggressor_pairs[k];
       clflushopt(aggressor_pairs[k]);
     }
     agg_idx = k;
     total_num_activations -= num_acts_per_trefi;
   }
-  fprintf(logfile, "\n---\n");
-
- fclose(logfile);
 
 //  size_t agg_idx = 0;
 ////    for (; total_num_activations > 0; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS, total_num_activations -= 2) {
