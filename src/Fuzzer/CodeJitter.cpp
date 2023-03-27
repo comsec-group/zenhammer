@@ -348,66 +348,31 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
   sfence();
 
   const int num_acts_per_trefi = fuzzing_parameters.get_num_activations_per_t_refi();
-//  std::cout << "num_acts_per_trefi = " << std::dec << num_acts_per_trefi << std::endl;
   const size_t NUM_AGG_PAIRS = aggressor_pairs.size();
-//  std::cout << "NUM_AGG_PAIRS = " << std::dec << NUM_AGG_PAIRS << std::endl;
-
-  // FIXME: we use same-bank rows to compute ref_threshold but <diff bg, same bk> and <same bg, diff bk> addresses
-  //  for syncing, that's why the ref_threshold does not make sense..
-//  ref_threshold = 700;
-//  std::cout << "ref_threshold = " << ref_threshold << std::endl;
-
   synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
 
   lfence();
   size_t agg_idx = 0;
+  const size_t sync_rounds_max_original = (num_acts_per_trefi/2);
+  size_t sync_rounds_max = sync_rounds_max_original;
   while (total_num_activations > 0) {
     // sync
-    sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
+    sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold, sync_rounds_max);
     // hammer next "num_acts_per_trefi" aggressors
-    auto absolute_end = (agg_idx + num_acts_per_trefi);
-    auto overflow = (absolute_end % NUM_AGG_PAIRS);
-    bool wraps_around = (absolute_end > NUM_AGG_PAIRS);
-    auto relative_end = wraps_around ? NUM_AGG_PAIRS : absolute_end;
-    size_t k = agg_idx;
-    for (; k < relative_end; ++k) {
+    const size_t absolute_end = (agg_idx + num_acts_per_trefi);
+    for (; agg_idx < absolute_end; agg_idx += 2) {
+      // FENCE: not needed according to scope data
       // sfence();
-      // HAMMER
-      *aggressor_pairs[k];
-      // FLUSH
-      clflushopt(aggressor_pairs[k]);
+      // HAMMER + FLUSH
+      *aggressor_pairs[agg_idx];
+      clflushopt(aggressor_pairs[agg_idx]);
+      *aggressor_pairs[agg_idx+1];
+      clflushopt(aggressor_pairs[agg_idx+1]);
+      lfence();
     }
-    for (k = wraps_around ? 0 : k; wraps_around && k < overflow; ++k) {
-      // sfence();
-      *aggressor_pairs[k];
-      clflushopt(aggressor_pairs[k]);
-    }
-    agg_idx = k;
+    agg_idx = (agg_idx % NUM_AGG_PAIRS);
     total_num_activations -= num_acts_per_trefi;
   }
-
-//  size_t agg_idx = 0;
-////    for (; total_num_activations > 0; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS, total_num_activations -= 2) {
-//  for (; ; agg_idx = (agg_idx + 2) % NUM_AGG_PAIRS) {
-//    // sync with every REF
-//    if (agg_idx % num_acts_per_trefi == 0) {
-//      // make sure that no hammering accesses overload with sync accesses
-//      lfence();
-//      // SYNC
-//      sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold);
-//      sync_stats.num_sync_rounds = (sync_stats.num_sync_rounds + 1);
-//    }
-//    // HAMMER
-//    *aggressor_pairs[agg_idx];
-//    *aggressor_pairs[agg_idx + 1];
-//    // FLUSH
-//    clflushopt(aggressor_pairs[agg_idx]);
-//    clflushopt(aggressor_pairs[agg_idx + 1]);
-//    // FENCE
-//    sfence();
-//  }
-
-  //  fprintf(logfile, "%2d,%zu\n", num_acts_per_trefi, sync_stats.num_sync_acts/sync_stats.num_sync_rounds);
 }
 #pragma GCC pop_options
 
