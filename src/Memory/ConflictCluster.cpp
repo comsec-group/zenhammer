@@ -192,6 +192,8 @@ void ConflictCluster::load_bgbk_mapping(const std::string &filepath) {
     auto bg_id = strtoul(items[1].c_str(), nullptr, 2);
     auto bk_id = strtoul(items[2].c_str(), nullptr, 2);
 
+    // printf("%d, %d, %d\n", cluster_id, bg_id, bk_id);
+
     std::stringstream ss;
     ss << bg_id << "_" << bk_id;
     if (all_bg_bk.find(ss.str())!= all_bg_bk.end()) {
@@ -296,21 +298,26 @@ std::vector<volatile char*> ConflictCluster::get_sync_rows(SimpleDramAddress &ad
   // build a list that alternates rows with <same bk, diff bg> and <diff bk, same bg> addresses relative to
   // the 'addr' passed to this function
 
-  const size_t num_rows_per_subset = num_rows / 2;
+  // const size_t num_rows_per_subset = num_rows / 2;
+  // auto f_samebg_diffbk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
+  //   return (bg_target == bg_candidate) && (bk_target != bk_candidate);
+  // };
+  // auto f_diffbg_samebk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
+  //   return (bg_target != bg_candidate) && (bk_target == bk_candidate);
+  // };
+  std::vector<SimpleDramAddress> samebg_diffbk;
+  // std::vector<SimpleDramAddress> samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, f_samebg_diffbk);
+  // std::vector<SimpleDramAddress> diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, f_diffbg_samebk);
+  // if ((samebg_diffbk.empty() || diffbg_samebk.empty())) {
+  //     Logger::log_error("Cannot find suitable sync rows.. using same-bg/diff-bk or diff-bg/same-bk only.");
+  // }
 
-  auto f_samebg_diffbk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
-    return (bg_target == bg_candidate) && (bk_target != bk_candidate);
-  };
+  const size_t num_rows_per_subset = num_rows;
   auto f_diffbg_samebk = [](size_t bg_target, size_t bg_candidate, size_t bk_target, size_t bk_candidate) {
     return (bg_target != bg_candidate) && (bk_target == bk_candidate);
   };
+  std::vector<SimpleDramAddress> diffbg_samebk = get_filtered_addresses(addr, num_rows, f_diffbg_samebk);
 
-  std::vector<SimpleDramAddress> samebg_diffbk = get_filtered_addresses(addr, num_rows_per_subset, f_samebg_diffbk);
-  std::vector<SimpleDramAddress> diffbg_samebk = get_filtered_addresses(addr, num_rows_per_subset, f_diffbg_samebk);
-
-  if ((samebg_diffbk.empty() || diffbg_samebk.empty())) {
-      Logger::log_error("Cannot find suitable sync rows.. using same-bg/diff-bk or diff-bg/same-bk only.");
-  }
 
   std::stringstream ss;
   std::vector<volatile char*> sync_rows;
