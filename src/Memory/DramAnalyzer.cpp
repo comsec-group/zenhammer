@@ -100,16 +100,16 @@ size_t DramAnalyzer::count_acts_per_ref() {
   exp_cfg.num_measurement_reps = 10'000;
   exp_cfg.num_measurement_rounds = 10;
   exp_cfg.num_accesses_per_round = 2;
-  exp_cfg.num_sync_rows = 2;
+  exp_cfg.num_sync_rows = 32;
   exp_cfg.row_distance = 4;
-  exp_cfg.min_ref_thresh = 750;
+  exp_cfg.min_ref_thresh = 872;
   exp_cfg.row_origin_same_bg = true;
   exp_cfg.row_origin_same_bk = true;
   return count_acts_per_ref(exp_cfg);
 }
 
-// TODO: (future work) use REFab detection and then remove this distribution from (any_bgbk,any_bgbk) distribution to
-// get REFsb only
+// TODO: (future work) use REFab detection and then remove this distribution 
+//  from (any_bgbk,any_bgbk) distribution to get REFsb only
 size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
   Logger::log_info("Determining the number of activations per REF(sb|ab) interval...");
 
@@ -151,15 +151,15 @@ size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
 
       // get vaddr, then bring array into cache (but not address array is pointing to)
       addresses.clear();
-      printf("# addr_pair = %ld\n", it_addr_pair-1);
+      Logger::log_debug(format_string("# addr_pair = %ld\n", it_addr_pair-1));
       for (size_t k = 0; k < addr_pair.size(); ++k) {
         addresses.push_back(addr_pair[k].vaddr);
         *addresses[k];
         clflushopt(addresses[k]);
-        printf("addr[%ld] = 0x%p, bg=%ld, bk=%ld, row=%ld\n", 
-          k, addr_pair[k].vaddr, addr_pair[k].bg, addr_pair[k].bk, addr_pair[k].row_id);
+        Logger::log_debug_data(format_string("addr[%ld] = 0x%p, bg=%ld, bk=%ld, row=%ld\n", 
+          k, addr_pair[k].vaddr, addr_pair[k].bg, addr_pair[k].bk, addr_pair[k].row_id));
       }
-      printf("---\n");
+      Logger::log_debug_data("---\n");
 
       // make sure flushing finished before we start
       sfence();
@@ -205,15 +205,16 @@ size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
       }
   }
 
-  // 
   auto avg_acts = (((total_cnt_act_rnds*exp_cfg.num_accesses_per_round) / total_num_over_th) >> 1) << 1;
   std::cout << "AVG(acts): " << avg_acts << std::endl;
 
-  ref_threshold_low = (exp_cfg.min_ref_thresh + (total_ref_timing / total_num_over_th)) / 2;
+  // ref_threshold_low = (exp_cfg.min_ref_thresh + (total_ref_timing / total_num_over_th)) / 2;
+  ref_threshold_low = exp_cfg.min_ref_thresh;
   std::cout << "total_ref_timing: " << ref_threshold_low << std::endl;
 
 #if LOG_TIMING
   fclose(f);
+  exit(0);
 #endif
 
   return avg_acts;
