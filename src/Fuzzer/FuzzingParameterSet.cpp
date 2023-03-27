@@ -101,15 +101,14 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [derivable from aggressors in AggressorAccessPattern]
   // note that in PatternBuilder::generate also uses 1-sided aggressors in case that the end of a base period needs to
   // be filled up
-  N_sided = Range<int>(1, 4);
+  N_sided = Range<int>(2, 12);
+  // N_sided = Range<int>(1, 2);
 
   // [exported as part of AggressorAccessPattern]
   // choosing as max 'num_activations_per_tREFI/N_sided.min' allows hammering an agg pair for a whole REF interval;
   // we set the upper bound in dependent of N_sided.min but need to (manually) exclude 1 because an amplitude>1 does
   // not make sense for a single aggressor
-  // amplitude = Range<int>(1, num_activations_per_tREFI*4);
-  // amplitude = Range<int>(1, 1);
- amplitude = Range<int>(1, 16);
+  amplitude = Range<int>(1, num_activations_per_tREFI*4);
 
   // == are randomized for each different set of addresses a pattern is probed with ======
 
@@ -135,14 +134,19 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   // [CANNOT be derived from anywhere else - must explicitly be exported]
   // if N_sided = (1,2) and this is {{1,2},{2,8}}, then this translates to:
   // pick a 1-sided pair with 20% probability and a 2-sided pair with 80% probability
-  // Note if using N_sided = Range<int>(min, max, step), then the X values provided here as (X, Y) correspond to
-  // the multiplier (e.g., multiplier's minimum is min/step and multiplier's maximum is max/step)
-//  set_distribution(N_sided, {{1, 10}, {2, 100}});
-  set_distribution(N_sided, {{1,10}, {2, 90}});
+  // Note if using N_sided = Range<int>(min, max, step), then the X values 
+  // provided here as (X, Y) correspond to
+  // the multiplier (e.g., multiplier's minimum is min/step and multiplier's 
+  // maximum is max/step) 
+  // set_distribution(N_sided, {{1, 10}, {2, 100}});
+  std::unordered_map<int, int> probabilities;
+  for (int k = N_sided.min; k < N_sided.max; ++k) {
+    probabilities[k] = 100;
+  }
+  set_distribution(N_sided, probabilities);
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
-  hammering_total_num_activations = 10'000'000;
-//  hammering_total_num_activations = 70'000'000;
+  hammering_total_num_activations = 5'000'000;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
   // are only randomized once when calling this function
@@ -163,7 +167,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
 //  base_period = num_activations_per_tREFI;
 
   // [derivable from aggressor_to_addr (DRAMAddr) in PatternAddressMapper]
-  agg_inter_distance = Range<int>(2, 2).get_random_number(cr.gen);
+  agg_inter_distance = Range<int>(2, 12).get_random_number(cr.gen);
 
   if (print)
     print_semi_dynamic_parameters();
