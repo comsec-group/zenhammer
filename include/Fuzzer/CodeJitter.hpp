@@ -89,7 +89,7 @@ class CodeJitter {
   void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
                          int num_acts_per_trefi,
                          synchronization_stats &sync_stats,
-                         size_t ref_threshold) const;
+                         size_t ref_threshold, size_t sync_rounds_max) const;
 
   [[maybe_unused]] static void wait_for_user_input();
 };

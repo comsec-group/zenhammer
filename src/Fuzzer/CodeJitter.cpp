@@ -266,9 +266,9 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
                                    int num_acts_per_trefi,
                                    synchronization_stats &sync_stats,
-                                   size_t ref_threshold) const {
+                                   size_t ref_threshold,
+                                   size_t sync_rounds_max) const {
   const size_t sync_rows_max = sync_rows.size();
-  const size_t sync_cnt_max = num_acts_per_trefi;
 
   size_t sync_cnt = 0;
   size_t sync_idx = 0;
@@ -282,18 +282,22 @@ void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows
   do {
     // the last 'after' value becomes the new 'before' value
     before = after;
+    
     // one address is from (same bg, diff bk) and the other is from (diff bg, same bk)
     // relative to the addresses that we are hammering
     *sync_rows[sync_idx];
     *sync_rows[sync_idx + 1];
+    
     lfence();
     after = rdtscp();
     ts_diff = after - before;
+    
     clflushopt(sync_rows[sync_idx]);
     clflushopt(sync_rows[sync_idx + 1]);
+
     // no need to (m|s)fence as there's enough time until we access the same sync_idx again
     sync_idx = (sync_idx + 2) % sync_rows_max;
-  } while (++sync_cnt < sync_cnt_max && ts_diff < ref_threshold);
+  } while (++sync_cnt < sync_rounds_max && ts_diff < ref_threshold);
 //      && (ts_diff < REFRESH_THRESHOLD_CYCLES_LOW || ts_diff > REFRESH_THRESHOLD_CYCLES_HIGH));
 
   // take sync_cnt times 2 because we do two accesses each time
