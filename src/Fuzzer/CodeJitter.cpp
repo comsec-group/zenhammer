@@ -264,7 +264,6 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
 void CodeJitter::sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
-                                   int num_acts_per_trefi,
                                    synchronization_stats &sync_stats,
                                    size_t ref_threshold,
                                    size_t sync_rounds_max) const {
@@ -357,7 +356,7 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
   size_t sync_rounds_max = sync_rounds_max_original;
   while (total_num_activations > 0) {
     // sync
-    sync_ref_unjitted(sync_rows, num_acts_per_trefi, sync_stats, ref_threshold, sync_rounds_max);
+    sync_ref_unjitted(sync_rows, sync_stats, ref_threshold, sync_rounds_max);
     // hammer next "num_acts_per_trefi" aggressors
     const size_t absolute_end = (agg_idx + num_acts_per_trefi);
     for (; agg_idx < absolute_end; agg_idx += 2) {

@@ -192,7 +192,7 @@ void ConflictCluster::load_bgbk_mapping(const std::string &filepath) {
     auto bg_id = strtoul(items[1].c_str(), nullptr, 2);
     auto bk_id = strtoul(items[2].c_str(), nullptr, 2);
 
-    // printf("%d, %d, %d\n", cluster_id, bg_id, bk_id);
+    // printf("%ld, %ld, %ld\n", cluster_id, bg_id, bk_id);
 
     std::stringstream ss;
     ss << bg_id << "_" << bk_id;
