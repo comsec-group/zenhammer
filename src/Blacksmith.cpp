@@ -4,6 +4,7 @@
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
+#include "Memory/DRAMAddr.hpp"
 #include "sys/stat.h"
 #include "Utilities/ExperimentConfig.hpp"
 
@@ -35,12 +36,16 @@ int main(int argc, char **argv) {
   }
 
   // allocate a large bulk of contiguous memory
-  Memory memory(true, program_args.filepath_rowlist, program_args.filepath_rowlist_bgbk);
-  auto num_superpages = Memory::get_max_superpages();
-  memory.find_allocate_hugepages(num_superpages);
+  Memory memory(true);
+  memory.allocate_memory(HUGEPAGE_SZ);
+
+  DRAMAddr::initialize((volatile char*)memory.get_starting_address(),
+    program_args.num_ranks,
+    program_args.num_bankgroups,
+    program_args.num_banks);
 
   // find address sets that create bank conflicts
-  DramAnalyzer dram_analyzer(memory.get_starting_address(), memory.conflict_cluster);
+  DramAnalyzer dram_analyzer(memory.get_starting_address());
 
   // count the number of possible activations per refresh interval, if not given as program argument
   size_t acts_per_ref;
@@ -68,6 +73,32 @@ int main(int argc, char **argv) {
   return EXIT_SUCCESS;
 }
 
+struct dram_geometry {
+  double num_ranks;
+  double num_bankgroups;
+  double num_banks;
+};
+
+namespace argagg {
+namespace convert {
+  template <>
+  dram_geometry arg(const char* s)
+  {
+    dram_geometry result {0.0, 0.0, 0.0};
+    if (!parse_next_component(s, result.num_ranks, ',')) {
+      return result;
+    }
+    if (!parse_next_component(s, result.num_bankgroups, ',')) {
+      return result;
+    }
+    if (!parse_next_component(s, result.num_banks, ',')) {
+      return result;
+    }
+    return result;
+  }
+} // namespace convert
+} // namespace argagg
+
 void handle_args(int argc, char **argv) {
   // An option is specified by four things:
   //    (1) the name of the option,
@@ -91,12 +122,11 @@ void handle_args(int argc, char **argv) {
       {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
 
-      {"rowlist", {"-l", "--rowlist"}, "", 1},
-      {"rowlist-bgbk", {"--rowlist-bgbk"}, "", 1},
-
       {"yaml-exp-cfg", {"-e", "--exp-cfg"}, "", 1},
       {"yaml-exp-cfg-id", {"-x", "--exp-cfg-id"}, "", 1},
 
+      { "geometry", {"--geometry"},
+        "a triple describing the DRAM geometry: #ranks, #bankgroups, #banks (e.g. '--geometry 2,8,4')", 1},
     }};
 
   argagg::parser_results parsed_args;
@@ -123,6 +153,15 @@ void handle_args(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  if (parsed_args.has_option("geometry")) {
+    auto geom = parsed_args["geometry"].as<dram_geometry>();
+    program_args.num_ranks = geom.num_ranks;
+    program_args.num_bankgroups = geom.num_bankgroups;
+    program_args.num_banks = geom.num_banks;
+  } else {
+    Logger::log_error("Program argument '--geometry <#ranks:integer>,<#bankgroups:integer>,<#banks:integer>' is mandatory! Cannot continue.");
+    exit(EXIT_FAILURE);
+  }
   if (parsed_args.has_option("yaml-exp-cfg") || parsed_args.has_option("yaml-exp-cfg-id")) {
     if (!parsed_args.has_option("yaml-exp-cfg") || !parsed_args.has_option("yaml-exp-cfg-id")) {
       Logger::log_error("Program argument '--exp-cfg <filename_yaml>' requires '--exp-cfg-id <int>' and vice versa.");
@@ -132,32 +171,9 @@ void handle_args(int argc, char **argv) {
     program_args.exp_cfg_id = parsed_args["yaml-exp-cfg-id"].as<int>();
   }
 
-
-  if (parsed_args.has_option("rowlist") && parsed_args.has_option("rowlist-bgbk")) {
-    program_args.filepath_rowlist =  parsed_args["rowlist"].as<std::string>();
-    program_args.filepath_rowlist_bgbk = parsed_args["rowlist-bgbk"].as<std::string>();
-
-    struct stat buffer{};
-    if (stat(program_args.filepath_rowlist.c_str(), &buffer) != 0) {
-      std::cerr << "[-] Given rowlist could not be found: " << program_args.filepath_rowlist << '\n';
-      exit(EXIT_FAILURE);
-    } else {
-      Logger::log_info("Rowlist found!");
-      Logger::log_debug("rowlist file: " + program_args.filepath_rowlist);
-      Logger::log_debug("rowlist size: " + std::to_string(buffer.st_size));
-    }
-    if (stat(program_args.filepath_rowlist_bgbk.c_str(),  &buffer) != 0) {
-      std::cerr << "[-] Given rowlist_bgbk could not be found: " << program_args.filepath_rowlist_bgbk << '\n';
-      exit(EXIT_FAILURE);
-    }
-  } else {
-    Logger::log_error("Program arguments '--rowlist <filepath>' and '--rowlist-bgbk <filepath>' are mandatory! Cannot continue.");
-    exit(EXIT_FAILURE);
-  }
-
-    /**
-    * optional parameters
-    */
+  /**
+  * optional parameters
+  */
   program_args.sweeping = parsed_args.has_option("sweeping") || program_args.sweeping;
   Logger::log_debug(format_string("Set --sweeping=%s", (program_args.sweeping ? "true" : "false")));
 

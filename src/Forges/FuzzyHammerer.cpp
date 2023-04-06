@@ -28,7 +28,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   // all patterns that triggered bit flips
   std::vector<HammeringPattern> effective_patterns;
 
-  PatternAddressMapper best_mapping(memory);
+  PatternAddressMapper best_mapping;
 
   size_t best_mapping_bitflips = 0;
   size_t best_hammering_pattern_bitflips = 0;
@@ -74,7 +74,7 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     // then test this pattern with N different mappings (i.e., address sets)
     size_t sum_flips_one_pattern_all_mappings = 0;
     for (cnt_pattern_probes = 0; cnt_pattern_probes < probes_per_pattern; ++cnt_pattern_probes) {
-      PatternAddressMapper mapper(memory);
+      PatternAddressMapper mapper;
 //      Logger::log_info(format_string("Running pattern #%lu (%s) for address set %d (%s).",
 //          current_round, hammering_pattern.instance_id.c_str(), cnt_pattern_probes, mapper.get_instance_id().c_str()));
 //
@@ -320,22 +320,30 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
   CodeJitter &code_jitter = mapper.get_code_jitter();
 
   // randomize the aggressor ID -> DRAM row mapping
-  mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns, true, memory);
+  mapper.randomize_addresses(fuzzing_params, hammering_pattern.agg_access_patterns, true);
 
   // now fill the pattern with these random addresses
   std::vector<volatile char *> hammering_accesses_vec;
   mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, hammering_accesses_vec);
-  Logger::log_info("Aggressor ID to DRAM address mapping " + SimpleDramAddress::get_string_compact_desc() + ": ");
+  Logger::log_info("Aggressor ID to DRAM address mapping:");
   Logger::log_data(mapper.get_mapping_text_repr());
 
   // take any of the pattern's aggressors
   auto any_aggressor_row = mapper.aggressor_to_addr[hammering_pattern.aggressors[0].id];
   // find other rows that belong to the same bank but another bankgroup
-  auto sync_rows = memory.conflict_cluster.get_sync_rows(
-      any_aggressor_row,
-      32,
-      false);
-
+  std::vector<volatile char*> sync_rows;
+  auto mr = mapper.max_row;
+  auto da = DRAMAddr(any_aggressor_row);
+  da.add_inplace(0, 1, 0, 0, 0);
+  da.set_row(mr);
+  // std::cout << "sync_rows:\n";
+  for (size_t i = 1; i <= 32; ++i) {
+    da.add_inplace(0, 0, 0, i, 0);
+    sync_rows.push_back((volatile char*)da.to_virt());
+    // std::cout << da.to_string() << "\n";
+  }
+  // std::cout << std::endl;
+  
   // now create instructions that follow this pattern (i.e., do jitting of code)
 //  Logger::log_info("Creating ASM code for hammering.");
 //  code_jitter.jit_strict(

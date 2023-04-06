@@ -11,21 +11,23 @@
 
 // no. of channels on the system (NOT subchannels per DIMM, we always assume 2)
 #define CHANS(x) ((x) << (4UL * 4UL))
+#define CHANS_INV(x) (((x) >> (4UL * 4UL)) && 0b11111)
 
 // no. of DIMMs
 #define DIMMS(x) ((x) << (4UL * 3UL))
+#define DIMMS_INV(x) (((x) >> (4UL * 3UL)) && 0b11111)
 
 // no. of ranks
 #define RANKS(x) ((x) << (4UL * 2UL))
+#define RANKS_INV(x) (((x) >> (4UL * 2UL)) && 0b11111)
 
 // no. of bankgroups
 #define BANKGROUPS(x) ((x) << (4UL * 1UL))
+#define BANKGROUPS_INV(x) (((x) >> (4UL * 1UL)) && 0b11111)
 
 // no. of banks per bankgroup
 #define BANKS(x) ((x) << (4UL * 0UL))
-
-//#define MTX_SIZE (34)
-#define MTX_SIZE (30)
+#define BANKS_INV(x) (((x) >> (4UL * 0UL)) && 0b11111)
 
 typedef uint64_t mem_config_t;
 
@@ -33,6 +35,8 @@ struct MemConfiguration {
   size_t IDENTIFIER;
   size_t SC_SHIFT;
   size_t SC_MASK;
+  size_t RK_SHIFT;
+  size_t RK_MASK;
   size_t BG_SHIFT;
   size_t BG_MASK;
   size_t BK_SHIFT;
@@ -41,8 +45,10 @@ struct MemConfiguration {
   size_t ROW_MASK;
   size_t COL_SHIFT;
   size_t COL_MASK;
-  size_t DRAM_MTX[MTX_SIZE];
-  size_t ADDR_MTX[MTX_SIZE];
+  // to simplify our setup, as we have a single superpage only, we cut-off the
+  // higher bits of the FNs s.t. we stay within [start,start+HUGEPAGE_SZ]
+  size_t DRAM_MTX[29];
+  size_t ADDR_MTX[29];
 };
 
 class DRAMAddr {
@@ -51,35 +57,30 @@ class DRAMAddr {
 
   static MemConfiguration MemConfig;
 
-  static size_t base_msb;
+  static uint64_t base_msb;
 
-  static std::unordered_map<size_t, std::pair<size_t, size_t>> bankIdx2bgbk;
-
-  [[nodiscard]] size_t linearize() const;
-
- public:
   size_t subchan{};
+  size_t rank{};
   size_t bankgroup{};
   size_t bank{};
   size_t row{};
   size_t col{};
 
+ public:
+
   /* constructor for backwards-compatibility */
   DRAMAddr(size_t bk, size_t r, size_t c);
   DRAMAddr(size_t sc, size_t bk, size_t r, size_t c);
-
-  DRAMAddr(size_t sc, size_t bg, size_t bk, size_t r, size_t c);
+  DRAMAddr(size_t sc, size_t rk,  size_t bg, size_t bk, size_t r, size_t c);
 
   // must be DefaultConstructible for JSON (de-)serialization
   DRAMAddr();
 
-  static void initialize(volatile char *start_address);
+  static void initialize(volatile char *start_address, size_t num_ranks, size_t num_bankgroups, size_t num_banks);
 
   static void set_base_msb(void *buff);
 
   static void load_mem_config(mem_config_t cfg);
-
-  static uint64_t get_row_increment();
 
   static void initialize_configs();
 
@@ -91,11 +92,7 @@ class DRAMAddr {
 
   void *to_virt();
 
-  [[nodiscard]] void *to_virt() const;
-
   void *to_phys();
-
-  [[nodiscard]] void *to_phys() const;
 
   void add_inplace(size_t sc_increment,
                    size_t bg_increment,
@@ -106,25 +103,36 @@ class DRAMAddr {
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 
   [[nodiscard]] DRAMAddr add(size_t sc_increment,
+                             size_t rk_increment,
                              size_t bankgroup_increment,
                              size_t bank_increment,
                              size_t row_increment,
                              size_t column_increment) const;
 
-  [[nodiscard]] DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
+  size_t get_subchan() const;
+  size_t get_bankgroup() const;
+  size_t get_rank() const;
+  size_t get_bank() const;
+  size_t get_row() const;  
+  size_t get_column() const;
+
+  void set_row(size_t row_no);
+
+  void increment_all_common();
 
 #ifdef ENABLE_JSON
-  static nlohmann::json get_memcfg_json();
-  void set_row(size_t row);
+  nlohmann::json get_memcfg_json();
+
+  friend void to_json(nlohmann::json &j, const DRAMAddr &p);
+
+  friend void from_json(const nlohmann::json &j, DRAMAddr &p);
 #endif
+
 };
 
 #ifdef ENABLE_JSON
-
 void to_json(nlohmann::json &j, const DRAMAddr &p);
-
 void from_json(const nlohmann::json &j, DRAMAddr &p);
-
 #endif
 
 #endif /* DRAMADDR */

@@ -33,73 +33,6 @@ size_t Memory::get_max_superpages() {
   return 0;
 }
 
-void Memory::find_allocate_hugepages(size_t max_num_hugepages) {
-  if (not superpage) {
-    Logger::log_error("Cannot run find_allocate_superpage without superpages being enabled!");
-    exit(EXIT_FAILURE);
-  }
-
-  uint64_t min_paddr = conflict_cluster.get_min_paddr();
-  uint64_t max_paddr = conflict_cluster.get_max_paddr();
-
-  size_t num_total_allocated_pages = 0;
-
-  FILE *fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
-  if (fp == nullptr) {
-    Logger::log_error(format_string("Could not open hugetlbfs at %s", hugetlbfs_mountpoint.c_str()));
-    Logger::log_data(std::strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-
-  // allocate as many hugepages as possible, save the fd and phy address range
-  std::vector<void *> unmappable_hugepapges;
-  for (size_t k = 0; k < max_num_hugepages; ++k) {
-    auto mem_vaddr = mmap(nullptr, HUGEPAGE_SZ, MMAP_PROT, MMAP_FLAGS, fileno(fp), 0);
-    auto mem_paddr = pagemap::vaddr2paddr((uint64_t)mem_vaddr);
-    Logger::log_info(format_string("Allocated memory (paddr): 0x%lx-0x%lx",
-                                   (uint64_t)mem_paddr, (uint64_t)(mem_paddr+HUGEPAGE_SZ)));
-    if (mem_vaddr == MAP_FAILED) {
-      Logger::log_error("Mounting hugepage failed!");
-      Logger::log_data(std::strerror(errno));
-      exit(EXIT_FAILURE);
-    }
-    num_total_allocated_pages++;
-    // check if the hugepage falls into physical address range; if not, then mark hugepage for unmapping later
-    if ((min_paddr < mem_paddr && max_paddr < mem_paddr) || (min_paddr > mem_paddr+HUGEPAGE_SZ && max_paddr > mem_paddr+HUGEPAGE_SZ)) {
-      unmappable_hugepapges.push_back(mem_vaddr);
-    } else {
-      start_address = (volatile char*) mem_vaddr;
-    }
-  }
-
-  // unmap obsolete hugepages
-  for (size_t k = 0; k < unmappable_hugepapges.size(); ++k) {
-    auto page = unmappable_hugepapges[k];
-    auto saddr_phy = pagemap::vaddr2paddr((uint64_t)page);
-    Logger::log_info(format_string("Deallocated memory (paddr): 0x%lx-0x%lx",
-                                   (uint64_t)saddr_phy, (uint64_t)(saddr_phy+HUGEPAGE_SZ)));
-    if (munmap(page, HUGEPAGE_SZ) != 0) {
-      Logger::log_error("munmap failed with error:");
-      Logger::log_data(std::strerror(errno));
-      exit(EXIT_FAILURE);
-    }
-    num_total_allocated_pages--;
-  }
-
-  if (num_total_allocated_pages < 1) {
-    Logger::log_error("Could not find superpage matching phy addresses in targets.txt! Exiting.");
-    Logger::log_data("Try 'echo 99>/proc/sys/vm/nr_hugepages' or check 'hugepages' in /etc/default/grub and reboot machine.");
-    exit(EXIT_FAILURE);
-  } else if (num_total_allocated_pages > 1) {
-    Logger::log_error("Required more than one allocated superpage.. cannot handle this yet! Exiting.");
-    // todo: think about start_address and how to generalize in case we have more than just one superpage
-    exit(EXIT_FAILURE);
-  }
-
-  // recompute virtual addresses based on virtual address of remaining superpage
-  conflict_cluster.update_vaddr((uint64_t)start_address);
-}
-
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {
   this->size = mem_size;
@@ -179,13 +112,9 @@ void Memory::initialize(DATA_PATTERN patt) {
       // write (pseudo)random 4 bytes
       uint64_t offset = cur_page + cur_pageoffset;
       auto val = get_fill_value();
-      *((int *) (start_address + offset)) = val;
-      *((int*)((uint64_t)shadow_page + offset)) = val;
+      *((uint32_t *) ((uint64_t)start_address + offset)) = val;
+      *((uint32_t*)((uint64_t)shadow_page + offset)) = val;
     }
-  }
-
-  for (uint64_t factor = 1; factor < (size/HUGEPAGE_SZ); factor++) {
-    memcpy((void*)start_address, (void*)(start_address+(factor*HUGEPAGE_SZ)), HUGEPAGE_SZ);
   }
 }
 
@@ -197,30 +126,41 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
   flipped_bits.clear();
 
   auto victim_rows = mapping.get_victim_rows();
-  if (verbose)
-    Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
+  if (verbose) {
+    Logger::log_info(format_string("Checking %zu victims for bit flips.", 
+      victim_rows.size()));
+  }
 
   size_t sum_found_bitflips = 0;
-  for (const auto &vr : victim_rows) {
-//    auto next_victim_row = conflict_cluster.get_next_row(vr);
-    auto next_victim_row = conflict_cluster.get_nth_next_row(vr, 3);
-    if (next_victim_row.vaddr < vr.vaddr) {
-      sum_found_bitflips += check_memory_internal(mapping, start_address, next_victim_row.vaddr, reproducibility_mode, verbose);
-      sum_found_bitflips += check_memory_internal(mapping, vr.vaddr, start_address+HUGEPAGE_SZ, reproducibility_mode, verbose);
+  for (auto &vr : victim_rows) {
+    auto next_victim_row = vr.add(0, 0, 0, 0, 2, 0);
+    // printf("next_victim_row.to_virt() = %s\n", next_victim_row.to_string().c_str());
+    // printf("vr.to_virt() = %s\n", vr.to_string().c_str());
+    if ((uint64_t)next_victim_row.to_virt() < (uint64_t)vr.to_virt()) {
+      sum_found_bitflips += check_memory_internal(mapping, 
+        (volatile char*)vr.to_virt(), 
+        (volatile char*)((uint64_t)start_address+HUGEPAGE_SZ), 
+        reproducibility_mode, 
+        verbose);
+      sum_found_bitflips += check_memory_internal(mapping, 
+        (volatile char*)start_address, 
+        (volatile char*)next_victim_row.to_virt(), 
+        reproducibility_mode, 
+        verbose);
     } else {
-      sum_found_bitflips += check_memory_internal(mapping, vr.vaddr, next_victim_row.vaddr, reproducibility_mode, verbose);
+      sum_found_bitflips += check_memory_internal(mapping, (volatile char*)vr.to_virt(), (volatile char*)next_victim_row.to_virt(), reproducibility_mode, verbose);
     }
   }
   return sum_found_bitflips;
 }
 
-int Memory::get_fill_value() const {
+uint32_t Memory::get_fill_value() const {
   if (data_pattern == DATA_PATTERN::RANDOM) {
     return rand(); // NOLINT(cert-msc50-cpp)
   } else if (data_pattern == DATA_PATTERN::ZEROES) {
     return 0;
   } else if (data_pattern == DATA_PATTERN::ONES) {
-    return 1;
+    return std::numeric_limits<uint8_t>::max();
   } else {
     Logger::log_error("Could not initialize memory with given (unknown) DATA_PATTERN.");
     exit(EXIT_FAILURE);
@@ -241,15 +181,15 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
                                      bool verbose) {
   // if end < start, then we flipped around the row list because we reached its end
   // in this case we use the typical row offset to 'guess' the next row
-  if ((uint64_t)start >= (uint64_t)end) {
-    end = (volatile char*)std::min((uint64_t)start+conflict_cluster.get_typical_row_offset(),
-                                   (uint64_t)get_starting_address()+size);
+  if ((uint64_t)start > (uint64_t)end) {
+    Logger::log_error("[Memory::check_memory_internal] start address cannot be larger than end address!");
+    exit(EXIT_FAILURE);
   }
 
   // counter for the number of found bit flips in the memory region [start, end]
   size_t found_bitflips = 0;
 
-  if (start==nullptr || end==nullptr || ((uint64_t) start >= (uint64_t) end)) {
+  if (start==nullptr || end==nullptr || ((uint64_t) start > (uint64_t) end)) {
     Logger::log_error("Function check_memory called with invalid arguments.");
     Logger::log_data(format_string("Start addr.: %p, End addr.: %p", start, end));
     return found_bitflips;
@@ -296,13 +236,14 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
       for (unsigned long c = 0; c < sizeof(int); c++) {
         volatile char *flipped_address = cur_addr + c;
         if (*flipped_address != ((char *) &expected_rand_value)[c]) {
-          auto simple_addr_flipped = conflict_cluster.get_simple_dram_address(flipped_address);
+          // auto simple_addr_flipped = conflict_cluster.get_simple_dram_address(flipped_address);
+          auto simple_addr_flipped = DRAMAddr((void*)flipped_address);
 
           const auto flipped_addr_value = *(unsigned char *) flipped_address;
           const auto expected_value = ((unsigned char *) &expected_rand_value)[c];
           if (verbose) {
             Logger::log_bitflip(flipped_address,
-                                simple_addr_flipped.row_id,
+                                simple_addr_flipped.get_row(),
                                 expected_value,
                                 flipped_addr_value,
                                 (size_t) time(nullptr),
@@ -337,8 +278,8 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   return found_bitflips;
 }
 
-Memory::Memory(bool use_superpage, std::string &rowlist_filepath, std::string &rowlist_filepath_bgbk)
-    : size(0), superpage(use_superpage), conflict_cluster(rowlist_filepath, rowlist_filepath_bgbk) {
+Memory::Memory(bool use_superpage)
+    : size(0), superpage(use_superpage) {
 
   // allocate memory for the shadow page we will use later for fast comparison
   shadow_page = malloc(HUGEPAGE_SZ);
@@ -368,7 +309,7 @@ std::string Memory::get_flipped_rows_text_repr() {
     if (cnt > 0) {
       ss << ", ";
     }
-    ss << row.address.row_id;
+    ss << row.address.get_row();
     cnt++;
   }
   return ss.str();

@@ -40,7 +40,7 @@ void from_json(const nlohmann::json &j, BitFlip &p) {
 
 #endif
 
-BitFlip::BitFlip(const SimpleDramAddress &address, uint8_t flips_bitmask, uint8_t corrupted_data)
+BitFlip::BitFlip(const DRAMAddr &address, uint8_t flips_bitmask, uint8_t corrupted_data)
     : address(address), bitmask(flips_bitmask), corrupted_data(corrupted_data) {
   observation_time = time(nullptr);
 }

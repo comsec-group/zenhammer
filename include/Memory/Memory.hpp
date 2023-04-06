@@ -32,7 +32,7 @@ class Memory {
 
   DATA_PATTERN data_pattern;
 
-  int get_fill_value() const;
+  uint32_t get_fill_value() const;
 
   static void reseed_srand(uint64_t cur_page);
 
@@ -41,12 +41,10 @@ class Memory {
   void* shadow_page;
 
  public:
-  ConflictCluster conflict_cluster;
-
   // the flipped bits detected during the last call to check_memory
   std::vector<BitFlip> flipped_bits;
 
-  explicit Memory(bool use_superpage, std::string &rowlist_filepath, std::string &rowlist_filepath_bgbk);
+  explicit Memory(bool use_superpage);
 
   ~Memory();
 
@@ -63,8 +61,6 @@ class Memory {
   uint64_t round_down_to_next_page_boundary(uint64_t address);
 
   static size_t get_max_superpages();
-
-  void find_allocate_hugepages(size_t max_num_hugepages);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_

@@ -8,28 +8,36 @@
 #include "Memory/Memory.hpp"
 
 // static variable initialization
-size_t PatternAddressMapper::cluster_ids_idx = 0;
+// size_t PatternAddressMapper::bank_counter = 0;
+// size_t PatternAddressMapper::bankgroup_counter = 0;
+// size_t PatternAddressMapper::sc_counter = 0;
+DRAMAddr PatternAddressMapper::pattern_start_row{};
 
-PatternAddressMapper::PatternAddressMapper(Memory &mem)
+PatternAddressMapper::PatternAddressMapper()
     : cr(CustomRandom()), instance_id(uuid::gen_uuid(cr.gen)) {
   code_jitter = std::make_unique<CodeJitter>();
-  cluster_ids = mem.conflict_cluster.get_supported_cluster_ids();
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
                                                const std::vector<AggressorAccessPattern> &agg_access_patterns,
-                                               bool verbose,
-                                               Memory &mem) {
+                                               bool verbose) {
+
+
+
   // clear any already existing mapping
   aggressor_to_addr.clear();
 
-  // retrieve and then store randomized values as they should be the same for all added addresses
-  auto bank_no = cluster_ids[cluster_ids_idx];
-  PatternAddressMapper::cluster_ids_idx = (PatternAddressMapper::cluster_ids_idx + 1) % (cluster_ids.size()-1);
-
   const bool use_seq_addresses = fuzzing_params.get_random_use_seq_addresses();
+  // auto bank_no = PatternAddressMapper::bank_counter;
+  // auto bankgroup_no = PatternAddressMapper::bankgroup_counter;
+  // auto sc_no = PatternAddressMapper::sc_counter;
+  // PatternAddressMapper::bank_counter = (PatternAddressMapper::bank_counter + 1);
+  // PatternAddressMapper::bankgroup_counter = (PatternAddressMapper::bankgroup_counter + 1);
+  // PatternAddressMapper::sc_counter = (PatternAddressMapper::sc_counter + 1);
+  pattern_start_row.increment_all_common();
+
   const int start_row = fuzzing_params.get_random_start_row();
-  if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
+  // if (verbose) FuzzingParameterSet::print_dynamic_parameters(bank_no, use_seq_addresses, start_row);
 
   auto cur_row = static_cast<size_t>(start_row);
 
@@ -66,42 +74,28 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   for (const auto &w : weights) ss_weights << w << " ";
   Logger::log_debug(format_string("[PatternAddressMapper] weights = %s", ss_weights.str().c_str()));
 
-//  Logger::log_info("Generating 1k random numbers to see how well distribution works ");
-//  size_t cnt_0 = 0;
-//  size_t cnt_1 = 0;
-//  for (size_t i = 0; i < 1000; ++i) {
-//    if (dist(engine) == 0)
-//      cnt_0++;
-//    else
-//      cnt_1++;
-//  }
-//  Logger::log_info(format_string("cnt_0 = %lu", cnt_0));
-//  Logger::log_info(format_string("cnt_1 = %lu", cnt_1));
-
   for (auto &acc_pattern : agg_access_patterns) {
     for (size_t i = 0; i < acc_pattern.aggressors.size(); i++) {
       const Aggressor &current_agg = acc_pattern.aggressors.at(i);
 
       // aggressor has existing row mapping OR
       if (aggressor_to_addr.count(current_agg.id) > 0) {
-        row = aggressor_to_addr.at(current_agg.id).row_id;
+        row = aggressor_to_addr.at(current_agg.id).get_row();
       } else {
-        const size_t max_row_no = mem.conflict_cluster.get_min_num_rows();
         if (i > 0) {  // aggressor is part of a n>1 aggressor tuple
           // we need to add the appropriate distance and cannot choose randomly
           auto last_addr = aggressor_to_addr.at(acc_pattern.aggressors.at(i - 1).id);
           // update cur_row for its next use (note that here it is: cur_row = last_addr.row)
-          cur_row = (last_addr.row_id + (size_t) fuzzing_params.get_agg_intra_distance())% max_row_no;
+          cur_row = (last_addr.get_row() + (size_t) fuzzing_params.get_agg_intra_distance());
           row = cur_row;
         } else {
           // this is a new aggressor pair - we can choose where to place it
           // if use_seq_addresses is true, we use the last address and add the agg_inter_distance on top -> this is the
           //   row of the next aggressor
           // if use_seq_addresses is false, we just pick any random row no. between [0, 8192]
-          cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())% max_row_no;
+          cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance());
 
-          bool map_to_existing_agg = false;  // FIXME: this is for debugging only
-//          bool map_to_existing_agg = dist(engine);
+         bool map_to_existing_agg = dist(engine);
           if (map_to_existing_agg && !occupied_rows.empty()) {
               auto idx = Range<size_t>(1, occupied_rows.size()).get_random_number(cr.gen)-1;
               auto it = occupied_rows.begin();
@@ -111,8 +105,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
           retry:
             row = use_seq_addresses ?
                   cur_row :
-                  (Range<size_t>(cur_row, cur_row + max_row_no).get_random_number(cr.gen)
-                      % max_row_no);
+                  Range<size_t>(cur_row, cur_row + 10).get_random_number(cr.gen);
 
             // check that we haven't assigned this address yet to another aggressor ID
             // if use_seq_addresses is True, the only way that the address is already assigned is that we already flipped
@@ -130,14 +123,13 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
-      auto dram_addr = mem.conflict_cluster.get_simple_dram_address(bank_no, row);
-      aggressor_to_addr[current_agg.id] = dram_addr; //      aggressor_to_addr.insert(std::make_pair(current_agg.id,
-//                                              DRAMAddr(subchannel_no, static_cast<size_t>(bank_no), row, 0)));
+      pattern_start_row.set_row(row);
+      aggressor_to_addr.insert(std::make_pair(current_agg.id, pattern_start_row));
     }
   }
 
   // determine victim rows
-  determine_victims(agg_access_patterns, mem);
+  determine_victims(agg_access_patterns);
 
   // this works as sets are always ordered
   min_row = *occupied_rows.begin();
@@ -147,8 +139,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
     Logger::log_info(format_string("Found %d different aggressors (IDs) in pattern.", aggressor_to_addr.size()));
 }
 
-void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns,
-                                             Memory &mem) {
+void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns) {
   std::unordered_set<uint64_t> victim_vaddrs;
 
   // check row_blast_radius rows around the aggressors for flipped bits
@@ -156,7 +147,7 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
   // a set to make sure we add victims only once
   victim_rows.clear();
   for (auto &acc_pattern : agg_access_patterns) {
-    for (auto &agg : acc_pattern.aggressors) {
+    for (const auto &agg : acc_pattern.aggressors) {
       if (aggressor_to_addr.count(agg.id) == 0) {
         Logger::log_error(format_string("Could not find DRAMAddr mapping for Aggressor %d", agg.id));
         exit(EXIT_FAILURE);
@@ -164,19 +155,18 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
 
       const auto dram_addr = aggressor_to_addr.at(agg.id);
       for (int delta_nrows = -row_blast_radius; delta_nrows <= row_blast_radius; ++delta_nrows) {
-        auto cur_row_candidate = static_cast<int>(dram_addr.row_id) + delta_nrows;
-
+          auto cur_row_candidate = static_cast<int>(dram_addr.get_row()) + delta_nrows;
         // don't add the aggressor itself and ignore any non-existing (negative) row no.
         if (delta_nrows == 0 || cur_row_candidate < 0)
           continue;
 
+        auto vic_start = aggressor_to_addr[agg.id];
+        vic_start.set_row((size_t)((int)vic_start.get_row()+delta_nrows));
+        
         // ignore this victim if we already added it before
-        auto vic_start = mem.conflict_cluster.get_simple_dram_address(
-            dram_addr.cluster_id,
-            static_cast<size_t>(cur_row_candidate));
-        if (victim_vaddrs.find((uint64_t)vic_start.vaddr) == victim_vaddrs.end()) {
+        if (victim_vaddrs.find((uint64_t)vic_start.to_virt()) == victim_vaddrs.end()) {
           victim_rows.push_back(vic_start);
-          victim_vaddrs.insert((uint64_t)vic_start.vaddr);
+          victim_vaddrs.insert((uint64_t)vic_start.to_virt());
         }
       }
     }
@@ -211,9 +201,9 @@ void PatternAddressMapper::export_pattern_internal(
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).vaddr);
-    rows.push_back(static_cast<int>(aggressor_to_addr.at(agg.id).row_id));
-    pattern_str << aggressor_to_addr.at(agg.id).row_id << " ";
+    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    rows.push_back(static_cast<int>(aggressor_to_addr.at(agg.id).get_row()));
+    pattern_str << aggressor_to_addr.at(agg.id).get_row() << " ";
   }
 
   // print string representation of pattern
@@ -256,14 +246,14 @@ std::string PatternAddressMapper::get_mapping_text_repr() {
   std::sort(keys.begin(), keys.end());
 
   // iterate over keys and build text representation
-  size_t cnt = 0;
   std::stringstream mapping_str;
   for (const auto &k : keys) {
-    mapping_str << std::setw(3) << std::setfill(' ') << k
+    mapping_str << std::setw(3) << std::setfill(' ') << std::left << k
                 << " -> "
+                << std::setw(22) << std::setfill(' ') << std::left
                 <<  aggressor_to_addr.at(k).to_string_compact()
-                << "   " << "\n";
-    cnt++;
+                << "   "
+                << "\n";
   }
 
   return mapping_str.str();
@@ -308,7 +298,7 @@ std::string &PatternAddressMapper::get_instance_id() {
   return instance_id;
 }
 
-const std::vector<SimpleDramAddress> & PatternAddressMapper::get_victim_rows() const {
+const std::vector<DRAMAddr> & PatternAddressMapper::get_victim_rows() const {
   return victim_rows;
 }
 
@@ -327,8 +317,8 @@ void PatternAddressMapper::shift_mapping(int rows, const std::unordered_set<Aggr
     // if aggs_to_move is empty, we consider it as 'move all aggressors'; otherwise we check whether the current
     // aggressor ID is in aggs_to_move prior shifting the aggressor by the given number of rows (param: rows)
     if (aggs_to_move.empty() || movable_ids.count(agg_acc_patt.first) > 0) {
-      agg_acc_patt.second.row_id += rows;
-      occupied_rows.insert(static_cast<int>(agg_acc_patt.second.row_id));
+      agg_acc_patt.second.add_inplace(0, 0, 0, rows, 0);
+      occupied_rows.insert(static_cast<int>(agg_acc_patt.second.get_row()));
     }
   }
 
@@ -384,8 +374,8 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
   agg_intra_distance = 0;
   for (auto &agg_access_pattern : agg_access_patterns) {
     if (agg_access_pattern.aggressors.size() > 1) {
-      auto r1 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(1).id).row_id;
-      auto r0 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(0).id).row_id;
+      auto r1 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(1).id).get_row();
+      auto r0 = aggressor_to_addr.at(agg_access_pattern.aggressors.at(0).id).get_row();
       agg_intra_distance = static_cast<int>(r1-r0);
       break;
     }
@@ -396,8 +386,8 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
   agg_inter_distance = -1;
   for (auto it = agg_access_patterns.begin(); it+1 != agg_access_patterns.end(); ++it) {
     auto this_size = it->aggressors.size();
-    auto this_row = aggressor_to_addr.at(it->aggressors.at(this_size-1).id).row_id;
-    auto next_row = aggressor_to_addr.at((it+1)->aggressors.at(0).id).row_id          ;
+    auto this_row = aggressor_to_addr.at(it->aggressors.at(this_size-1).id).get_row();
+    auto next_row = aggressor_to_addr.at((it+1)->aggressors.at(0).id).get_row();
     auto distance = static_cast<int>(next_row - this_row);
     if (agg_inter_distance == -1) {
         agg_inter_distance = distance;
@@ -418,21 +408,29 @@ size_t PatternAddressMapper::count_bitflips() const {
   return sum;
 }
 
-void PatternAddressMapper::remap_aggressors(SimpleDramAddress &new_location) {
+void PatternAddressMapper::remap_aggressors(DRAMAddr &new_location) {
   // determine the mapping with the smallest row no -- this is the start point where we apply our new location on
   size_t smallest_row_no = std::numeric_limits<size_t>::max();
   for (const auto &[id, addr]: aggressor_to_addr) {
-    smallest_row_no = std::min(smallest_row_no, addr.row_id);
+    smallest_row_no = std::min(smallest_row_no, addr.get_row());
   }
 
   // compute offset between old start row and new start row
-  size_t offset = new_location.row_id - smallest_row_no;
+  int offset = (int)new_location.get_row() - (int)smallest_row_no;
 
   // now update each mapping's address
   for (auto &[id, addr]: aggressor_to_addr) {
     // we just overwrite the bank
-    addr.cluster_id = new_location.cluster_id;
+    addr = DRAMAddr(new_location.get_subchan(),
+      new_location.get_rank(),
+      new_location.get_bankgroup(),
+      new_location.get_bank(), 
+      offset,
+      new_location.get_column());
+    // addr.bank = new_location.bank;
+    // addr.bankgroup = new_location.bankgroup;
+    // addr.subchan = new_location.subchan;
     // for the row, we need to shift accordingly to preserve the distances between aggressors
-    addr.row_id += offset;
+    // addr.add_inplace(0, 0, 0, 0, offset, 0);
   }
 }

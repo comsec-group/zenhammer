@@ -169,7 +169,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
             // fill up the remaining accesses with random rows
             DRAMAddr agg(TARGET_BANK, dist(gen)%1024, 0);
 //          update_low_high(agg);
-            ss << agg.row << " ";
+            ss << agg.get_row() << " ";
             aggressors.push_back((volatile char *) agg.to_virt());
             pos++;
           }
@@ -191,8 +191,8 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
           auto d2 = cur_next_addr;
           Logger::log_info(
               format_string("d1 row %" PRIu64 " (%p) d2 row %" PRIu64 " (%p)",
-                  d1.row, d1.to_virt(),
-                  d2.row, d2.to_virt()));
+                  d1.get_row(), d1.to_virt(),
+                  d2.get_row(), d2.to_virt()));
 
           Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, TARGET_BANK));
           hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());

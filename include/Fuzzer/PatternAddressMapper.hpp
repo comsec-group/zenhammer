@@ -23,22 +23,17 @@ class PatternAddressMapper {
                                std::vector<volatile char *> &addresses,
                                std::vector<int> &rows);
 
-  std::vector<SimpleDramAddress> victim_rows;
+  std::vector<DRAMAddr> victim_rows;
 
   CustomRandom cr;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
-  std::vector<size_t> cluster_ids;
-
-  static size_t cluster_ids_idx;
-
-
 public:
   std::unique_ptr<CodeJitter> code_jitter;
 
-  PatternAddressMapper(Memory &mem);
+  PatternAddressMapper();
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);
@@ -50,8 +45,16 @@ public:
   size_t min_row = 0;
   size_t max_row = 0;
 
+  // a global counter that makes sure that we test patterns on all banks equally often
+  // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
+  // this may happen after we tested more than one pattern)
+  // static size_t sc_counter;
+  // static size_t bank_counter;
+  // static size_t bankgroup_counter;
+  static DRAMAddr pattern_start_row;
+
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
-  std::unordered_map<AGGRESSOR_ID_TYPE, SimpleDramAddress> aggressor_to_addr;
+  std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
 
   // the bit flips that were detected while running the pattern with this mapping
   std::vector<std::vector<BitFlip>> bit_flips;
@@ -64,10 +67,9 @@ public:
   // chooses new addresses for the aggressors involved in its referenced HammeringPattern
   void randomize_addresses(FuzzingParameterSet &fuzzing_params,
                            const std::vector<AggressorAccessPattern> &agg_access_patterns,
-                           bool verbose,
-                           Memory &mem);
+                           bool verbose);
 
-  void remap_aggressors(SimpleDramAddress &new_location);
+  void remap_aggressors(DRAMAddr &new_location);
 
   void export_pattern(std::vector<Aggressor> &aggressors, int base_period, std::vector<volatile char *> &addresses);
 
@@ -77,10 +79,9 @@ public:
 
   void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
-  [[nodiscard]] const std::vector<SimpleDramAddress> & get_victim_rows() const;
+  [[nodiscard]] const std::vector<DRAMAddr> & get_victim_rows() const;
 
-  void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns,
-                         Memory &mem);
+  void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns);
 
   std::string get_mapping_text_repr();
 

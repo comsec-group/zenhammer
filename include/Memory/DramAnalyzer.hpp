@@ -6,7 +6,6 @@
 #include <random>
 
 #include "Utilities/AsmPrimitives.hpp"
-#include "ConflictCluster.hpp"
 #include "Utilities/CustomRandom.hpp"
 #include "Utilities/ExperimentConfig.hpp"
 
@@ -15,8 +14,6 @@ class DramAnalyzer {
   std::vector<std::vector<volatile char *>> banks;
 
   volatile char *start_address;
-
-  ConflictCluster &cc;
 
   bool has_exp_cfg = false;
 
@@ -29,7 +26,7 @@ class DramAnalyzer {
   uint64_t ref_threshold_low;
 
  public:
-  explicit  DramAnalyzer(volatile char *target, ConflictCluster &cc);
+  explicit DramAnalyzer(volatile char *target);
 
   /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
   void find_bank_conflicts();
@@ -43,6 +40,8 @@ class DramAnalyzer {
   size_t count_acts_per_ref();
 
   [[nodiscard]] unsigned long get_ref_threshold() const;
+
+  std::vector<uint64_t> get_nth_highest_values(size_t N, std::vector<uint64_t> &values);
 };
 
 #endif /* DRAMANALYZER */
