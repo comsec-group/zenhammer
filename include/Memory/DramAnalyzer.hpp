@@ -23,7 +23,7 @@ class DramAnalyzer {
 
   CustomRandom cr;
 
-  uint64_t ref_threshold_low;
+  uint64_t ref_threshold;
 
  public:
   explicit DramAnalyzer(volatile char *target);
