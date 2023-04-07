@@ -355,13 +355,15 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
   const size_t sync_rounds_max_original = (num_acts_per_trefi/2);
   size_t sync_rounds_max = sync_rounds_max_original;
   while (total_num_activations > 0) {
-    // sync
-    sync_ref_unjitted(sync_rows, sync_stats, ref_threshold, sync_rounds_max);
+    if (agg_idx == 0) {
+      // sync
+      sync_ref_unjitted(sync_rows, sync_stats, ref_threshold, sync_rounds_max);
+    }
     // hammer next "num_acts_per_trefi" aggressors
     const size_t absolute_end = (agg_idx + num_acts_per_trefi);
     for (; agg_idx < absolute_end; agg_idx += 2) {
       // FENCE: not needed according to scope data
-      // sfence();
+      sfence();
       // HAMMER + FLUSH
       *aggressor_pairs[agg_idx];
       clflushopt(aggressor_pairs[agg_idx]);
