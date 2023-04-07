@@ -204,12 +204,12 @@ size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
       }
     }
   }
-  auto REF_threshold = (highest+second_highest)/2;
-  std::cout << std::dec << highest << " | " << second_highest  << " => " << REF_threshold << std::endl;
+  ref_threshold = (highest+second_highest)/2;
+  std::cout << std::dec << highest << " | " << second_highest  << " => " << ref_threshold << std::endl;
 
   // sometimes the measurement leads to weird/very high results, in this case
   // we just repeat
-  if (REF_threshold > 1500)
+  if (ref_threshold > 1500)
     goto retry;
 
   // 
@@ -235,7 +235,7 @@ size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
     }
     lfence();
     tmp_after = rdtscp();
-    if ((tmp_after-tmp_before) > REF_threshold) {
+    if ((tmp_after-tmp_before) > ref_threshold) {
         act_cnt[cnt_higher_th] = (counted_reps*NUM_ADDRS);
         cnt_higher_th++;
         // fprintf(f2, "%ld, %ld\n", counted_reps*NUM_ADDRS, cur);
@@ -254,14 +254,14 @@ size_t DramAnalyzer::count_acts_per_ref(const ExperimentConfig &exp_cfg) {
   }
 
   Logger::log_error("Could not determine reasonable ACTs/REF value. Using default (30).");
-  Logger::log_data(format_string("REF threshold: %ld", REF_threshold));
+  Logger::log_data(format_string("REF threshold: %ld", ref_threshold));
   Logger::log_data(format_string("ACTs/REF (best): %ld", acts_per_ref[0]));
 
   return 30;
 }
 
 size_t DramAnalyzer::get_ref_threshold() const {
-  return ref_threshold_low;
+  return ref_threshold;
 }
 
 int inline DramAnalyzer::measure_time(volatile char *a1, volatile char *a2) {
