@@ -47,23 +47,12 @@ int main(int argc, char **argv) {
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
 
-  // count the number of possible activations per refresh interval, if not given as program argument
-  size_t acts_per_ref;
-  if (program_args.acts_per_ref == 0) {
-      if (program_args.filepath_exp_cfg.empty()) {
-          acts_per_ref = dram_analyzer.count_acts_per_ref();
-      } else {
-          acts_per_ref = dram_analyzer.count_acts_per_ref(
-            ExperimentConfig(program_args.filepath_exp_cfg, program_args.exp_cfg_id));
-      }
-  }
-
   if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer fuzzyHammerer;
     fuzzyHammerer.n_sided_frequency_based_hammering(
         dram_analyzer,
         memory,
-        static_cast<int>(acts_per_ref),
+        static_cast<int>(program_args.acts_per_ref),
         program_args.runtime_limit,
         program_args.num_address_mappings_per_pattern,
         program_args.sweeping);
@@ -119,7 +108,7 @@ void handle_args(int argc, char **argv) {
       {"sweeping", {"-w", "--sweeping"}, "sweep the best pattern over a contig. memory area after fuzzing (default: absent)", 0},
 
       {"runtime-limit", {"-t", "--runtime-limit"}, "number of seconds to run the fuzzer before sweeping/terminating (default: 120)", 1},
-      {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: None)", 1},
+      {"acts-per-ref", {"-a", "--acts-per-ref"}, "number of activations in a tREF interval, i.e., 7.8us (default: random for each pattern)", 1},
       {"probes", {"-p", "--probes"}, "number of different DRAM locations to try each pattern on (default: NUM_BANKS/4)", 1},
 
       {"yaml-exp-cfg", {"-e", "--exp-cfg"}, "", 1},

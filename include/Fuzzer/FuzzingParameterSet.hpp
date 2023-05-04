@@ -22,6 +22,9 @@ class FuzzingParameterSet {
 
   int agg_inter_distance;
 
+  // if this is set to any non-negative value, a fixed ACTs/tREFI value will be used instead of a random one.
+  int fixed_acts_per_trefi = -1;
+
   // initialized with -1 to add check for undefined/default value
   int num_activations_per_tREFI = -1;
 
@@ -48,9 +51,7 @@ class FuzzingParameterSet {
   void set_distribution(Range<int> range_N_sided, std::unordered_map<int, int> probabilities);
 
  public:
-  FuzzingParameterSet() = default;
-
-  explicit FuzzingParameterSet(int measured_num_acts_per_ref);
+  FuzzingParameterSet();
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -106,7 +107,11 @@ class FuzzingParameterSet {
 
   static void print_dynamic_parameters2(int num_aggs_for_sync);
 
-  void set_num_activations_per_t_refi(int num_activations_per_t_refi);
+  // This method should only be used by ReplayingHammerer.
+  // Calling randomize_parameters() will override the value given here.
+  void set_acts_per_trefi(int acts_per_trefi);
+
+  void set_fixed_acts_per_trefi(int fixed_acts_per_trefi);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

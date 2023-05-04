@@ -1383,10 +1383,13 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
 void ReplayingHammerer::derive_FuzzingParameterSet_values(HammeringPattern &pattern, PatternAddressMapper &mapper) {
   CodeJitter &jitter = mapper.get_code_jitter();
 
+  params = FuzzingParameterSet {};
+
   // as we always choose the number of activations of a pattern in a way that it is a multiple of the number of
   // activations within a refresh interval, we can use these two values to reconstruct the num activations per tREFI
-  // that we assumed/measured (experimentally determined)
-  params = FuzzingParameterSet(static_cast<int>(pattern.total_activations/pattern.num_refresh_intervals));
+  // that was passed in / randomly generated
+  auto acts_per_trefi = (int)(pattern.total_activations / pattern.num_refresh_intervals);
+  params.set_acts_per_trefi(acts_per_trefi);
 
   params.set_total_acts_pattern(pattern.total_activations);
   params.set_hammering_total_num_activations(jitter.total_activations);

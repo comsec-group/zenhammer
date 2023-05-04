@@ -7,6 +7,9 @@
 void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
                                                       unsigned long runtime_limit, const size_t probes_per_pattern,
                                                       bool sweep_best_pattern) {
+  // FIXME: If these arguments are really not needed, we should just remove them.
+  (void)dramAnalyzer;
+  (void)acts;
 
   Logger::log_info(
       format_string("Starting frequency-based fuzzer run with time limit of %l minutes.", runtime_limit/60));
@@ -14,7 +17,11 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
   // make sure that this is empty (e.g., from previous call to this function)
   map_pattern_mappings_bitflips.clear();
 
-  FuzzingParameterSet fuzzing_params(acts);
+  FuzzingParameterSet fuzzing_params;
+  if (program_args.acts_per_ref) {
+    Logger::log_info(format_string("Setting ACTs/tREFI to %d as given as command line argument.", program_args.acts_per_ref));
+    fuzzing_params.set_fixed_acts_per_trefi((int)program_args.acts_per_ref);
+  }
   fuzzing_params.print_static_parameters();
 
 //  ReplayingHammerer replaying_hammerer(memory);
@@ -51,10 +58,6 @@ void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer
     Logger::log_timestamp();
     Logger::log_highlight(format_string("Generating hammering pattern #%lu.", cnt_generated_patterns));
 
-    // only recompute ACTs per REF once every 1k patterns and only if no fixed parameter was passed as program arg
-    if (cnt_generated_patterns > 0 && (cnt_generated_patterns % 200) == 0 && program_args.acts_per_ref == 0) {
-      program_args.acts_per_ref = dramAnalyzer.count_acts_per_ref();
-    }
     fuzzing_params.randomize_parameters(true);
 
     // generate a hammering pattern: this is like a general access pattern template without concrete addresses

@@ -10,12 +10,10 @@
 #include "Utilities/CustomRandom.hpp"
 #include <iostream>
 
-FuzzingParameterSet::FuzzingParameterSet(int measured_num_acts_per_ref) : /* NOLINT */
+FuzzingParameterSet::FuzzingParameterSet() : /* NOLINT */
     flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
     fencing_strategy(FENCING_STRATEGY::LATEST_POSSIBLE) {
       cr = CustomRandom();
-
-      set_num_activations_per_t_refi(measured_num_acts_per_ref);
 
       // call randomize_parameters once to initialize static values
       randomize_parameters(false);
@@ -26,10 +24,16 @@ void FuzzingParameterSet::print_static_parameters() const {
   Logger::log_data(format_string("agg_intra_distance: %d", agg_intra_distance));
   Logger::log_data(format_string("N_sided dist.: %s", get_dist_string().c_str()));
   Logger::log_data(format_string("hammering_total_num_activations: %d", hammering_total_num_activations));
+  if (fixed_acts_per_trefi > 0) {
+    Logger::log_data(format_string("acts_per_trefi: %d (fixed)", fixed_acts_per_trefi));
+  } else {
+    Logger::log_data("acts_per_trefi: (randomized for each pattern)");
+  }
 }
 
 void FuzzingParameterSet::print_semi_dynamic_parameters() const {
   Logger::log_info("Printing pattern-specific fuzzing parameters:");
+  Logger::log_data(format_string("acts_per_trefi: %d", num_activations_per_tREFI));
   Logger::log_data(format_string("num_aggressors: %d", num_aggressors));
   Logger::log_data(format_string("num_refresh_intervals: %d", num_refresh_intervals));
   Logger::log_data(format_string("total_acts_pattern: %zu", total_acts_pattern));
@@ -81,17 +85,24 @@ int FuzzingParameterSet::get_random_even_divisior(int n, int min_value) {
   return n;
 }
 
-void FuzzingParameterSet::set_num_activations_per_t_refi(int num_activations_per_t_refi) {
-  // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
-  this->num_activations_per_tREFI = (num_activations_per_t_refi>>1)<<1;
+void FuzzingParameterSet::set_acts_per_trefi(int acts_per_trefi) {
+  this->num_activations_per_tREFI = acts_per_trefi;
+  assert(this->num_activations_per_tREFI % 2 == 0);
+}
+
+void FuzzingParameterSet::set_fixed_acts_per_trefi(int fixed_acts_per_trefi) {
+  this->fixed_acts_per_trefi = fixed_acts_per_trefi;
 }
 
 void FuzzingParameterSet::randomize_parameters(bool print) {
-  if (num_activations_per_tREFI <= 0) {
-    Logger::log_error(
-        "Called FuzzingParameterSet::randomize_parameters without valid num_activations_per_tREFI.");
-    return;
+  // pick either the specified fixed ACTs/tREFI value, or randomly generate one.
+  if (fixed_acts_per_trefi > 0) {
+    num_activations_per_tREFI = fixed_acts_per_trefi;
+  } else {
+    num_activations_per_tREFI = Range<int>(20, 100).get_random_number(cr.gen);
   }
+  // make sure that the number of activations per tREFI is even: this is required for proper pattern generation
+  num_activations_per_tREFI -= (num_activations_per_tREFI % 2);
 
   if (print) Logger::log_info("Randomizing fuzzing parameters.");
 
