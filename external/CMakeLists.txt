@@ -50,7 +50,7 @@ if (BLACKSMITH_ENABLE_JITTING)
     FetchContent_Declare(
             asmjit
             GIT_REPOSITORY https://github.com/asmjit/asmjit.git
-            GIT_TAG 78de7d9c81a6ad1b0f732b52666960d9be1c6461
+            GIT_TAG 3577608cab0bc509f856ebf6e41b2f9d9f71acc4
     )
 
     FetchContent_MakeAvailable(asmjit)
