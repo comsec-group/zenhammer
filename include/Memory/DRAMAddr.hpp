@@ -47,8 +47,8 @@ struct MemConfiguration {
   size_t COL_MASK;
   // to simplify our setup, as we have a single superpage only, we cut-off the
   // higher bits of the FNs s.t. we stay within [start,start+HUGEPAGE_SZ]
-  size_t DRAM_MTX[29];
-  size_t ADDR_MTX[29];
+  size_t DRAM_MTX[30];
+  size_t ADDR_MTX[30];
 };
 
 class DRAMAddr {
