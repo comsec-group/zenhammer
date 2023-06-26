@@ -328,6 +328,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
   Logger::log_info("Aggressor ID to DRAM address mapping:");
   Logger::log_data(mapper.get_mapping_text_repr());
 
+  // SYNC ROWS: 32 rows in the same bank of a different bank group
   // take any of the pattern's aggressors
   auto any_aggressor_row = mapper.aggressor_to_addr[hammering_pattern.aggressors[0].id];
   // find other rows that belong to the same bank but another bankgroup
