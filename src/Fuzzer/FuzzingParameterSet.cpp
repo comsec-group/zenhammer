@@ -146,7 +146,7 @@ void FuzzingParameterSet::randomize_parameters(bool print) {
   set_distribution(N_sided, probabilities);
 
   // [CANNOT be derived from anywhere else - must explicitly be exported]
-  hammering_total_num_activations = 5'000'000;
+  hammering_total_num_activations = 10'000'000;
 
   // █████████ SEMI-DYNAMIC FUZZING PARAMETERS ████████████████████████████████████████████████████
   // are only randomized once when calling this function
