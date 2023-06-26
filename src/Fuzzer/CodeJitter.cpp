@@ -345,10 +345,11 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
   const int num_acts_per_trefi = fuzzing_parameters.get_num_activations_per_t_refi();
   const size_t NUM_AGG_PAIRS = aggressor_pairs.size();
   synchronization_stats sync_stats{.num_sync_acts = 0, .num_sync_rounds = 0};
-  std::vector<uint64_t> before_sync_tscs;
-  std::vector<uint64_t> after_sync_tscs;
-  before_sync_tscs.reserve(128 * 1024);
-  after_sync_tscs.reserve(128 * 1024);
+
+  // std::vector<uint64_t> before_sync_tscs;
+  // std::vector<uint64_t> after_sync_tscs;
+  // before_sync_tscs.reserve(128 * 1024);
+  // after_sync_tscs.reserve(128 * 1024);
 
   lfence();
   size_t agg_idx = 0;
@@ -357,32 +358,35 @@ void CodeJitter::hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters
   while (total_num_activations > 0) {
     if (agg_idx == 0) {
       // sync
-      before_sync_tscs.push_back(rdtscp());
-      lfence();
+      // struct timespec t;
+      // clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+      // before_sync_tscs.push_back(t.tv_sec * 1'000'000'000ULL + t.tv_nsec);
+      // lfence();
       sync_ref_unjitted(sync_rows, sync_stats, ref_threshold, sync_rounds_max);
-      after_sync_tscs.push_back(rdtscp());
+      // clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+      // after_sync_tscs.push_back(t.tv_sec * 1'000'000'000ULL + t.tv_nsec);
     }
     // hammer next "num_acts_per_trefi" aggressors
     const size_t absolute_end = (agg_idx + num_acts_per_trefi);
     for (; agg_idx < absolute_end; agg_idx += 2) {
       // FENCE: not needed according to scope data
-      sfence();
+      // sfence();
       // HAMMER + FLUSH
       *aggressor_pairs[agg_idx];
       clflushopt(aggressor_pairs[agg_idx]);
       *aggressor_pairs[agg_idx+1];
       clflushopt(aggressor_pairs[agg_idx+1]);
-      lfence();
+      // lfence();
     }
     agg_idx = (agg_idx % NUM_AGG_PAIRS);
     total_num_activations -= num_acts_per_trefi;
   }
 
-  for (size_t i = 1; i < before_sync_tscs.size(); i++) {
-    auto hammer = before_sync_tscs[i] - after_sync_tscs[i-1];
-    auto sync = after_sync_tscs[i] - before_sync_tscs[i];
-    Logger::log_data(format_string("HAMMER = %7zu | SYNC = %7zu", hammer, sync));
-  }
+  // for (size_t i = 1; i < before_sync_tscs.size(); i++) {
+  //   auto hammer = before_sync_tscs[i] - after_sync_tscs[i-1];
+  //   auto sync = after_sync_tscs[i] - before_sync_tscs[i];
+  //   Logger::log_data(format_string("HAMMER = %7zu | SYNC = %7zu | TOTAL = %7zu", hammer, sync, hammer + sync));
+  // }
 }
 #pragma GCC pop_options
 
