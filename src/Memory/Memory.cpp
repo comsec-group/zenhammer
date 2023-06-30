@@ -190,11 +190,15 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
     return found_bitflips;
   }
 
-  auto start_offset = (uint64_t) (start - start_address);
+  auto start_offset_noalign = (uint64_t) (start - start_address);
+  auto end_offset_noalign = (uint64_t) (end - start_address);
   const auto pagesize = static_cast<size_t>(getpagesize());
-  start_offset = (start_offset/pagesize)*pagesize; // page-align the start_offset
-  auto end_offset = start_offset + (uint64_t) (end - start);
-  end_offset = (end_offset/pagesize)*pagesize;
+
+  // Round down start_offset, and round up end_offset.
+  auto start_offset = (start_offset_noalign / pagesize) * pagesize;
+  auto end_offset = ((end_offset_noalign + pagesize - 1) / pagesize) * pagesize; // ceiling division
+  assert(start_offset <= start_offset_noalign);
+  assert(end_offset >= end_offset_noalign);
 
   // for each page (4K) in the address space [start, end]
   for (uint64_t page_idx = start_offset; page_idx < end_offset; page_idx += pagesize) {
