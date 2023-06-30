@@ -90,14 +90,16 @@ void Memory::check_memory_full() {
         if (start_shadow[j] != start_sp[j]) {
           auto addr = DRAMAddr((void*)&start_sp[j]).to_string_compact();
           Logger::log_error(format_string("Found bit flip in full memory scan at %p %s", &start_sp[j], addr.c_str()));
+          start_sp[j] = start_shadow[j];
+          clflushopt(&start_sp[j]);
           has_flip = true;
         }
       }
     }
   }
 
-  if (has_flip)
-      exit(EXIT_FAILURE);
+  // if (has_flip)
+  //     exit(EXIT_FAILURE);
 //#else
 //  assert(false && "Memory::check_memory_full should only be used for debugging purposes!");
 //#endif

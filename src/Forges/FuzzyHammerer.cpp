@@ -387,6 +387,7 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
 
     // check if any bit flips happened
     flipped_bits += memory.check_memory(mapper, false, true);
+    memory.check_memory_full();
 
     // now shift the mapping to another location
     mapper.shift_mapping(Range<int>(1,32).get_random_number(cr.gen), {});
