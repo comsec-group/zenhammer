@@ -80,15 +80,24 @@ void Memory::check_memory_full() {
 //#if (DEBUG==1)
   // this function should only be used for debugging purposes as checking the whole superpage is expensive!
   Logger::log_debug("check_memory_full should only be used for debugging purposes as checking the whole superpage is expensive!");
-  const auto pagesz = getpagesize();
+  const auto pagesz = (size_t)getpagesize();
+  bool has_flip = false;
   for (size_t i = 0; i < size; i += pagesz) {
     auto start_shadow = (volatile char *) ((uint64_t)shadow_page + i);
     auto start_sp = (volatile char *) ((uint64_t)start_address + i);
     if (memcmp((void*)start_shadow, (void*)start_sp, pagesz) != 0) {
-      Logger::log_success(format_string("found bit flip on page %d", i));
-      exit(EXIT_SUCCESS);
+      for (size_t j = 0; j < pagesz; j++) {
+        if (start_shadow[j] != start_sp[j]) {
+          auto addr = DRAMAddr((void*)&start_sp[j]).to_string_compact();
+          Logger::log_error(format_string("Found bit flip in full memory scan at %p %s", &start_sp[j], addr.c_str()));
+          has_flip = true;
+        }
+      }
     }
   }
+
+  if (has_flip)
+      exit(EXIT_FAILURE);
 //#else
 //  assert(false && "Memory::check_memory_full should only be used for debugging purposes!");
 //#endif
