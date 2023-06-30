@@ -209,10 +209,11 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
     if (memcmp((void*)addr_superpage, (void*)addr_shadowpage, pagesize) == 0)
       continue;
 
-    // iterate over blocks of 4 bytes (=sizeof(int))
+    // Iterate over blocks of 4 bytes (= sizeof(int)).
     for (uint64_t j = 0; j < (uint64_t) pagesize; j += sizeof(int)) {
-      uint64_t offset = page_idx + j;
-      volatile char *cur_addr = start_address + offset;
+      uint64_t offset_in_superpage = page_idx + j;
+      volatile char *cur_addr = start_address + offset_in_superpage;
+      volatile char *cur_shadow_addr = (volatile char*)shadow_page + offset_in_superpage;
 
       // if this address is outside the superpage we must not proceed to avoid segfault
       if ((uint64_t)cur_addr >= ((uint64_t)start_address+size))
@@ -223,7 +224,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
       mfence();
 
       // if the bit did not flip -> continue checking next block
-      int expected_rand_value = ((int*)shadow_page)[j/sizeof(int)];
+      int expected_rand_value = *(int*)cur_shadow_addr;
       if (*((int *) cur_addr) == expected_rand_value)
         continue;
 
