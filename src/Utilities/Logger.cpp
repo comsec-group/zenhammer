@@ -127,24 +127,24 @@ void Logger::log_timestamp() {
   log_info(ss.str());
 }
 
-void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
-                         unsigned char expected_value, unsigned long timestamp, bool newline) {
+void Logger::log_bitflip(const DRAMAddr& addr, unsigned char actual_value,
+                         unsigned char expected_value) {
+  auto* virt = addr.to_virt();
+  auto timestamp = format_timestamp(time(nullptr) - instance.timestamp_start);
   instance.logfile << FC_GREEN
-                   << "[!] Flip " << std::hex << (void *) flipped_address << ", "
-                   << std::dec << "row " << row_no << ", "
-                   << "page offset: " << (uint64_t)flipped_address%(uint64_t)getpagesize() << ", "
-                   << "byte offset: " << (uint64_t)flipped_address%(uint64_t)8 << ", "
+                   << "[!] Flip " << std::hex << virt << " "
+                   << addr.to_string_compact().c_str()
+                   << std::dec << ", row " << addr.get_row() << ", "
+                   << "page offset: " << (uint64_t)virt % getpagesize() << ", "
+                   << "byte offset: " << (uint64_t)virt % (uint64_t)8 << ", "
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
-                   << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
+                   << std::dec << "detected after " << timestamp << ".";
   instance.logfile << F_RESET;
-  if (newline) instance.logfile
 #if (DEBUG==1)
-  << std::endl;
+  instance.logfile << std::endl;
 #else
-  << "\n";
+  instance.logfile << "\n";
 #endif
-  Logger::log_info("Terminating process as this is a bit flip.");
-  exit(EXIT_SUCCESS);
 }
 
 void Logger::log_success(const std::string &message, bool newline) {

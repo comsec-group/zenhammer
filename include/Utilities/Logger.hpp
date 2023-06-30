@@ -6,6 +6,8 @@
 #include <memory>
 #include <experimental/source_location>
 
+#include "Memory/DRAMAddr.hpp"
+
 // font colors
 #define FC_RED "\033[0;31m"         // error
 #define FC_RED_BRIGHT "\033[0;91m"  // generic failure message
@@ -55,8 +57,7 @@ class Logger {
 
   static void log_data(const std::string &message, bool newline = true);
 
-  static void log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
-                          unsigned char expected_value, unsigned long timestamp, bool newline);
+  static void log_bitflip(const DRAMAddr& addr, unsigned char actual_value, unsigned char expected_value);
 
   static void log_debug(const std::string &message, bool newline = true,
                         std::experimental::source_location location = std::experimental::source_location::current());
