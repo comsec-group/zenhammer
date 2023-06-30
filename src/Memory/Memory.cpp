@@ -133,23 +133,9 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
 
   size_t sum_found_bitflips = 0;
   for (auto &vr : victim_rows) {
-    auto next_victim_row = vr.add(0, 0, 0, 0, 2, 0);
-    // printf("next_victim_row.to_virt() = %s\n", next_victim_row.to_string().c_str());
-    // printf("vr.to_virt() = %s\n", vr.to_string().c_str());
-    if ((uint64_t)next_victim_row.to_virt() < (uint64_t)vr.to_virt()) {
-      sum_found_bitflips += check_memory_internal(mapping, 
-        (volatile char*)vr.to_virt(), 
-        (volatile char*)((uint64_t)start_address+HUGEPAGE_SZ), 
-        reproducibility_mode, 
-        verbose);
-      sum_found_bitflips += check_memory_internal(mapping, 
-        (volatile char*)start_address, 
-        (volatile char*)next_victim_row.to_virt(), 
-        reproducibility_mode, 
-        verbose);
-    } else {
-      sum_found_bitflips += check_memory_internal(mapping, (volatile char*)vr.to_virt(), (volatile char*)next_victim_row.to_virt(), reproducibility_mode, verbose);
-    }
+    auto* start = (volatile char*)vr.to_virt();
+    auto* end = start + DRAMAddr::get_row_to_row_offset();
+    sum_found_bitflips += check_memory_internal(mapping, start, end, reproducibility_mode, verbose);
   }
   return sum_found_bitflips;
 }
@@ -244,8 +230,8 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           if (verbose) {
             Logger::log_bitflip(flipped_address,
                                 simple_addr_flipped.get_row(),
-                                expected_value,
                                 flipped_addr_value,
+                                expected_value,
                                 (size_t) time(nullptr),
                                 true);
           }

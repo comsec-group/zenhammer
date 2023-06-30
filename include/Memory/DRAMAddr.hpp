@@ -120,6 +120,11 @@ class DRAMAddr {
   size_t get_row() const;  
   size_t get_column() const;
 
+  static size_t get_row_to_row_offset() {
+    auto row_0_index = 29 - MemConfig.ROW_SHIFT;
+    return MemConfig.DRAM_MTX[row_0_index];
+  }
+
   void set_row(size_t row_no);
 
   void increment_all_common();
