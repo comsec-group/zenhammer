@@ -94,9 +94,9 @@ class DRAMAddr {
 
   [[nodiscard]] std::string to_string_compact() const;
 
-  void *to_virt();
+  void *to_virt() const;
 
-  void *to_phys();
+  void *to_phys() const;
 
   void add_inplace(size_t sc_increment,
                    size_t bg_increment,

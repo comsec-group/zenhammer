@@ -9,33 +9,28 @@
 #include <nlohmann/json.hpp>
 
 void to_json(nlohmann::json &j, const BitFlip &p) {
-//  std::stringstream addr;
-//  addr << "0x" << std::hex << (uint64_t)p.address.vaddr;
-//  j = nlohmann::json{{"dram_addr", p.address},
-//                     {"bitmask", p.bitmask},
-//                     {"data", p.corrupted_data},
-//                     {"observed_at", p.observation_time},
-//                     {"addr", addr.str()},
-//                     {"page_offset", (uint64_t)p.address.vaddr%getpagesize()}
-//  };
-  (void)j;
-  (void)p;
-  throw std::logic_error("function not yet implemented!");
+  auto* virt = p.address.to_virt();
+  std::stringstream addr;
+  addr << "0x" << std::hex << virt;
+  j = nlohmann::json{{"dram_addr", p.address},
+                     {"bitmask", p.bitmask},
+                     {"data", p.corrupted_data},
+                     {"observed_at", p.observation_time},
+                     {"addr", addr.str()},
+                     {"page_offset", (uint64_t)virt % getpagesize()}
+  };
 }
 
 void from_json(const nlohmann::json &j, BitFlip &p) {
-//  j.at("dram_addr").get_to(p.address);
-//  j.at("bitmask").get_to(p.bitmask);
-//  j.at("data").get_to(p.corrupted_data);
-//  // to preserve backward-compatibility
-//  if (j.contains("observed_at")) {
-//    j.at("observed_at").get_to(p.observation_time);
-//  } else {
-//    p.observation_time = 0;
-//  }
-  (void)j;
-  (void)p;
-  throw std::logic_error("function not yet implemented!");
+  j.at("dram_addr").get_to(p.address);
+  j.at("bitmask").get_to(p.bitmask);
+  j.at("data").get_to(p.corrupted_data);
+  // to preserve backward-compatibility
+  if (j.contains("observed_at")) {
+    j.at("observed_at").get_to(p.observation_time);
+  } else {
+    p.observation_time = 0;
+  }
 }
 
 #endif

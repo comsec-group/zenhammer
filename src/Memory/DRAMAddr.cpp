@@ -96,7 +96,7 @@ size_t DRAMAddr::get_column() const {
   return this->col % (MemConfig.COL_MASK+1);
 }
 
-void *DRAMAddr::to_virt() {
+void *DRAMAddr::to_virt() const {
   size_t l = (this->get_subchan() << MemConfig.SC_SHIFT)
     | (this->get_rank() << MemConfig.RK_SHIFT)
     | (this->get_bankgroup() << MemConfig.BG_SHIFT)
@@ -118,7 +118,7 @@ void *DRAMAddr::to_virt() {
   return (void *) virt;
 }
 
-void *DRAMAddr::to_phys() {
+void *DRAMAddr::to_phys() const {
   return (void*)pagemap::vaddr2paddr((uint64_t)this->to_virt());
 }
 
