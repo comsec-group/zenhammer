@@ -20,6 +20,7 @@ def get_args():
     parser.add_argument("--ba", help="bank address (BA) functions", nargs="+", type=hex_addr_func)
     parser.add_argument("--row", help="row (ROW) mask", type=hex_addr_func, required=True)
     parser.add_argument("--col", help="col (COL) mask", type=hex_addr_func, required=True)
+    parser.add_argument("--samsung", help="use Samsung row swizzling", action="store_true")
     return parser.parse_args()
 
 
@@ -83,6 +84,10 @@ if __name__ == "__main__":
             labels.append(f"row_b{row_idx}")
             row_idx += 1
     row_mask = (1 << (len(matrix) - row_shift)) - 1
+
+    if args.samsung:
+        for row_idx in [1, 2]:
+            matrix[row_shift + row_idx] ^= matrix[row_shift + 3]
 
     ba_shift = len(matrix)
     for i, func in enumerate(ba_funcs):
