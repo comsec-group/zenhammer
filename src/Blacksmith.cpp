@@ -42,7 +42,8 @@ int main(int argc, char **argv) {
   DRAMAddr::initialize((volatile char*)memory.get_starting_address(),
     program_args.num_ranks,
     program_args.num_bankgroups,
-    program_args.num_banks);
+    program_args.num_banks,
+    program_args.samsung_row_swizzling);
 
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
@@ -116,6 +117,7 @@ void handle_args(int argc, char **argv) {
 
       { "geometry", {"--geometry"},
         "a triple describing the DRAM geometry: #ranks, #bankgroups, #banks (e.g. '--geometry 2,8,4')", 1},
+      { "samsung", { "--samsung" }, "use Samsung row swizzling", 0 },
     }};
 
   argagg::parser_results parsed_args;
@@ -151,6 +153,7 @@ void handle_args(int argc, char **argv) {
     Logger::log_error("Program argument '--geometry <#ranks:integer>,<#bankgroups:integer>,<#banks:integer>' is mandatory! Cannot continue.");
     exit(EXIT_FAILURE);
   }
+  program_args.samsung_row_swizzling = parsed_args.has_option("samsung");
   if (parsed_args.has_option("yaml-exp-cfg") || parsed_args.has_option("yaml-exp-cfg-id")) {
     if (!parsed_args.has_option("yaml-exp-cfg") || !parsed_args.has_option("yaml-exp-cfg-id")) {
       Logger::log_error("Program argument '--exp-cfg <filename_yaml>' requires '--exp-cfg-id <int>' and vice versa.");

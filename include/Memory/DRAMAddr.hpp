@@ -29,6 +29,10 @@
 #define BANKS(x) ((x) << (4UL * 0UL))
 #define BANKS_INV(x) (((x) >> (4UL * 0UL)) && 0b11111)
 
+// Samsung row swizzling
+#define SAMSUNG(x) ((x) << (4UL * 5UL))
+#define SAMSUNG_INV(x) (((x) >> (4UL * 5UL)) & 0b1)
+
 typedef uint64_t mem_config_t;
 
 struct MemConfiguration {
@@ -76,7 +80,7 @@ class DRAMAddr {
   // must be DefaultConstructible for JSON (de-)serialization
   DRAMAddr();
 
-  static void initialize(volatile char *start_address, size_t num_ranks, size_t num_bankgroups, size_t num_banks);
+  static void initialize(volatile char *start_address, size_t num_ranks, size_t num_bankgroups, size_t num_banks, bool samsung_row_swizzling);
 
   static void set_base_msb(void *buff);
 

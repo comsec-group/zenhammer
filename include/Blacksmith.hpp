@@ -31,6 +31,7 @@ struct ProgramArguments {
   size_t num_ranks;
   size_t num_bankgroups;
   size_t num_banks;
+  bool samsung_row_swizzling = false;
 };
 
 extern ProgramArguments program_args;
