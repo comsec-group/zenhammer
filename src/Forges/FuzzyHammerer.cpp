@@ -328,8 +328,6 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
   // now fill the pattern with these random addresses
   std::vector<volatile char *> hammering_accesses_vec;
   mapper.export_pattern(hammering_pattern.aggressors, hammering_pattern.base_period, hammering_accesses_vec);
-  Logger::log_info("Aggressor ID to DRAM address mapping:");
-  Logger::log_data(mapper.get_mapping_text_repr());
 
   // SYNC ROWS: 32 rows in the same bank of a different bank group
   // take any of the pattern's aggressors
@@ -366,6 +364,9 @@ void FuzzyHammerer::probe_mapping_and_scan(PatternAddressMapper &mapper,
         cnt_pattern_probes,
         mapper.get_instance_id().c_str(),
         dram_location));
+    Logger::log_info("Aggressor ID to DRAM address mapping:");
+    Logger::log_data(mapper.get_mapping_text_repr());
+
 //    std::vector<volatile char *> random_rows;
 //    if (wait_until_hammering_us > 0) {
 //      random_rows = mapper.get_random_nonaccessed_rows(fuzzing_params.get_max_row_no());
