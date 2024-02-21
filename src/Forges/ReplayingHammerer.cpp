@@ -13,10 +13,12 @@
 #endif
 
 #define M(VAL) (VAL##000000)
+#define ENABLE_JSON
 
 // initialize static variable
 double ReplayingHammerer::last_reproducibility_score = 0;
 
+/*
 PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(HammeringPattern &patt,
                                                                           bool optimize_hammering_num_reps,
                                                                           bool offline_mode) {
@@ -97,6 +99,7 @@ PatternAddressMapper &ReplayingHammerer::determine_most_effective_mapping(Hammer
   return *best_mapping;
 }
 
+/*
 void ReplayingHammerer::replay_patterns(const std::string& json_filename,
                                         const std::unordered_set<std::string> &pattern_ids) {
   const auto start_ts = get_timestamp_sec();
@@ -259,328 +262,8 @@ void ReplayingHammerer::replay_patterns(const std::string& json_filename,
     if (processed_patterns >= REPEATABILITY_MAX_NUM_PATTERNS) break;
 
   }  //   for (auto &patt : loaded_patterns)
-#if 0
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // ::: BLIND SPOTS OF MITIGATION
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  Logger::log_analysis_stage("Determining blind spots of mitigation.");
-
-  // determine the best pattern's ID (only for that we are gonna do the sweep)
-  std::vector<std::pair<std::string, int>> pattern_bitflips_sorted(
-      pattern_id_to_bitflips.begin(), pattern_id_to_bitflips.end());
-  std::sort(
-      pattern_bitflips_sorted.begin(), pattern_bitflips_sorted.end(),
-      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
-//
-//  std::vector<std::pair<std::string, int>> pattern_length_sorted(
-//      pattern_id_to_length.begin(), pattern_id_to_length.end());
-//  std::sort(
-//      pattern_length_sorted.begin(), pattern_length_sorted.end(),
-//      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
-
-//  std::vector<std::pair<std::string, long>> ranks;
-//  long rank_bitflips = 1;
-//  for (const auto &[id, bitflips] : pattern_bitflips_sorted) {
-//    auto length = std::find(pattern_length_sorted.begin(), pattern_length_sorted.end(), id);
-//    auto rank_length = std::distance(pattern_length_sorted.begin(), length);
-//    ranks.emplace_back(id, rank_length + rank_bitflips);
-//    rank_bitflips++;
-//  }
-
-//  std::vector<std::pair<std::string, int>> ranks_sorted(
-//      ranks.begin(), ranks.end());
-//  std::sort(
-//      ranks.begin(), ranks.end(),
-//      [](const auto& a, const auto& b) -> bool { return a.second > b.second; });
-
-
-
-  // Iterate over 5 best patterns.
-  std::map<size_t, size_t> offset_flips_map;
-
-  for (int i = 0; i < 1; ++i) {
-    auto pattern_id = pattern_bitflips_sorted[i].first;
-    auto pattern = *std::find_if(loaded_patterns.begin(), loaded_patterns.end(),
-                                 [&pattern_id](HammeringPattern& hp) {
-                                   return hp.instance_id == pattern_id;
-                                 });
-    auto mapping = pattern.get_most_effective_mapping();
-
-    derive_FuzzingParameterSet_values(pattern, mapping);
-
-
-    Logger::log_info(format_string(
-        "Determining blind spots for pattern %s/%s (%lu flips).",
-        pattern.instance_id.c_str(), mapping.get_instance_id().c_str(),
-        pattern_bitflips_sorted[i].second));
-
-    // Determine which aggressors caused flips.
-//    std::unordered_set<AggressorAccessPattern> effective_aggressors;
-//    find_direct_effective_aggs(pattern, mapping, effective_aggressors);
-
-    //
-    std::stringstream ss;
-
-    std::vector<volatile char*> random_rows =
-        mapping.get_random_nonaccessed_rows(params.get_max_row_no());
-    std::vector<volatile char*> exported_pattern;
-    mapping.export_pattern(pattern.aggressors, params.get_base_period(),
-                           exported_pattern);
-
-    auto offset = 0; //effective_aggressors.begin()->start_offset;
-    for (auto k = pattern.total_activations; k > 0; k--) {
-
-      // shift offset by one
-      std::rotate(exported_pattern.rbegin(), exported_pattern.rbegin() + 1,
-                  exported_pattern.rend());
-
-      // wait a bit and do some random accesses meanwhile to clear the sampler's
-      // state
-      FuzzyHammerer::do_random_accesses(random_rows, 64000);
-
-      // hammer pattern
-      CodeJitter& jitter = mapping.get_code_jitter();
-      auto num_bitflips = hammer_pattern(
-          params, jitter, pattern, mapping, jitter.flushing_strategy,
-          jitter.fencing_strategy, DETERMINISM_HAMMER_REPS,
-          jitter.num_aggs_for_sync, jitter.total_activations, false,
-          jitter.pattern_sync_each_ref, false, false, false, false, false,
-          exported_pattern);
-
-      ss << std::setfill('0') << std::setw(2) << offset << ": " << num_bitflips
-         << "\n";
-      if (offset_flips_map.count(offset)) {
-        // Offset already exists.
-        offset_flips_map[offset] += num_bitflips;
-      } else {
-        offset_flips_map[offset] = num_bitflips;
-      }
-
-      // update offset
-      offset = (offset + 1) % params.get_total_acts_pattern();
-
-      Logger::log_info(format_string("Pattern %d, offset %d/%d, bitflips %d", i, params.get_total_acts_pattern()-k, params.get_total_acts_pattern(), num_bitflips));
-    }
-
-    Logger::log_info("Reporting 'offset: bitflips':");
-    Logger::log_data(ss.str());
-  }
-
-  Logger::log_info("done.");
-
-#if 0
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // ::: LOCATION DEPENDENCE + SAMPLER SIZE
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  Logger::log_analysis_stage("Experiment for location dependence and sampler size.");
-
-  // to store info about location dependence
-  std::vector<bool> no_loc;
-
-  // copy original address mapping
-  PatternAddressMapper original_mapping = best_pattern_mapping;
-
-  // choose random DRAM address -> this is our 'golden aggressor'
-  std::set<size_t> rows;
-  for(const auto& [agg_id, dram_addr] : best_pattern_mapping.aggressor_to_addr)
-    for (size_t i = -3; i < 3; ++i)
-      rows.insert(dram_addr.row+i);
-  size_t selected_row;
-  do {
-    selected_row = Range<size_t>(0, params.get_max_row_no()).get_random_number(gen);
-  } while (rows.count(selected_row) > 0);
-  auto golden_agg = DRAMAddr(best_pattern_mapping.aggressor_to_addr.begin()->second.bank, selected_row, 0);
-
-  // [STAGE 1] we want to find out which of the aggressor access patterns are location-dependent
-  for (const auto &aap : best_pattern.agg_access_patterns) {
-
-    // map aggressors of access pattern to the golden aggressor
-    for (const auto &agg : aap.aggressors) {
-      best_pattern_mapping.aggressor_to_addr[agg.id] = golden_agg;
-    }
-
-    // hammer the pattern
-    CodeJitter &jitter = best_pattern_mapping.get_code_jitter();
-    auto num_bitflips = hammer_pattern(params,
-        jitter,
-        best_pattern,
-        best_pattern_mapping,
-        jitter.flushing_strategy,
-        jitter.fencing_strategy,
-        LOCDEPENDENCE_HAMMER_REPS,
-        jitter.num_aggs_for_sync,
-        jitter.total_activations,
-        true,
-        jitter.pattern_sync_each_ref,
-        false,
-        false,
-        false,
-        false,
-        true);
-
-    Logger::log_info(format_string("Remapped agg access pattern %s => %d bit flips", aap.to_string().c_str(), num_bitflips));
-
-    // collect stat: if it resulted in any bit flips -> no location dependence, else -> location dependence
-    no_loc.push_back(num_bitflips > 0);
-
-    // revert original mapping
-    best_pattern_mapping = original_mapping;
-  }
-
-  // [STAGE 2] we want to figure out how large the sampler size is
-  // strategy: remap no_loc aggressor pairs one-by-one (without restoring) until we see no bit flips anymore
-   size_t num_remapped_aggs = 0;
-  for (size_t i = 0; i < best_pattern.agg_access_patterns.size(); i++) {
-    if (!no_loc.at(i)) {
-      Logger::log_info("Skipping...");
-      continue;
-    }
-
-    //remap aggressors to golden aap but remember their original target
-    std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> original_mappings;
-    for (const auto &agg : best_pattern.agg_access_patterns.at(i).aggressors) {
-      original_mappings[agg.id] = best_pattern_mapping.aggressor_to_addr[agg.id];
-      best_pattern_mapping.aggressor_to_addr[agg.id] = golden_agg;
-    }
-
-    // hammer
-    CodeJitter &jitter = best_pattern_mapping.get_code_jitter();
-    auto num_bitflips = hammer_pattern(params,
-        jitter,
-        best_pattern,
-        best_pattern_mapping,
-        jitter.flushing_strategy,
-        jitter.fencing_strategy,
-        LOCDEPENDENCE_HAMMER_REPS,
-        jitter.num_aggs_for_sync,
-        jitter.total_activations,
-        true,
-        jitter.pattern_sync_each_ref,
-        false,
-        false,
-        false,
-        false,
-        true);
-
-    Logger::log_info(format_string("After remapping %s, pattern triggered %d bit flips", best_pattern.agg_access_patterns.at(i).to_string().c_str(), num_bitflips));
-
-    if (num_bitflips == 0) {
-      // if we don't observe bit flips anymore: revert remapping and continue,
-      for (const auto &agg : best_pattern.agg_access_patterns.at(i).aggressors)
-        best_pattern_mapping.aggressor_to_addr[agg.id] = original_mappings[agg.id];
-    } else {
-      // otherwise: increment num_remapped_aggs and continue
-      num_remapped_aggs += original_mappings.size();
-    }
-  }
-
-  // collect stat: sampler size
-  Logger::log_info(format_string("best_pattern_mapping.aggressor_to_addr.size() = %ld", best_pattern_mapping.aggressor_to_addr.size()));
-  Logger::log_info(format_string("num_remapped_aggs = %ld", num_remapped_aggs));
-
-  size_t sampler_size = best_pattern_mapping.aggressor_to_addr.size() - num_remapped_aggs;
-
-  Logger::log_info(format_string("Detected sampler size: %d aggressors", sampler_size));
-
-#endif
-
-  // augment loaded fuzz summary by
-  //  - repeatability_data  (struct as child of address mapping?)
-  //  - location dependence data (see pattern: is_location_dependent)
-  //  - estimated sampler size ("mitigation" or "experiment" on same level as
-  //  "metadata"?) and then write it back to file
-
-  // open the JSON file
-  std::ifstream ifs(json_filename);
-  if (!ifs.is_open()) {
-    Logger::log_error(format_string("Could not open given file (%s).",
-                                    json_filename.c_str()));
-    exit(EXIT_FAILURE);
-  }
-  // parse the JSON file and extract HammeringPatterns matching any of the given
-  // IDs
-#ifdef ENABLE_JSON
-  nlohmann::json json_file = nlohmann::json::parse(ifs);
-
-#if 0
-  for (auto& pattern : json_file["hammering_patterns"]) {
-    for (auto& mapping : pattern["address_mappings"]) {
-      // repeatability data
-      if (repeatability_data.count(mapping["id"]) > 0) {
-        auto repdata = repeatability_data.find(mapping["id"]);
-        mapping["repeatability"]["total_rounds"] = repdata->second.total_rounds;
-        mapping["repeatability"]["rounds_with_bitflips"] =
-            repdata->second.rounds_with_bitflips;
-        mapping["repeatability"]["bitflips_per_round"] =
-            repdata->second.bitflips_per_round;
-      }
-
-      // location dependence data
-      if (mapping["id"] == best_pattern_mapping.get_instance_id()) {
-        size_t num_no_loc = 0;
-        for (const auto &e : no_loc) num_no_loc += static_cast<int>(e);
-        size_t num_loc = no_loc.size()-num_no_loc;
-        mapping["location_dependence"]["num_no_loc"] = num_no_loc;
-        mapping["location_dependence"]["num_loc"] =  num_loc;
-        mapping["location_dependence"]["location_dependent"] = (num_loc > num_no_loc);
-      }
-    }
-  }
-
-  // sampler size
-  json_file["experiments"]["sampler_size"] = sampler_size;
-#endif
-  json_file["experiments"]["offset_intensity"] = offset_flips_map;
-
-  // write JSON file back to disk
-  std::ofstream stream("fuzz-summary-extended.json");
-  stream << json_file << std::endl;
-  stream.close();
-#endif
-
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // ::: SWEEP OVER 1x256 MiB of contiguous memory
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-  // do sweep over 1x256 MiB of data and write summary into file
-//  Logger::log_analysis_stage(format_string("Doing sweep over 1x%d MiB of data.", SWEEP_MEM_SIZE/1024/1024));
-//  replay_patterns_brief({best_pattern}, SWEEP_MEM_SIZE, 1, true);
-
-//    // ==== Experiment: Does alignment with REF play a role?
-//
-//    Logger::log_analysis_stage("Running REF alignment experiment.");
-//    run_refresh_alignment_experiment(mapper);
-//
-//    // ==== Execution probing: systematically randomize parameters that decide how a pattern is jitted/executed
-//
-//    Logger::log_analysis_stage("CODE JITTING PARAMS PROBING");
-//    run_code_jitting_probing(mapper);
-//
-//    // ==== Spatial probing: sweep pattern over a contiguous chunk of memory
-//
-//    Logger::log_analysis_stage("SPATIAL PROBING");
-//    sweep_pattern(patt, mapper, hammering_num_reps, MB(256));
-//
-//    // ==== Temporal probing: check which AggressorAccessPattern(s) are involved in triggering that bit flip
-//
-//    // first, check which is the most obvious AggressorAccessPattern that triggered the bit flip by measuring the row
-//    // distance from the flipped row to all AggressorAccessPatterns
-//    Logger::log_analysis_stage("TEMPORAL/SPATIAL RELATIONSHIP PROBING");
-//    Logger::log_info("Determining AggressorAccessPattern that most probably triggered bit flip.");
-//    std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
-//    find_direct_effective_aggs(mapper, direct_effective_aggs);
-//
-//    std::unordered_set<AggressorAccessPattern> indirect_effective_aggs;
-//    find_indirect_effective_aggs(mapper, direct_effective_aggs, indirect_effective_aggs);
-//
-//    // ==== Pattern-specific params probing: check if tweaking the AggressorAccessPattern(s) causing the bit flip(s) can
-//    // increase the pattern's effectiveness
-//
-//    run_pattern_params_probing(mapper, direct_effective_aggs, indirect_effective_aggs);
-//  }
-
-#endif
 }
+*/
 
 size_t ReplayingHammerer::replay_patterns_brief(const std::string& json_filename,
                                                 const std::unordered_set<std::string> &pattern_ids, size_t sweep_bytes,
@@ -607,9 +290,10 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
     hammering_num_reps = 10;
 
     // check the HammeringPattern's data for the most effective pattern instead of rerunning
-    PatternAddressMapper &mapper = (running_on_original_dimm)
-        ? pattern.get_most_effective_mapping()
-        : determine_most_effective_mapping(pattern, false, false);
+    // PatternAddressMapper &mapper = (running_on_original_dimmu)
+    //     ? pattern.get_most_effective_mapping()
+    //     : determine_most_effective_mapping(pattern, false, false);
+    PatternAddressMapper &mapper = pattern.address_mappings.front();
 
     Logger::log_highlight(
         format_string("Sweeping pattern %s (%d/%d) using mapping %s",
@@ -622,9 +306,9 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
     derive_FuzzingParameterSet_values(pattern, mapper);
 
     std::unordered_set<AggressorAccessPattern> direct_effective_aggs;
-    if (pattern.is_location_dependent) {
-      find_direct_effective_aggs(pattern, mapper, direct_effective_aggs);
-    }
+    // if (pattern.is_location_dependent) {
+    //   find_direct_effective_aggs(pattern, mapper, direct_effective_aggs);
+    // }
 
     for (size_t i = 0; i < num_locations; ++i) {
       // do the sweep
@@ -663,7 +347,7 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
   meta["start"] = std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch()).count();
   meta["end"] = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch()).count();
   meta["num_patterns"] = hammering_patterns.size();
-  meta["memory_config"] = DRAMAddr::get_memcfg_json();
+  // meta["memory_config"] = DRAMAddr::get_memcfg_json();
   meta["dimm_id"] = program_args.dimm_id;
 
   nlohmann::json root;
@@ -704,23 +388,27 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
 
   // if pattern_ids == nullptr: user did not provide --replay_patterns program arg
   if (pattern_ids.empty()) {
+    printf("pattern_ids is empty!\n");
     // look for the best pattern (w.r.t. number of bit flips) instead
     for (auto const &json_hammering_patt : patterns_array) {
       HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
+      printf("iterating over pattern %s\n", pattern.instance_id.c_str());
+
+      // store the mapping: mapping ID -> hammering pattern, for each mapping of the best pattern
+      for (const auto &mp : pattern.address_mappings) {
+        printf("storing mapping %s\n", mp.get_instance_id().c_str());
+        map_mapping_id_to_pattern[mp.get_instance_id()] = best_pattern;
+      }
+
       // we load all patterns; as the JSON contains only the patterns that triggered bit flips, they all are effective
       // because HammeringPattern does not implement a copy constructor, we use the move operator here
       patterns.push_back(std::move(pattern));
-      // attention: from here on the pattern does not exist anymore as it is moved
-    }
-    // store the mapping: mapping ID -> hammering pattern, for each mapping of the best pattern
-    for (const auto &mp : best_pattern.address_mappings) {
-      map_mapping_id_to_pattern[mp.get_instance_id()] = best_pattern;
     }
   } else {
     // find the patterns that have the provided IDs
     for (auto const &json_hammering_patt : patterns_array) {
-      HammeringPattern pattern;
+      HammeringPattern pattern(gen);
       from_json(json_hammering_patt, pattern);
       // after parsing, check if this pattern's ID matches one of the IDs given to '-replay_patterns'
       // Note: Due to a bug in the implementation, old raw_data.json files may contain multiple HammeringPatterns with the
@@ -744,6 +432,7 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
   return patterns;
 }
 
+/*
 size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
                                          CodeJitter &code_jitter,
                                          HammeringPattern &pattern,
@@ -781,7 +470,9 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
                         check_flips_after_each_rep,
                         hammering_accesses_vec);
 }
+*/
 
+/*
 size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
                                          CodeJitter &code_jitter,
                                          HammeringPattern &pattern,
@@ -851,6 +542,7 @@ size_t ReplayingHammerer::hammer_pattern(FuzzingParameterSet &fuzz_params,
 
   return total_bitflips_all_reps;
 }
+*/
 
 struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
                                                      size_t num_reps, size_t size_bytes) {
@@ -858,8 +550,11 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
 }
 
 struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, PatternAddressMapper &mapper,
-                                                     size_t num_reps, size_t size_bytes,
+                                                     size_t num_reps, size_t num_rows,
                                                      const std::unordered_set<AggressorAccessPattern> &effective_aggs) {
+  // find address sets that create bank conflicts
+  DramAnalyzer dramAnalyzer(mem.get_starting_address());
+
   // sweep_pattern modifies the original mapping, thus we create a copy and restore it again before returning from func
   PatternAddressMapper original_mapping = mapper;
 
@@ -867,18 +562,15 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
   // compute the bound of the mem area we want to check using this pattern
   auto &jitter = mapper.get_code_jitter();
 
-  auto row_start = DRAMAddr((void *) mem.get_starting_address()).row;
-  auto max_address = (__uint64_t) mem.get_starting_address() + size_bytes;
-  auto row_end = DRAMAddr((void *) max_address).row;
-  auto num_rows = row_end - row_start;
-  Logger::log_info(format_string("Sweeping pattern %s with mapping %s over %d MB, equiv. to %d rows, with each %d repetitions.",
-      pattern.instance_id.c_str(), mapper.get_instance_id().c_str(), size_bytes/1024/1024, num_rows, num_reps));
+  Logger::log_info(format_string("Sweeping pattern %s with mapping %s over 2 MiB, equiv. to %d rows, with each %d repetitions.",
+      pattern.instance_id.c_str(), mapper.get_instance_id().c_str(), num_rows, num_reps));
 
   auto init_ss = [](std::stringstream &stringstream) {
     stringstream.str("");
     stringstream.clear();
     stringstream << std::setfill(' ') << std::left;
   };
+
   std::stringstream ss;
   init_ss(ss);
   ss << std::setw(10) << "Offset" << std::setw(12) << "Min. Row"
@@ -893,22 +585,29 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
     // modify assignment of agg ID to DRAM address by shifting rows of all aggressors by 1
     mapper.shift_mapping(1, effective_aggs);
 
-    // call hammer_pattern
-    auto num_flips = hammer_pattern(params,
-                                    jitter,
-                                    pattern,
-                                    mapper,
-                                    jitter.flushing_strategy,
-                                    jitter.fencing_strategy,
-                                    num_reps,
-                                    jitter.num_aggs_for_sync,
-                                    jitter.total_activations,
-                                    true,
-                                    jitter.pattern_sync_each_ref,
-                                    false,
-                                    false,
-                                    false,
-                                    true);
+    // determine victim rows
+    mapper.determine_victims(pattern.agg_access_patterns);
+
+    std::vector<volatile char*> hammering_accesses_vec;
+    mapper.export_pattern(pattern.aggressors, pattern.base_period, hammering_accesses_vec);
+
+    // SYNC ROWS: 32 rows in the same bank of a different bank group
+    printf("sweeping pattern %s over row %d\n", pattern.instance_id.c_str(), r);
+    auto any_aggressor_row = DRAMAddr((void*)hammering_accesses_vec.at(0));
+    std::vector<volatile char*> sync_rows;
+    auto mr = mapper.max_row;
+    auto da = DRAMAddr(any_aggressor_row);
+    da.add_inplace(0, 1, 0, 0, 0);
+    da.set_row(mr);
+    for (size_t i = 1; i <= 32; ++i) {
+      da.add_inplace(0, 0, 0, i, 0);
+      sync_rows.push_back((volatile char*)da.to_virt());
+    }
+
+    jitter.hammer_pattern_unjitted(params, false, FLUSHING_STRATEGY::BATCHED, FENCING_STRATEGY::LATEST_POSSIBLE,
+      jitter.total_activations, hammering_accesses_vec, sync_rows, dramAnalyzer.get_ref_threshold());
+    auto num_flips = mem.check_memory(mapper, false, false);
+
     // note the use of early_stopping in hammer_pattern: we repeat hammering at maximum hammering_num_reps times but do stop
     // after observing any bit flip - this is the number that we report
     total_bit_flips_sweeping += num_flips;
@@ -950,6 +649,7 @@ ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
   gen = std::mt19937(rd());
 }
 
+/*
 [[maybe_unused]] void ReplayingHammerer::run_refresh_alignment_experiment(PatternAddressMapper &mapper) {
   auto &cj = mapper.get_code_jitter();
   auto &patt = map_mapping_id_to_pattern.at(mapper.get_instance_id());
@@ -990,7 +690,9 @@ ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
                                  true);
   Logger::log_data(format_string("total bit flips = %d", num_bit_flips));
 }
+*/
 
+/*
 [[maybe_unused]] void ReplayingHammerer::run_code_jitting_probing(PatternAddressMapper &mapper) {
   auto &cj = mapper.get_code_jitter();
   auto &patt = map_mapping_id_to_pattern.at(mapper.get_instance_id());
@@ -1064,7 +766,9 @@ ReplayingHammerer::ReplayingHammerer(Memory &mem) : mem(mem) { /* NOLINT */
     Logger::log_info(format_string("total_num_acts_hammering = %-12d => %d bit flips", a, num_bit_flips));
   }
 }
+*/
 
+/*
 void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
                                                    PatternAddressMapper &mapper,
                                                    std::unordered_set<AggressorAccessPattern> &direct_effective_aggs) {
@@ -1132,7 +836,9 @@ void ReplayingHammerer::find_direct_effective_aggs(HammeringPattern &pattern,
     direct_effective_aggs.insert(fr.second.second);
   }
 }
+*/
 
+/*
 void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
                                                    std::unordered_set<AggressorAccessPattern> &direct_effective_aggs) {
   if (map_mapping_id_to_pattern.count(mapper.get_instance_id()) > 0) {
@@ -1142,7 +848,9 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
   auto &pattern = map_mapping_id_to_pattern.at(mapper.get_instance_id());
   find_direct_effective_aggs(pattern, mapper, direct_effective_aggs);
 }
+*/
 
+/*
 [[maybe_unused]] void ReplayingHammerer::find_indirect_effective_aggs(PatternAddressMapper &mapper,
                                                      const std::unordered_set<AggressorAccessPattern> &direct_effective_aaps,
                                                      std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs) {
@@ -1209,7 +917,9 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
   Logger::log_info("Mapping after randomizing all non-effective aggressor pairs:");
   Logger::log_data(mapper.get_mapping_text_repr());
 }
+*/
 
+/*
 [[maybe_unused]] void ReplayingHammerer::run_pattern_params_probing(PatternAddressMapper &mapper,
                                                    const std::unordered_set<AggressorAccessPattern> &direct_effective_aggs,
                                                    std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs) {
@@ -1379,11 +1089,12 @@ void ReplayingHammerer::find_direct_effective_aggs(PatternAddressMapper &mapper,
     Logger::log_info("Threshold for number of analysis runs reached, continuing with next AggressorAccessPattern.");
   }
 }
+*/
 
 void ReplayingHammerer::derive_FuzzingParameterSet_values(HammeringPattern &pattern, PatternAddressMapper &mapper) {
   CodeJitter &jitter = mapper.get_code_jitter();
 
-  params = FuzzingParameterSet {};
+  params = FuzzingParameterSet();
 
   // as we always choose the number of activations of a pattern in a way that it is a multiple of the number of
   // activations within a refresh interval, we can use these two values to reconstruct the num activations per tREFI
@@ -1398,7 +1109,7 @@ void ReplayingHammerer::derive_FuzzingParameterSet_values(HammeringPattern &patt
 
   int agg_intra_dist, agg_inter_dist;
   bool use_seq_addrs = false;
-  mapper.compute_mapping_stats(pattern.agg_access_patterns, agg_intra_dist, agg_inter_dist, use_seq_addrs);
+  // mapper.compute_mapping_stats(pattern.agg_access_patterns, agg_intra_dist, agg_inter_dist, use_seq_addrs);
 
   params.set_use_sequential_aggressors(Range<int>(use_seq_addrs, use_seq_addrs));
   params.set_agg_inter_distance(agg_inter_dist);
@@ -1417,3 +1128,4 @@ void ReplayingHammerer::derive_FuzzingParameterSet_values(HammeringPattern &patt
 void ReplayingHammerer::set_params(const FuzzingParameterSet &fuzzParams) {
   ReplayingHammerer::params = fuzzParams;
 }
+

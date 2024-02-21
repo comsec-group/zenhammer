@@ -1,12 +1,15 @@
 #include "Blacksmith.hpp"
 
 #include <sys/resource.h>
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
 
 #include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
-#include "Memory/DRAMAddr.hpp"
-#include "sys/stat.h"
-#include "Utilities/ExperimentConfig.hpp"
 
 #include <argagg/argagg.hpp>
 #include <argagg/convert/csv.hpp>
@@ -48,7 +51,12 @@ int main(int argc, char **argv) {
   // find address sets that create bank conflicts
   DramAnalyzer dram_analyzer(memory.get_starting_address());
 
-  if (program_args.do_fuzzing && program_args.use_synchronization) {
+  if (!program_args.load_json_filename.empty()) {
+    ReplayingHammerer replayer(memory);
+    if (program_args.sweeping) {
+      replayer.replay_patterns_brief(program_args.load_json_filename, program_args.pattern_ids, 2048ULL, true);
+    }
+  } else if (program_args.do_fuzzing && program_args.use_synchronization) {
     FuzzyHammerer fuzzyHammerer;
     fuzzyHammerer.n_sided_frequency_based_hammering(
         dram_analyzer,

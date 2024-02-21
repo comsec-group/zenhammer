@@ -81,7 +81,7 @@ add_library(
         include/GlobalDefines.hpp
         src/Utilities/Helper.cpp
         src/Forges/FuzzyHammerer.cpp
-#        src/Forges/ReplayingHammerer.cpp
+       src/Forges/ReplayingHammerer.cpp
 #        src/Forges/TraditionalHammerer.cpp
         src/Fuzzer/Aggressor.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
@@ -123,6 +123,7 @@ target_compile_options(
         -Wextra
         -Wno-unused-function
         -Wno-format-security
+        # -g3
 )
 
 target_link_libraries(
@@ -144,6 +145,7 @@ if (BLACKSMITH_ENABLE_JSON)
             bs
             PUBLIC
             ENABLE_JSON
+            FULL_SWEEP_ROWS=${FULL_SWEEP_ROWS}
     )
 endif ()
 

@@ -30,4 +30,8 @@ uint64_t static inline GB(uint64_t value) { return ((value) << 30ULL); }
 #define NUM_BANKS_PER_BG (4)
 #define NUM_BANKS (NUM_BANKGROUPS*NUM_BANKS_PER_BG)
 
+#ifndef FULL_SWEEP_ROWS
+#define FULL_SWEEP_ROWS 1024
+#endif
+
 #endif /* GLOBAL_DEFINES */
