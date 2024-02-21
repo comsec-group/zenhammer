@@ -268,7 +268,7 @@ void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
   }
 
   j = nlohmann::json{{"id", p.get_instance_id()},
-//                     {"aggressor_to_addr", p.aggressor_to_addr},
+                    {"aggressor_to_addr", p.aggressor_to_addr},
                      {"bit_flips", p.bit_flips},
                      {"min_row", p.min_row},
                      {"max_row", p.max_row},
@@ -279,7 +279,7 @@ void to_json(nlohmann::json &j, const PatternAddressMapper &p) {
 
 void from_json(const nlohmann::json &j, PatternAddressMapper &p) {
   j.at("id").get_to(p.get_instance_id());
-//  j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
+ j.at("aggressor_to_addr").get_to(p.aggressor_to_addr);
   j.at("bit_flips").get_to(p.bit_flips);
   j.at("min_row").get_to(p.min_row);
   j.at("max_row").get_to(p.max_row);
@@ -369,6 +369,11 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
                                                  int &agg_intra_distance, int &agg_inter_distance,
                                                  bool uses_seq_addresses) {
   Logger::log_info("Deriving mapping parameters from AggressorAccessPatterns.");
+
+  if (agg_access_patterns.size() == 0) {
+    Logger::log_highlight("Cannot derive mapping params from AggressorAccessPatterns as cannot be found!");
+    return;
+  }
 
   // find first AggressorAccessPattern with more than one aggressor, then compute distance in-between aggressors
   agg_intra_distance = 0;
