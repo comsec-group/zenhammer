@@ -276,6 +276,7 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
                                                 size_t sweep_bytes,
                                                 size_t num_locations,
                                                 bool running_on_original_dimm = false) {
+
 #ifdef ENABLE_JSON
   nlohmann::json runs;
   auto start = std::chrono::system_clock::now();
@@ -408,8 +409,9 @@ std::vector<HammeringPattern> ReplayingHammerer::load_patterns_from_json(const s
   } else {
     // find the patterns that have the provided IDs
     for (auto const &json_hammering_patt : patterns_array) {
-      HammeringPattern pattern(gen);
+      HammeringPattern pattern;
       from_json(json_hammering_patt, pattern);
+      printf("Parsed pattern %s\n", pattern.instance_id.c_str());
       // after parsing, check if this pattern's ID matches one of the IDs given to '-replay_patterns'
       // Note: Due to a bug in the implementation, old raw_data.json files may contain multiple HammeringPatterns with the
       // same ID and the exact same pattern but a different mapping. In this case, we load ALL such patterns.
