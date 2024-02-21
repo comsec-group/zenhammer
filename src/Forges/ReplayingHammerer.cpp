@@ -313,7 +313,7 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
 
     for (size_t i = 0; i < num_locations; ++i) {
       // do the sweep
-      struct SweepSummary summary = sweep_pattern(pattern, mapper, 10, sweep_bytes, direct_effective_aggs);
+      struct SweepSummary summary = sweep_pattern(pattern, mapper, 1, sweep_bytes, direct_effective_aggs);
       bitflips_count += summary.observed_bitflips.size();
 
       // save the data about the sweep
