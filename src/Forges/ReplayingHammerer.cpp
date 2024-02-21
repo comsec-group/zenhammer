@@ -313,6 +313,7 @@ size_t ReplayingHammerer::replay_patterns_brief(std::vector<HammeringPattern> ha
 
     for (size_t i = 0; i < num_locations; ++i) {
       // do the sweep
+      // struct SweepSummary summary = sweep_pattern(pattern, mapper, 1, sweep_bytes, direct_effective_aggs);
       struct SweepSummary summary = sweep_pattern(pattern, mapper, 1, sweep_bytes, direct_effective_aggs);
       bitflips_count += summary.observed_bitflips.size();
 
@@ -606,6 +607,7 @@ struct SweepSummary ReplayingHammerer::sweep_pattern(HammeringPattern &pattern, 
       sync_rows.push_back((volatile char*)da.to_virt());
     }
 
+    mem.flipped_bits.clear();
     jitter.hammer_pattern_unjitted(params, false, FLUSHING_STRATEGY::BATCHED, FENCING_STRATEGY::LATEST_POSSIBLE,
       jitter.total_activations, hammering_accesses_vec, sync_rows, dramAnalyzer.get_ref_threshold());
     auto num_flips = mem.check_memory(mapper, false, false);
