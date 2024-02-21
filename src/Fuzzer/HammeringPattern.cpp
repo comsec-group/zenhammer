@@ -27,9 +27,12 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("access_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
   p.aggressors = Aggressor::create_aggressors(agg_ids);
-
-  j.at("agg_access_patterns").get_to<std::vector<AggressorAccessPattern>>(p.agg_access_patterns);
-//  j.at("address_mappings").get_to<std::vector<PatternAddressMapper>>(p.address_mappings);
+  if (j.contains("agg_access_patterns")) {
+    j.at("agg_access_patterns").get_to<std::vector<AggressorAccessPattern>>(p.agg_access_patterns);
+  } else {
+    Logger::log_error(format_string("from_json() failed: No agg_access_patterns found for pattern %s in JSON!", p.instance_id.c_str()));
+  }
+ j.at("address_mappings").get_to<std::vector<PatternAddressMapper>>(p.address_mappings);
 }
 
 #endif
