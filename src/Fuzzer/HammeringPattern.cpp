@@ -50,6 +50,17 @@ HammeringPattern::HammeringPattern(std::mt19937 &gen)
       num_refresh_intervals(0),
       is_location_dependent(false) {}
 
+HammeringPattern::HammeringPattern()
+: base_period(0),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0),
+      is_location_dependent(false) {
+        auto gen = std::mt19937(std::random_device()());
+        instance_id = uuid::gen_uuid(gen);
+}
+
+
 int HammeringPattern::get_num_digits(size_t x) {
   return (x < 10 ? 1 :
           (x < 100 ? 2 :
