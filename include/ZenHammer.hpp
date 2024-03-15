@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
-#define BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
+#ifndef ZENHAMMER_INCLUDE_ZENHAMMER_HPP_
+#define ZENHAMMER_INCLUDE_ZENHAMMER_HPP_
 
 #include <string>
 #include <unordered_set>
@@ -40,4 +40,4 @@ int main(int argc, char **argv);
 
 void handle_args(int argc, char **argv);
 
-#endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_
+#endif //ZENHAMMER_INCLUDE_ZENHAMMER_HPP_

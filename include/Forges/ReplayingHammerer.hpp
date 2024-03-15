@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
-#define BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
+#ifndef ZENHAMMER_SRC_FORGES_REPLAYINGHAMMERER_HPP_
+#define ZENHAMMER_SRC_FORGES_REPLAYINGHAMMERER_HPP_
 
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Memory/Memory.hpp"
@@ -128,4 +128,4 @@ FuzzingParameterSet params;
                         std::vector<volatile char *> &hammering_accesses_vec);
 };
 
-#endif //BLACKSMITH_SRC_FORGES_REPLAYINGHAMMERER_HPP_
+#endif //ZENHAMMER_SRC_FORGES_REPLAYINGHAMMERER_HPP_

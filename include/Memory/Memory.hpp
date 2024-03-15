@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_SRC_MEMORY_H_
-#define BLACKSMITH_SRC_MEMORY_H_
+#ifndef ZENHAMMER_SRC_MEMORY_H_
+#define ZENHAMMER_SRC_MEMORY_H_
 
 #include <cstdint>
 #include <cstdlib>
@@ -63,4 +63,4 @@ class Memory {
   static size_t get_max_superpages();
 };
 
-#endif //BLACKSMITH_SRC_MEMORY_H_
+#endif //ZENHAMMER_SRC_MEMORY_H_

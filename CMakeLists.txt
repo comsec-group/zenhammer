@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
-project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
+project(zenHammer VERSION 0.0.1 LANGUAGES CXX)
 
 option (FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
 if (${FORCE_COLORED_OUTPUT})
@@ -13,7 +13,7 @@ endif ()
 # === OPTIONS ==================================================================
 
 set(
-        BLACKSMITH_ENABLE_JSON
+        ZENHAMMER_ENABLE_JSON
         ON
         CACHE BOOL
         "Use the nlohmann/json library to export JSON-formatted fuzzing data."
@@ -21,7 +21,7 @@ set(
 )
 
 set(
-        BLACKSMITH_ENABLE_JITTING
+        ZENHAMMER_ENABLE_JITTING
         ON
         CACHE BOOL
         "Use the asmjit library to jit the hammering code."
@@ -30,7 +30,7 @@ set(
 
 # TODO: sanitize before release!
 set(
-        BLACKSMITH_USE_SAMSUNG_PARAMS
+        ZENHAMMER_USE_SAMSUNG_PARAMS
         OFF
         CACHE BOOL
         "Use debugging parameters specific to Samsung DIMMs."
@@ -39,7 +39,7 @@ set(
 
 # TODO: sanitize before release!
 set(
-        BLACKSMITH_USE_DIMM_10_PARAMS
+        ZENHAMMER_USE_DIMM_10_PARAMS
         OFF
         CACHE BOOL
         "Use debugging parameters specific to DIMM 10 (Hyinx)."
@@ -74,7 +74,7 @@ endif ()
 
 add_subdirectory(external)
 
-# === LIBBLACKSMITH ============================================================
+# === LIBZENHAMMER ============================================================
 
 add_library(
         bs
@@ -82,7 +82,6 @@ add_library(
         src/Utilities/Helper.cpp
         src/Forges/FuzzyHammerer.cpp
        src/Forges/ReplayingHammerer.cpp
-#        src/Forges/TraditionalHammerer.cpp
         src/Fuzzer/Aggressor.cpp
         src/Fuzzer/AggressorAccessPattern.cpp
         src/Fuzzer/BitFlip.cpp
@@ -107,7 +106,7 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Note: PUBLIC to also force consumers (i.e., the blacksmith executable) to use
+# Note: PUBLIC to also force consumers (i.e., the zenHammer executable) to use
 # these features and options.
 target_compile_features(
         bs
@@ -134,7 +133,7 @@ target_link_libraries(
 
 target_include_directories(bs PUBLIC ${YAML_CPP_SOURCE_DIR}/src)
 
-if (BLACKSMITH_ENABLE_JSON)
+if (ZENHAMMER_ENABLE_JSON)
     target_link_libraries(
             bs
             PUBLIC
@@ -149,7 +148,7 @@ if (BLACKSMITH_ENABLE_JSON)
     )
 endif ()
 
-if (BLACKSMITH_ENABLE_JITTING)
+if (ZENHAMMER_ENABLE_JITTING)
     # This fixes an issue that causes GCC 10.3 (but not 8.3 or 11.1) to miss a
     # header somehow.
     FetchContent_MakeAvailable(asmjit)
@@ -174,9 +173,9 @@ if (BLACKSMITH_ENABLE_JITTING)
 endif ()
 
 # TODO: sanitize before release!
-if (BLACKSMITH_USE_SAMSUNG_PARAMS)
+if (ZENHAMMER_USE_SAMSUNG_PARAMS)
     message("\n${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m")
-    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_SAMSUNG_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
+    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: ZENHAMMER_USE_SAMSUNG_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
     message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
     target_compile_definitions(
             bs
@@ -185,7 +184,7 @@ if (BLACKSMITH_USE_SAMSUNG_PARAMS)
     )
 endif ()
 
-if (BLACKSMITH_ENABLE_DEBUG)
+if (ZENHAMMER_ENABLE_DEBUG)
     message(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
     message(">>>    DEBUG MODE ENABLED    <<<")
     message(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
@@ -196,9 +195,9 @@ if (BLACKSMITH_ENABLE_DEBUG)
     )
 endif()
 
-if (BLACKSMITH_USE_DIMM_10_PARAMS)
+if (ZENHAMMER_USE_DIMM_10_PARAMS)
     message("\n${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m")
-    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: BLACKSMITH_USE_DIMM_10_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
+    message("${ESC}[7;31m=${ESC}[m${ESC}[31m ATTENTION: ZENHAMMER_USE_DIMM_10_PARAMS is ON. This is intended for debugging only! ${ESC}[7;31m=${ESC}[m")
     message("${ESC}[7;31m==================================== >> ${ESC}[5mWARNING!${ESC}[m${ESC}[7;31m << ====================================${ESC}[m\n")
     target_compile_definitions(
             bs
@@ -207,25 +206,25 @@ if (BLACKSMITH_USE_DIMM_10_PARAMS)
     )
 endif ()
 
-# === BLACKSMITH ===============================================================
+# === ZENHAMMER ===============================================================
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb")
 
 add_executable(
-        blacksmith
-        include/Blacksmith.hpp
-        src/Blacksmith.cpp
+        zenHammer
+        include/ZenHammer.hpp
+        src/ZenHammer.cpp
 )
 
 target_compile_definitions(
-        blacksmith
+        zenHammer
         PRIVATE
         GIT_COMMIT_HASH="${GIT_COMMIT_HASH}"
 )
 
 target_link_libraries(
-        blacksmith
+        zenHammer
         PRIVATE
         bs
         argagg
@@ -233,7 +232,7 @@ target_link_libraries(
 
 # === CLEANUP ==================================================================
 
-unset(BLACKSMITH_ENABLE_JSON CACHE)
-unset(BLACKSMITH_ENABLE_JITTING CACHE)
-unset(BLACKSMITH_USE_SAMSUNG_PARAMS CACHE)
-unset(BLACKSMITH_USE_DIMM_10_PARAMS CACHE)
+unset(ZENHAMMER_ENABLE_JSON CACHE)
+unset(ZENHAMMER_ENABLE_JITTING CACHE)
+unset(ZENHAMMER_USE_SAMSUNG_PARAMS CACHE)
+unset(ZENHAMMER_USE_DIMM_10_PARAMS CACHE)

@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_
-#define BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_
+#ifndef ZENHAMMER_SRC_FORGES_FUZZYHAMMERER_HPP_
+#define ZENHAMMER_SRC_FORGES_FUZZYHAMMERER_HPP_
 
 #include "Fuzzer/HammeringPattern.hpp"
 #include "Memory/Memory.hpp"
@@ -42,4 +42,4 @@ class FuzzyHammerer {
                                      size_t best_mapping_num_bitflips, size_t num_effective_patterns);
 };
 
-#endif //BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_
+#endif //ZENHAMMER_SRC_FORGES_FUZZYHAMMERER_HPP_

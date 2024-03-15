@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
-#define BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
+#ifndef ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_
+#define ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_
 
 #include <string>
 #include <vector>
@@ -35,4 +35,4 @@ std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies
 
 [[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair(std::mt19937 &gen);
 
-#endif //BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
+#endif //ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_

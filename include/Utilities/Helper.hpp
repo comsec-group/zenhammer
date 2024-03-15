@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_INCLUDE_UTILITIES_HELPER_HPP_
-#define BLACKSMITH_INCLUDE_UTILITIES_HELPER_HPP_
+#ifndef ZENHAMMER_INCLUDE_UTILITIES_HELPER_HPP_
+#define ZENHAMMER_INCLUDE_UTILITIES_HELPER_HPP_
 
 #include <chrono>
 #include <vector>
@@ -26,4 +26,4 @@ double calc_std(std::vector<uint64_t> &values, double mean, size_t num_numbers);
 
 void calculate_statistics(std::vector<uint64_t> &vec, statistics &stats);
 
-#endif //BLACKSMITH_INCLUDE_UTILITIES_HELPER_HPP_
+#endif //ZENHAMMER_INCLUDE_UTILITIES_HELPER_HPP_

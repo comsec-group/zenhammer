@@ -1,5 +1,5 @@
-#ifndef BLACKSMITH_INCLUDE_LOGGER_HPP_
-#define BLACKSMITH_INCLUDE_LOGGER_HPP_
+#ifndef ZENHAMMER_INCLUDE_LOGGER_HPP_
+#define ZENHAMMER_INCLUDE_LOGGER_HPP_
 
 #include <string>
 #include <fstream>
@@ -77,4 +77,4 @@ class Logger {
   static void log_debug_data(const std::string &message, bool newline = true);
 };
 
-#endif //BLACKSMITH_INCLUDE_LOGGER_HPP_
+#endif //ZENHAMMER_INCLUDE_LOGGER_HPP_

@@ -8,7 +8,7 @@
 #include "Forges/FuzzyHammerer.hpp"
 
 #ifdef ENABLE_JSON
-#include <Blacksmith.hpp>
+#include <ZenHammer.hpp>
 #include <Utilities/Helper.hpp>
 #endif
 

@@ -43,7 +43,7 @@ set(MESSAGE_QUIET OFF)
 
 # === ASMJIT ===================================================================
 
-if (BLACKSMITH_ENABLE_JITTING)
+if (ZENHAMMER_ENABLE_JITTING)
     message(STATUS "Fetching external dependency asmjit")
     set(MESSAGE_QUIET OFF)
 
@@ -61,7 +61,7 @@ endif()
 
 # === NLOHMANN/JSON ============================================================
 
-if (BLACKSMITH_ENABLE_JSON)
+if (ZENHAMMER_ENABLE_JSON)
     message(STATUS "Fetching external dependency nlohmann/json")
     set(MESSAGE_QUIET ON)
 

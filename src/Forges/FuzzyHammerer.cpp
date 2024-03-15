@@ -2,7 +2,7 @@
 
 #include "Utilities/Helper.hpp"
 #include "Fuzzer/PatternBuilder.hpp"
-#include "Blacksmith.hpp"
+#include "ZenHammer.hpp"
 
 void FuzzyHammerer::n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
                                                       unsigned long runtime_limit, const size_t probes_per_pattern,

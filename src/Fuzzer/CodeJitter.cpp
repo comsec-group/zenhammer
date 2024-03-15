@@ -115,7 +115,7 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
   asmjit::Label for_end = assembler.newLabel();
 
   // ==== here start's the actual program ====================================================
-  // The following JIT instructions are based on hammer_sync in blacksmith.cpp, git commit 624a6492.
+  // The following JIT instructions are based on hammer_sync in zenHammer.cpp, git commit 624a6492.
 
   // ------- part 1: synchronize with the beginning of an interval ---------------------------
 

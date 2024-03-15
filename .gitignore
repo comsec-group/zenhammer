@@ -23,7 +23,7 @@ CMakeCache.txt
 **/CMakeFiles/*
 Makefile
 _deps/*
-blacksmith
+zenHammer
 build/*
 cmake-build-*
 cmake_install.cmake

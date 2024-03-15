@@ -1,4 +1,4 @@
-#include "Blacksmith.hpp"
+#include "ZenHammer.hpp"
 
 #include <sys/resource.h>
 #include <cstdio>
@@ -8,7 +8,6 @@
 #include <string>
 #include <array>
 
-#include "Forges/TraditionalHammerer.hpp"
 #include "Forges/FuzzyHammerer.hpp"
 
 #include <argagg/argagg.hpp>
