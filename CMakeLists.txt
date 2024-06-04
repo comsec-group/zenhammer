@@ -120,7 +120,7 @@ target_link_libraries(
 # === BLACKSMITH ===============================================================
 
 add_executable(
-        blacksmith
+        zenHammer
         include/ZenHammer.hpp
         src/ZenHammer.cpp
 )
