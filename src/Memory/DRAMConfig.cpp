@@ -20,6 +20,9 @@ const char* to_string(Microarchitecture uarch) {
       return "AMD_ZEN_4";
     case Microarchitecture::INTEL_COFFEE_LAKE:
       return "INTEL_COFFEE_LAKE";
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    case Microarchitecture::INTEL_COMET_LAKE:
+      return "INTEL_COMET_LAKE";
   }
   Logger::log_error("Selected microarchitecture does not implement the to_string() method. Please fix!");
   exit(1);
@@ -80,6 +83,13 @@ static void check_cpu_for_microarchitecture(Microarchitecture uarch) {
         "i7-8700",
         "i7-9700",
         "i7-9900"
+      };
+      break;
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    case Microarchitecture::INTEL_COMET_LAKE:
+      supported_cpus = {
+        // Comet Lake
+        "i7-10700"
       };
       break;
     default:
@@ -280,6 +290,184 @@ void DRAMConfig::select_config(Microarchitecture uarch, int ranks, int bank_grou
         0b000000000000000100000000000000,
         0b000000000000000010000000000000,
         0b000000000000000001000000000000
+      };
+    }
+  } else if (uarch == Microarchitecture::INTEL_COMET_LAKE && ranks == 1 && bank_groups == 2 && banks == 4) {
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    // DRAM Function: [0x2040, 0x14000, 0x28000]
+    // Num of Banks:  8
+    // Row Function:  0x3fff0000
+    // Col Function:  8192 - 1
+    selected_config = new DRAMConfig;
+    selected_config->phys_dram_offset = 0;
+    // 4 bank bits (consisting of rank, bank group, bank)
+    selected_config->bank_shift = 27;
+    selected_config->bank_mask = 0b111;
+    // 14 row bits (inside 1 GB)
+    selected_config->row_shift = 0;
+    selected_config->row_mask = 0b11111111111111;
+    // 13 column bits
+    selected_config->column_shift = 14;
+    selected_config->column_mask = 0b1111111111111;
+
+    // 30 bits (1 GB)
+    selected_config->matrix_size = 30;
+    if (samsung_row_mapping) {
+      Logger::log_error("No Samsung row mappings available for chosen microarchitecture.");
+      exit(EXIT_FAILURE);
+    } else {
+      selected_config->dram_matrix = {
+        0b000000000000000010000001000000,
+        0b000000000000010100000000000000,
+        0b000000000000101000000000000000,
+        0b000000000000000001000000000000,
+        0b000000000000000000100000000000,
+        0b000000000000000000010000000000,
+        0b000000000000000000001000000000,
+        0b000000000000000000000100000000,
+        0b000000000000000000000010000000,
+        0b000000000000000000000001000000,
+        0b000000000000000000000000100000,
+        0b000000000000000000000000010000,
+        0b000000000000000000000000001000,
+        0b000000000000000000000000000100,
+        0b000000000000000000000000000010,
+        0b000000000000000000000000000001,
+        0b100000000000000000000000000000,
+        0b010000000000000000000000000000,
+        0b001000000000000000000000000000,
+        0b000100000000000000000000000000,
+        0b000010000000000000000000000000,
+        0b000001000000000000000000000000,
+        0b000000100000000000000000000000,
+        0b000000010000000000000000000000,
+        0b000000001000000000000000000000,
+        0b000000000100000000000000000000,
+        0b000000000010000000000000000000,
+        0b000000000001000000000000000000,
+        0b000000000000100000000000000000,
+        0b000000000000010000000000000000,
+      };
+      selected_config->addr_matrix = {
+        0b000000000000000010000000000000,
+        0b000000000000000001000000000000,
+        0b000000000000000000100000000000,
+        0b000000000000000000010000000000,
+        0b000000000000000000001000000000,
+        0b000000000000000000000100000000,
+        0b000000000000000000000010000000,
+        0b000000000000000000000001000000,
+        0b000000000000000000000000100000,
+        0b000000000000000000000000010000,
+        0b000000000000000000000000001000,
+        0b000000000000000000000000000100,
+        0b000000000000000000000000000010,
+        0b000000000000000000000000000001,
+        0b001000000000000000000000000010,
+        0b010000000000000000000000000001,
+        0b100000000100000000000000000000,
+        0b000100000000000000000000000000,
+        0b000010000000000000000000000000,
+        0b000001000000000000000000000000,
+        0b000000100000000000000000000000,
+        0b000000010000000000000000000000,
+        0b000000001000000000000000000000,
+        0b000000000100000000000000000000,
+        0b000000000010000000000000000000,
+        0b000000000001000000000000000000,
+        0b000000000000100000000000000000,
+        0b000000000000010000000000000000,
+        0b000000000000001000000000000000,
+        0b000000000000000100000000000000
+      };
+    }
+  } else if (uarch == Microarchitecture::INTEL_COMET_LAKE && ranks == 1 && bank_groups == 4 && banks == 4) {
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    // DRAM Function: [0x2040, 0x24000, 0x48000, 0x90000]
+    // Num of Banks:  16
+    // Row Function:  0x3ffe0000
+    // Col Function:  8192 - 1
+    selected_config = new DRAMConfig;
+    selected_config->phys_dram_offset = 0;
+    // 4 bank bits (consisting of rank, bank group, bank)
+    selected_config->bank_shift = 26;
+    selected_config->bank_mask = 0b1111;
+    // 13 row bits (inside 1 GB)
+    selected_config->row_shift = 0;
+    selected_config->row_mask = 0b1111111111111;
+    // 13 column bits
+    selected_config->column_shift = 13;
+    selected_config->column_mask = 0b1111111111111;
+
+    // 30 bits (1 GB)
+    selected_config->matrix_size = 30;
+    if (samsung_row_mapping) {
+      Logger::log_error("No Samsung row mappings available for chosen microarchitecture.");
+      exit(EXIT_FAILURE);
+    } else {
+      selected_config->dram_matrix = {
+        0b000000000000000010000001000000,
+        0b000000000000100100000000000000,
+        0b000000000001001000000000000000,
+        0b000000000010010000000000000000,
+        0b000000000000000001000000000000,
+        0b000000000000000000100000000000,
+        0b000000000000000000010000000000,
+        0b000000000000000000001000000000,
+        0b000000000000000000000100000000,
+        0b000000000000000000000010000000,
+        0b000000000000000000000001000000,
+        0b000000000000000000000000100000,
+        0b000000000000000000000000010000,
+        0b000000000000000000000000001000,
+        0b000000000000000000000000000100,
+        0b000000000000000000000000000010,
+        0b000000000000000000000000000001,
+        0b100000000000000000000000000000,
+        0b010000000000000000000000000000,
+        0b001000000000000000000000000000,
+        0b000100000000000000000000000000,
+        0b000010000000000000000000000000,
+        0b000001000000000000000000000000,
+        0b000000100000000000000000000000,
+        0b000000010000000000000000000000,
+        0b000000001000000000000000000000,
+        0b000000000100000000000000000000,
+        0b000000000010000000000000000000,
+        0b000000000001000000000000000000,
+        0b000000000000100000000000000000
+      };
+      selected_config->addr_matrix = {
+        0b000000000000000001000000000000,
+        0b000000000000000000100000000000,
+        0b000000000000000000010000000000,
+        0b000000000000000000001000000000,
+        0b000000000000000000000100000000,
+        0b000000000000000000000010000000,
+        0b000000000000000000000001000000,
+        0b000000000000000000000000100000,
+        0b000000000000000000000000010000,
+        0b000000000000000000000000001000,
+        0b000000000000000000000000000100,
+        0b000000000000000000000000000010,
+        0b000000000000000000000000000001,
+        0b000100000000000000000000000100,
+        0b001000000000000000000000000010,
+        0b010000000000000000000000000001,
+        0b100000000010000000000000000000,
+        0b000010000000000000000000000000,
+        0b000001000000000000000000000000,
+        0b000000100000000000000000000000,
+        0b000000010000000000000000000000,
+        0b000000001000000000000000000000,
+        0b000000000100000000000000000000,
+        0b000000000010000000000000000000,
+        0b000000000001000000000000000000,
+        0b000000000000100000000000000000,
+        0b000000000000010000000000000000,
+        0b000000000000001000000000000000,
+        0b000000000000000100000000000000,
+        0b000000000000000010000000000000
       };
     }
   } else if (uarch == Microarchitecture::AMD_ZEN_1_PLUS && ranks == 2 && bank_groups == 4 && banks == 4) {
@@ -1602,6 +1790,8 @@ void DRAMConfig::select_config(Microarchitecture uarch, int ranks, int bank_grou
 void DRAMConfig::select_config(std::string const& uarch_str, int ranks, int bank_groups, int banks, bool samsung_row_mapping) {
   static const std::map<std::string, Microarchitecture> str_to_uarch = {
     { "coffeelake", Microarchitecture::INTEL_COFFEE_LAKE },
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    { "cometlake", Microarchitecture::INTEL_COMET_LAKE },
     { "zen1plus", Microarchitecture::AMD_ZEN_1_PLUS },
     { "zen2", Microarchitecture::AMD_ZEN_2 },
     { "zen3", Microarchitecture::AMD_ZEN_3 },

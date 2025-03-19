@@ -19,6 +19,8 @@ enum class Microarchitecture {
   AMD_ZEN_3,
   AMD_ZEN_4,
   INTEL_COFFEE_LAKE,
+  // @iamywang, Jul 17, 2024: add Comet Lake
+  INTEL_COMET_LAKE,
 };
 
 const char* to_string(Microarchitecture uarch);

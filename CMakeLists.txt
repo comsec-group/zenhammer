@@ -126,13 +126,13 @@ add_executable(
 )
 
 target_compile_definitions(
-        blacksmith
+        zenHammer
         PRIVATE
         GIT_COMMIT_HASH="${GIT_COMMIT_HASH}"
 )
 
 target_link_libraries(
-        blacksmith
+        zenHammer
         PRIVATE
         bs
         argagg

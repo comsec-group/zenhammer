@@ -393,6 +393,9 @@ static SCHEDULING_POLICY get_default_scheduling_policy_for_uarch() {
       return SCHEDULING_POLICY::PAIR;
     case Microarchitecture::INTEL_COFFEE_LAKE:
       return SCHEDULING_POLICY::FULL;
+    // @iamywang, Jul 17, 2024: add Comet Lake
+    case Microarchitecture::INTEL_COMET_LAKE:
+      return SCHEDULING_POLICY::FULL;
     default:
       Logger::log_error(format_string("Error: No default scheduling policy available for microarchitecture %s.", to_string(uarch)));
       exit(EXIT_FAILURE);
