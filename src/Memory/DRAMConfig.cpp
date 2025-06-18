@@ -89,7 +89,10 @@ static void check_cpu_for_microarchitecture(Microarchitecture uarch) {
     case Microarchitecture::INTEL_COMET_LAKE:
       supported_cpus = {
         // Comet Lake
-        "i7-10700"
+        "i7-10700",
+        // @ndrscodes, Jun 18, 2025: add i9-10900K
+        // experimentally determined to use the same mapping as i7-10700K using DARE and ndrscodes/zenhammer-config-verify.
+        "i9-10900K"
       };
       break;
     default:
